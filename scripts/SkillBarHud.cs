@@ -18,6 +18,6 @@ public partial class SkillBarHud : Label
     private void RefreshText()
     {
         var cooldowns = _controller == null ? string.Empty : $"\n{_controller.CooldownStatusLine}";
-        Text = "[LMB] Spread Shot   [RMB] Meteor   [Q] Pulse   [Space] Dash" + cooldowns;
+        Text = "[左键/LMB] Spread Shot   [右键/RMB] Meteor   [Q] Pulse   [Space] Dash" + cooldowns;
     }
 }

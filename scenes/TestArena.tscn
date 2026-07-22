@@ -13,18 +13,18 @@ arena_size = Vector2(1600, 900)
 position = Vector2(800, 450)
 
 [node name="TestTarget" parent="." instance=ExtResource("3_target")]
-position = Vector2(1020, 450)
+position = Vector2(920, 450)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="Instructions" type="Label" parent="CanvasLayer"]
 offset_left = 24.0
 offset_top = 20.0
-offset_right = 620.0
+offset_right = 1120.0
 offset_bottom = 110.0
 theme_override_colors/font_color = Color(0.78, 0.88, 0.98, 1)
-theme_override_font_sizes/font_size = 18
-text = "MILESTONE 3\nWASD move  |  Mouse aim  |  Camera2D follow"
+theme_override_font_sizes/font_size = 15
+text = "MILESTONE 3\nWASD move | Mouse aim | 左键 Spread | 右键 Meteor | Q Pulse | Space Dash"
 
 [node name="SkillBar" type="Label" parent="CanvasLayer"]
 offset_left = 24.0

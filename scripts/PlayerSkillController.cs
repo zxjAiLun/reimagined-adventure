@@ -24,6 +24,7 @@ public partial class PlayerSkillController : Node
 
     public override void _Ready()
     {
+        SetProcessInput(true);
         _player = GetParent<PlayerController>();
         foreach (var slot in Enum.GetValues<SkillSlot>())
         {
@@ -38,25 +39,43 @@ public partial class PlayerSkillController : Node
         {
             _cooldowns[slot] = Mathf.Max(0.0f, _cooldowns[slot] - frameDelta);
         }
+    }
 
-        if (Input.IsActionJustPressed("skill_spread_shot"))
+    public override void _Input(InputEvent @event)
+    {
+        if (@event is InputEventMouseButton mouseButton && mouseButton.Pressed)
         {
-            TryCast(SkillSlot.Primary);
+            switch (mouseButton.ButtonIndex)
+            {
+                case MouseButton.Left:
+                    TryCast(SkillSlot.Primary);
+                    break;
+                case MouseButton.Right:
+                    TryCast(SkillSlot.Secondary);
+                    break;
+            }
+
+            return;
         }
 
-        if (Input.IsActionJustPressed("skill_meteor"))
+        if (@event is InputEventKey keyEvent && keyEvent.Pressed && !keyEvent.Echo)
         {
-            TryCast(SkillSlot.Secondary);
-        }
+            var isQ = keyEvent.Keycode == Key.Q
+                || keyEvent.PhysicalKeycode == Key.Q
+                || keyEvent.Unicode == 'q'
+                || keyEvent.Unicode == 'Q';
+            var isSpace = keyEvent.Keycode == Key.Space
+                || keyEvent.PhysicalKeycode == Key.Space
+                || keyEvent.Unicode == ' ';
 
-        if (Input.IsActionJustPressed("skill_pulse"))
-        {
-            TryCast(SkillSlot.Utility);
-        }
-
-        if (Input.IsActionJustPressed("skill_dash"))
-        {
-            TryCast(SkillSlot.Movement);
+            if (isQ)
+            {
+                TryCast(SkillSlot.Utility);
+            }
+            else if (isSpace)
+            {
+                TryCast(SkillSlot.Movement);
+            }
         }
     }
 
