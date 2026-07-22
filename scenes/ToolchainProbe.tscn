@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://pno8bogolm35"]
+
+[ext_resource type="Script" uid="uid://bb6kkgso7u42h" path="res://scripts/ToolchainProbe.cs" id="1_0rc56"]
+
+[node name="Node2D" type="Node2D" unique_id=2131888814]
+script = ExtResource("1_0rc56")
