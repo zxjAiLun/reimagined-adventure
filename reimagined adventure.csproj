@@ -5,4 +5,9 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>reimaginedadventure</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="src\**" />
+    <Compile Remove="tests\**" />
+    <ProjectReference Include="src\Arpg.Domain\Arpg.Domain.csproj" />
+  </ItemGroup>
 </Project>

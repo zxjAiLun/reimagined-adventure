@@ -1,0 +1,67 @@
+using Godot;
+
+public partial class BasicProjectile : Area2D
+{
+    [Export] public float Speed { get; set; } = 500.0f;
+    [Export] public float Lifetime { get; set; } = 4.0f;
+    [Export] public float Radius { get; set; } = 5.0f;
+
+    public int Damage { get; private set; }
+
+    private Vector2 _velocity;
+    private float _remainingLifetime;
+    private bool _launched;
+
+    public override void _Ready()
+    {
+        BodyEntered += OnBodyEntered;
+        _remainingLifetime = Lifetime;
+        QueueRedraw();
+    }
+
+    public void Launch(Vector2 direction, int damage)
+    {
+        if (direction.LengthSquared() <= 0.001f)
+        {
+            QueueFree();
+            return;
+        }
+
+        _velocity = direction.Normalized() * Speed;
+        Damage = Mathf.Max(0, damage);
+        Rotation = _velocity.Angle();
+        _launched = true;
+        QueueRedraw();
+    }
+
+    public override void _PhysicsProcess(double delta)
+    {
+        if (!_launched)
+        {
+            return;
+        }
+
+        var frameDelta = (float)delta;
+        GlobalPosition += _velocity * frameDelta;
+        _remainingLifetime -= frameDelta;
+        if (_remainingLifetime <= 0.0f)
+        {
+            QueueFree();
+        }
+    }
+
+    public override void _Draw()
+    {
+        DrawCircle(Vector2.Zero, Radius, new Color(1.0f, 0.85f, 0.25f, 1.0f));
+        DrawLine(new Vector2(-Radius * 2.0f, 0.0f), new Vector2(Radius * 2.0f, 0.0f), new Color(1.0f, 0.98f, 0.75f, 1.0f), 2.0f);
+    }
+
+    private void OnBodyEntered(Node2D body)
+    {
+        if (body is TestTarget target)
+        {
+            target.TakeDamage(Damage);
+            QueueFree();
+        }
+    }
+}
