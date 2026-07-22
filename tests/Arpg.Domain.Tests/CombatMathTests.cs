@@ -45,6 +45,30 @@ public sealed class CombatMathTests
     }
 
     [Fact]
+    public void Resolve_incoming_damage_applies_resistance_before_armor()
+    {
+        var stats = new Stats
+        {
+            IncomingDamageMultiplier = 1.25,
+            FireResistance = 20,
+            Armor = 10,
+        };
+        var request = new DamageRequest(100, DamageType.Fire, "test-fire");
+
+        // ceil(100 * 1.25 * 0.80) = 100, then flat armor leaves 90.
+        Assert.Equal(90, CombatMath.ResolveIncomingDamage(request, stats));
+    }
+
+    [Fact]
+    public void Resolve_incoming_damage_preserves_a_full_resistance_block()
+    {
+        var stats = new Stats { FireResistance = 100, Armor = 100 };
+        var request = new DamageRequest(100, DamageType.Fire, "test-fire");
+
+        Assert.Equal(0, CombatMath.ResolveIncomingDamage(request, stats));
+    }
+
+    [Fact]
     public void Skill_damage_uses_global_category_and_damage_type_multipliers()
     {
         var stats = new Stats

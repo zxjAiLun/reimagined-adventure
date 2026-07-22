@@ -1,0 +1,1 @@
+# Domain tests are run by dotnet test, not imported as Godot content.

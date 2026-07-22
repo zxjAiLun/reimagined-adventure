@@ -99,6 +99,23 @@ public static class CombatMath
             stats.PoisonResistance);
     }
 
+    /// <summary>
+    /// Resolves a hit against a defender using the C++ player's shipped order:
+    /// incoming multiplier, resistance, then flat armor. Resistance can fully
+    /// prevent a hit; armor's minimum-one rule only applies after a hit remains.
+    /// </summary>
+    public static int ResolveIncomingDamage(DamageRequest request, Stats stats)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(stats);
+        stats.Validate();
+
+        var resistedDamage = IncomingDamage(request.RawDamage, stats, request.DamageType);
+        return resistedDamage <= 0
+            ? 0
+            : MitigatedDamage(resistedDamage, stats.Armor);
+    }
+
     public static int LifeFlaskHealAmount(int baseAmount, Stats stats)
     {
         ArgumentNullException.ThrowIfNull(stats);

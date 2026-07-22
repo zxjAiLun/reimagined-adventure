@@ -1,3 +1,5 @@
+using System;
+using Arpg.Domain;
 using Godot;
 
 public partial class BasicProjectile : Area2D
@@ -7,10 +9,12 @@ public partial class BasicProjectile : Area2D
     [Export] public float Radius { get; set; } = 5.0f;
 
     public int Damage { get; private set; }
+    public DamageRequest DamageRequest { get; private set; } = new(0, DamageType.Physical, "unconfigured");
 
     private Vector2 _velocity;
     private float _remainingLifetime;
     private bool _launched;
+    private bool _spent;
 
     public override void _Ready()
     {
@@ -19,7 +23,7 @@ public partial class BasicProjectile : Area2D
         QueueRedraw();
     }
 
-    public void Launch(Vector2 direction, int damage)
+    public void Launch(Vector2 direction, DamageRequest damageRequest)
     {
         if (direction.LengthSquared() <= 0.001f)
         {
@@ -28,7 +32,8 @@ public partial class BasicProjectile : Area2D
         }
 
         _velocity = direction.Normalized() * Speed;
-        Damage = Mathf.Max(0, damage);
+        DamageRequest = damageRequest ?? throw new ArgumentNullException(nameof(damageRequest));
+        Damage = damageRequest.RawDamage;
         Rotation = _velocity.Angle();
         _launched = true;
         QueueRedraw();
@@ -58,10 +63,15 @@ public partial class BasicProjectile : Area2D
 
     private void OnBodyEntered(Node2D body)
     {
-        if (body is TestTarget target)
+        if (_spent || body is not IDamageable target || !target.IsAlive)
         {
-            target.TakeDamage(Damage);
-            QueueFree();
+            return;
         }
+
+        _spent = true;
+        Monitoring = false;
+        SetPhysicsProcess(false);
+        target.ApplyDamage(DamageRequest);
+        QueueFree();
     }
 }

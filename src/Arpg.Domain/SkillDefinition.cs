@@ -41,6 +41,11 @@ public sealed class SkillDefinition
     public double SpreadAngleDegrees { get; init; }
     public double CastDelaySeconds { get; init; }
     public double DashDistance { get; init; }
+    /// <summary>
+    /// Display/data value only in the first vertical slice. A mana pool and
+    /// resource spending rules are intentionally deferred until a later
+    /// milestone.
+    /// </summary>
     public double ManaCost { get; init; }
     public DamageType DamageType { get; init; } = DamageType.Physical;
 

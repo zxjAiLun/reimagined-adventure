@@ -39,6 +39,13 @@ public partial class PlayerSkillController : Node
         {
             _cooldowns[slot] = Mathf.Max(0.0f, _cooldowns[slot] - frameDelta);
         }
+
+        // Spread Shot is the primary attack, so holding LMB repeats it as
+        // soon as its Domain cooldown allows the next cast.
+        if (Input.IsMouseButtonPressed(MouseButton.Left))
+        {
+            TryCast(SkillSlot.Primary);
+        }
     }
 
     public override void _Input(InputEvent @event)

@@ -1,3 +1,4 @@
+using System;
 using Arpg.Domain;
 using Godot;
 
@@ -5,13 +6,20 @@ public partial class PlayerController : CharacterBody2D
 {
     [Export] public float MoveSpeed { get; set; } = 300.0f;
     [Export] public float Radius { get; set; } = 20.0f;
-    [Export] public Rect2 MovementBounds { get; set; } = new(20.0f, 20.0f, 1560.0f, 860.0f);
+    [Export] public Rect2 MovementBounds { get; set; } = new(0.0f, 0.0f, 1600.0f, 900.0f);
     [Export] public PackedScene ProjectileScene { get; set; }
 
-    private readonly Stats _stats = Stats.Neutral;
+    public Stats EffectiveStats { get; private set; } = Stats.Neutral;
     private Vector2 _aimDirection = Vector2.Right;
 
     public Vector2 AimDirection => _aimDirection;
+
+    public void SetEffectiveStats(Stats stats)
+    {
+        ArgumentNullException.ThrowIfNull(stats);
+        stats.Validate();
+        EffectiveStats = stats;
+    }
 
     public override void _Ready()
     {
@@ -26,7 +34,7 @@ public partial class PlayerController : CharacterBody2D
             movement = movement.Normalized();
         }
 
-        Velocity = movement * MoveSpeed;
+        Velocity = movement * MoveSpeed * (float)EffectiveStats.MoveSpeedMultiplier;
         MoveAndSlide();
         ClampToMovementBounds();
 
@@ -50,10 +58,10 @@ public partial class PlayerController : CharacterBody2D
 
         var damage = CombatMath.SkillDamage(
             definition.BaseDamage,
-            _stats,
+            EffectiveStats,
             definition.DamageType,
             SkillDamageCategory.Projectile);
-        var projectileCount = Mathf.Max(1, definition.ProjectileCount);
+        var projectileCount = Mathf.Max(1, definition.ProjectileCount + EffectiveStats.ProjectileCountBonus);
         var halfSpread = Mathf.DegToRad((float)definition.SpreadAngleDegrees * 0.5f);
         var step = projectileCount > 1
             ? Mathf.DegToRad((float)definition.SpreadAngleDegrees) / (projectileCount - 1)
@@ -68,7 +76,9 @@ public partial class PlayerController : CharacterBody2D
             var projectile = ProjectileScene.Instantiate<BasicProjectile>();
             GetParent().AddChild(projectile);
             projectile.GlobalPosition = GlobalPosition + direction * (Radius + 8.0f);
-            projectile.Launch(direction, damage);
+            projectile.Launch(
+                direction,
+                new DamageRequest(damage, definition.DamageType, definition.Id));
         }
 
         return true;
@@ -83,11 +93,14 @@ public partial class PlayerController : CharacterBody2D
 
         var damage = CombatMath.SkillDamage(
             definition.BaseDamage,
-            _stats,
+            EffectiveStats,
             definition.DamageType,
             SkillDamageCategory.Area);
         var effect = areaEffectScene.Instantiate<SkillAreaEffect>();
-        effect.Configure(definition, targetPosition, damage);
+        effect.Configure(
+            definition,
+            targetPosition,
+            new DamageRequest(damage, definition.DamageType, definition.Id));
         GetParent().AddChild(effect);
         return true;
     }

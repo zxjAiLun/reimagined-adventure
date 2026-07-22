@@ -1,3 +1,4 @@
+using Arpg.Domain;
 using Godot;
 
 public partial class SkillBarHud : Label
@@ -18,6 +19,15 @@ public partial class SkillBarHud : Label
     private void RefreshText()
     {
         var cooldowns = _controller == null ? string.Empty : $"\n{_controller.CooldownStatusLine}";
-        Text = "[左键/LMB] Spread Shot   [右键/RMB] Meteor   [Q] Pulse   [Space] Dash" + cooldowns;
+        var primary = SkillName(SkillSlot.Primary, "Spread Shot");
+        var secondary = SkillName(SkillSlot.Secondary, "Meteor");
+        var utility = SkillName(SkillSlot.Utility, "Pulse");
+        var movement = SkillName(SkillSlot.Movement, "Dash");
+        Text = $"[左键/LMB] {primary}   [右键/RMB] {secondary}   [Q] {utility}   [Space] {movement}" + cooldowns;
+    }
+
+    private string SkillName(SkillSlot slot, string fallback)
+    {
+        return _controller?.Definition(slot).Name ?? fallback;
     }
 }

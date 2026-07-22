@@ -1,3 +1,4 @@
+using System;
 using Arpg.Domain;
 using Godot;
 
@@ -5,17 +6,17 @@ public partial class SkillAreaEffect : Node2D
 {
     private SkillDefinition _definition;
     private Vector2 _targetPosition;
-    private int _damage;
+    private DamageRequest _damageRequest;
     private float _delayRemaining;
     private float _visualRemaining;
     private float _visualDuration;
     private bool _impactApplied;
 
-    public void Configure(SkillDefinition definition, Vector2 targetPosition, int damage)
+    public void Configure(SkillDefinition definition, Vector2 targetPosition, DamageRequest damageRequest)
     {
         _definition = definition;
         _targetPosition = targetPosition;
-        _damage = damage;
+        _damageRequest = damageRequest ?? throw new ArgumentNullException(nameof(damageRequest));
         _delayRemaining = (float)definition.CastDelaySeconds;
         _visualDuration = Mathf.Max(0.18f, (float)definition.EffectDurationSeconds);
         _visualRemaining = _delayRemaining + _visualDuration;
@@ -88,7 +89,7 @@ public partial class SkillAreaEffect : Node2D
             outlineColor,
             4.0f);
 
-        if (_definition.Name == "Meteor")
+        if (_definition.Id == "meteor")
         {
             DrawCircle(Vector2.Zero, Mathf.Min(18.0f, radius * 0.22f), new Color(1.0f, 0.82f, 0.20f, 0.95f));
         }
@@ -98,12 +99,14 @@ public partial class SkillAreaEffect : Node2D
     {
         _impactApplied = true;
         var radiusSquared = (float)(_definition.Radius * _definition.Radius);
-        foreach (var node in GetTree().GetNodesInGroup("skill_targets"))
+        foreach (var node in GetTree().GetNodesInGroup("damageables"))
         {
-            if (node is TestTarget target
-                && target.GlobalPosition.DistanceSquaredTo(_targetPosition) <= radiusSquared)
+            if (node is Node2D damageableNode
+                && node is IDamageable target
+                && target.IsAlive
+                && damageableNode.GlobalPosition.DistanceSquaredTo(_targetPosition) <= radiusSquared)
             {
-                target.TakeDamage(_damage);
+                target.ApplyDamage(_damageRequest);
             }
         }
     }

@@ -5,6 +5,7 @@
 # .NET build artifacts
 **/bin/
 **/obj/
+**/*.cs.uid
 
 # IDE / user-local
 .vs/

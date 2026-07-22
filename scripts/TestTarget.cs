@@ -1,33 +1,46 @@
+using System;
+using Arpg.Domain;
 using Godot;
 
-public partial class TestTarget : StaticBody2D
+public partial class TestTarget : StaticBody2D, IDamageable
 {
     [Export] public int MaxHealth { get; set; } = 100;
     [Export] public float Radius { get; set; } = 30.0f;
 
     public int CurrentHealth { get; private set; }
     public int HitCount { get; private set; }
+    public Stats DefensiveStats { get; set; } = Stats.Neutral;
+    public bool IsAlive => CurrentHealth > 0;
 
     private Label _healthLabel;
 
     public override void _Ready()
     {
-        AddToGroup("skill_targets");
+        AddToGroup("damageables");
         CurrentHealth = Mathf.Max(1, MaxHealth);
         _healthLabel = GetNodeOrNull<Label>("HealthLabel");
         RefreshVisuals();
     }
 
-    public void TakeDamage(int damage)
+    public DamageResult ApplyDamage(DamageRequest request)
     {
-        if (damage <= 0 || CurrentHealth <= 0)
+        ArgumentNullException.ThrowIfNull(request);
+        if (!IsAlive || request.RawDamage <= 0)
         {
-            return;
+            return new DamageResult(0, false);
         }
 
-        CurrentHealth = Mathf.Max(0, CurrentHealth - damage);
+        var mitigatedDamage = CombatMath.ResolveIncomingDamage(request, DefensiveStats);
+        if (mitigatedDamage <= 0)
+        {
+            return new DamageResult(0, false);
+        }
+
+        var appliedDamage = Math.Min(CurrentHealth, mitigatedDamage);
+        CurrentHealth -= appliedDamage;
         HitCount++;
         RefreshVisuals();
+        return new DamageResult(appliedDamage, !IsAlive);
     }
 
     public void ResetTarget()
