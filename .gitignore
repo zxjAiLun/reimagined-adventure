@@ -3,6 +3,14 @@
 /android/
 
 # .NET build artifacts
-[Bb]in/
-[Oo]bj/
+**/bin/
+**/obj/
+
+# IDE / user-local
 .vs/
+*.user
+*.suo
+
+# Test output
+TestResults/
+coverage/
