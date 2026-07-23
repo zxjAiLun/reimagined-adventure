@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Arpg.Domain;
 using Godot;
 
@@ -21,6 +22,23 @@ public partial class SkillBarResource : Resource
             Require(Secondary, SkillSlot.Secondary),
             Require(Utility, SkillSlot.Utility),
             Require(Movement, SkillSlot.Movement));
+    }
+
+    public IReadOnlyList<SupportDefinition> SupportsFor(SkillSlot slot)
+    {
+        return ResourceFor(slot)?.ToSupports() ?? Array.Empty<SupportDefinition>();
+    }
+
+    private SkillDefinitionResource ResourceFor(SkillSlot slot)
+    {
+        return slot switch
+        {
+            SkillSlot.Primary => Primary,
+            SkillSlot.Secondary => Secondary,
+            SkillSlot.Utility => Utility,
+            SkillSlot.Movement => Movement,
+            _ => null,
+        };
     }
 
     private static SkillDefinition Require(SkillDefinitionResource resource, SkillSlot slot)

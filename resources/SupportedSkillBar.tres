@@ -1,0 +1,84 @@
+[gd_resource type="Resource" script_class="SkillBarResource" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/SkillBarResource.cs" id="1_bar"]
+[ext_resource type="Script" path="res://scripts/SkillDefinitionResource.cs" id="2_skill"]
+[ext_resource type="Script" path="res://scripts/SupportDefinitionResource.cs" id="3_support"]
+
+[sub_resource type="Resource" id="Support_volley"]
+script = ExtResource("3_support")
+SupportId = "volley"
+DisplayName = "Volley"
+Kind = 3
+DamageMultiplier = 0.8
+ExtraProjectileCount = 2
+ExtraSpreadAngleDegrees = 22.0
+
+[sub_resource type="Resource" id="Support_amplify"]
+script = ExtResource("3_support")
+SupportId = "amplify"
+DisplayName = "Amplify"
+Kind = 1
+RadiusMultiplier = 1.35
+CooldownMultiplier = 1.2
+
+[sub_resource type="Resource" id="Skill_spread_supported"]
+script = ExtResource("2_skill")
+SkillId = "spread_shot"
+DisplayName = "Spread Shot"
+Slot = 0
+CastType = 0
+Delivery = 0
+CooldownSeconds = 0.35
+BaseDamage = 1
+ProjectileCount = 3
+SpreadAngleDegrees = 30.0
+ManaCost = 2.0
+DamageType = 0
+Supports = [SubResource("Support_volley")]
+
+[sub_resource type="Resource" id="Skill_meteor_supported"]
+script = ExtResource("2_skill")
+SkillId = "meteor"
+DisplayName = "Meteor"
+Slot = 1
+CastType = 2
+Delivery = 1
+CooldownSeconds = 1.4
+Radius = 110.0
+BaseDamage = 4
+EffectDurationSeconds = 0.3
+CastDelaySeconds = 0.55
+ManaCost = 12.0
+DamageType = 1
+Supports = [SubResource("Support_amplify")]
+
+[sub_resource type="Resource" id="Skill_pulse_supported"]
+script = ExtResource("2_skill")
+SkillId = "pulse"
+DisplayName = "Pulse"
+Slot = 2
+CastType = 1
+Delivery = 0
+CooldownSeconds = 2.0
+Radius = 160.0
+BaseDamage = 3
+EffectDurationSeconds = 0.3
+ManaCost = 12.0
+DamageType = 3
+
+[sub_resource type="Resource" id="Skill_dash_supported"]
+script = ExtResource("2_skill")
+SkillId = "dash"
+DisplayName = "Dash"
+Slot = 3
+CastType = 3
+Delivery = 0
+DashDistance = 120.0
+DamageType = 0
+
+[resource]
+script = ExtResource("1_bar")
+Primary = SubResource("Skill_spread_supported")
+Secondary = SubResource("Skill_meteor_supported")
+Utility = SubResource("Skill_pulse_supported")
+Movement = SubResource("Skill_dash_supported")

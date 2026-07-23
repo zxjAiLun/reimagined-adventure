@@ -11,13 +11,19 @@ public partial class SkillAreaEffect : Node2D
     private float _delayRemaining;
     private float _visualRemaining;
     private float _visualDuration;
+    private float _radius;
     private bool _impactApplied;
 
-    public void Configure(SkillDefinition definition, Vector2 targetPosition, DamageRequest damageRequest)
+    public void Configure(
+        SkillDefinition definition,
+        Vector2 targetPosition,
+        DamageRequest damageRequest,
+        double radiusOverride = -1.0)
     {
         _definition = definition;
         _targetPosition = targetPosition;
         _damageRequest = damageRequest ?? throw new ArgumentNullException(nameof(damageRequest));
+        _radius = radiusOverride > 0.0 ? (float)radiusOverride : (float)definition.Radius;
         _delayRemaining = (float)definition.CastDelaySeconds;
         _visualDuration = Mathf.Max(0.18f, (float)definition.EffectDurationSeconds);
         _visualRemaining = _delayRemaining + _visualDuration;
@@ -67,7 +73,7 @@ public partial class SkillAreaEffect : Node2D
             return;
         }
 
-        var radius = (float)_definition.Radius;
+        var radius = _radius;
         var progress = _visualDuration > 0.0f
             ? Mathf.Clamp(_visualRemaining / _visualDuration, 0.0f, 1.0f)
             : 1.0f;
@@ -99,7 +105,7 @@ public partial class SkillAreaEffect : Node2D
     private void ApplyImpact()
     {
         _impactApplied = true;
-        var radiusSquared = (float)(_definition.Radius * _definition.Radius);
+        var radiusSquared = _radius * _radius;
         foreach (var node in GetTree().GetNodesInGroup("damageables"))
         {
             if (node is Node2D damageableNode

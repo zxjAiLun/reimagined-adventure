@@ -57,6 +57,10 @@ public sealed class SupportDefinition
         ValidateMultiplier(nameof(CooldownMultiplier), CooldownMultiplier);
         ValidateMultiplier(nameof(ManaCostMultiplier), ManaCostMultiplier);
         ValidateMultiplier(nameof(ElementalDamageMultiplier), ElementalDamageMultiplier);
+        if (RequiredDamageType.HasValue && !Enum.IsDefined(RequiredDamageType.Value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(RequiredDamageType), RequiredDamageType, "Unknown required damage type.");
+        }
         if (!double.IsFinite(ExtraSpreadAngleDegrees))
         {
             throw new ArgumentOutOfRangeException(nameof(ExtraSpreadAngleDegrees));

@@ -10,6 +10,7 @@ public partial class PlayerSkillController : Node
 
     private SkillBar _skillBar;
     private readonly Dictionary<SkillSlot, float> _cooldowns = new();
+    private readonly Dictionary<SkillSlot, IReadOnlyList<SupportDefinition>> _supports = new();
     private PlayerController _player;
 
     public string CooldownStatusLine
@@ -31,6 +32,7 @@ public partial class PlayerSkillController : Node
         foreach (var slot in Enum.GetValues<SkillSlot>())
         {
             _cooldowns[slot] = 0.0f;
+            _supports[slot] = SkillBarResource?.SupportsFor(slot) ?? Array.Empty<SupportDefinition>();
         }
     }
 
@@ -80,17 +82,26 @@ public partial class PlayerSkillController : Node
         }
 
         var definition = _skillBar[slot];
+        var supports = _supports[slot];
         var castSucceeded = false;
         switch (definition.CastType)
         {
             case SkillCastType.Projectile:
-                castSucceeded = _player.CastSpreadShot(definition);
+                castSucceeded = _player.CastSpreadShot(definition, supports);
                 break;
             case SkillCastType.MouseTargetedArea:
-                castSucceeded = _player.CastAreaSkill(definition, _player.GetGlobalMousePosition(), AreaEffectScene);
+                castSucceeded = _player.CastAreaSkill(
+                    definition,
+                    _player.GetGlobalMousePosition(),
+                    AreaEffectScene,
+                    supports);
                 break;
             case SkillCastType.SelfCenteredArea:
-                castSucceeded = _player.CastAreaSkill(definition, _player.GlobalPosition, AreaEffectScene);
+                castSucceeded = _player.CastAreaSkill(
+                    definition,
+                    _player.GlobalPosition,
+                    AreaEffectScene,
+                    supports);
                 break;
             case SkillCastType.Dash:
                 _player.PerformDash(definition.DashDistance);
@@ -102,7 +113,10 @@ public partial class PlayerSkillController : Node
 
         if (castSucceeded)
         {
-            _cooldowns[slot] = (float)definition.CooldownSeconds;
+            _cooldowns[slot] = (float)SkillSupportMath.Cooldown(
+                definition,
+                _player.EffectiveStats,
+                supports);
         }
     }
 }

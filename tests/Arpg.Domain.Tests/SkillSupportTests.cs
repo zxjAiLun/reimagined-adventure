@@ -43,4 +43,18 @@ public sealed class SkillSupportTests
         Assert.Equal(skill.CooldownSeconds / 2.0, SkillSupportMath.Cooldown(skill, fastStats));
         Assert.Equal(SkillLibrary.Meteor().CooldownSeconds, SkillSupportMath.Cooldown(SkillLibrary.Meteor(), fastStats));
     }
+
+    [Fact]
+    public void InvalidRequiredDamageTypeIsRejected()
+    {
+        var support = new SupportDefinition
+        {
+            Id = "invalid_element",
+            Name = "Invalid Element",
+            Kind = SupportKind.ElementalFocus,
+            RequiredDamageType = (DamageType)999,
+        };
+
+        Assert.Throws<ArgumentOutOfRangeException>(support.Validate);
+    }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Arpg.Domain;
 using Godot;
 
@@ -23,6 +24,7 @@ public partial class SkillDefinitionResource : Resource
     [Export] public float DashDistance { get; set; }
     [Export] public float ManaCost { get; set; }
     [Export] public int DamageType { get; set; }
+    [Export] public Godot.Collections.Array<SupportDefinitionResource> Supports { get; set; } = new();
 
     public SkillDefinition ToDomain()
     {
@@ -46,5 +48,19 @@ public partial class SkillDefinitionResource : Resource
         };
         definition.Validate();
         return definition;
+    }
+
+    public IReadOnlyList<SupportDefinition> ToSupports()
+    {
+        var supports = new List<SupportDefinition>();
+        foreach (var resource in Supports ?? new Godot.Collections.Array<SupportDefinitionResource>())
+        {
+            if (resource != null)
+            {
+                supports.Add(resource.ToDomain());
+            }
+        }
+
+        return supports;
     }
 }

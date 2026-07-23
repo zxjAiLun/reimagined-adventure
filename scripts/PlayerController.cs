@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Arpg.Domain;
 using Godot;
 
@@ -76,22 +77,21 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         return result;
     }
 
-    public bool CastSpreadShot(SkillDefinition definition)
+    public bool CastSpreadShot(
+        SkillDefinition definition,
+        IReadOnlyList<SupportDefinition> supports = null)
     {
         if (!IsAlive || ProjectileScene == null || definition.CastType != SkillCastType.Projectile)
         {
             return false;
         }
 
-        var damage = CombatMath.SkillDamage(
-            definition.BaseDamage,
-            EffectiveStats,
-            definition.DamageType,
-            SkillDamageCategory.Projectile);
-        var projectileCount = Mathf.Max(1, definition.ProjectileCount + EffectiveStats.ProjectileCountBonus);
-        var halfSpread = Mathf.DegToRad((float)definition.SpreadAngleDegrees * 0.5f);
+        var damage = SkillSupportMath.Damage(definition, EffectiveStats, supports);
+        var projectileCount = SkillSupportMath.ProjectileCount(definition, EffectiveStats, supports);
+        var spreadAngle = SkillSupportMath.SpreadAngle(definition, supports);
+        var halfSpread = Mathf.DegToRad((float)spreadAngle * 0.5f);
         var step = projectileCount > 1
-            ? Mathf.DegToRad((float)definition.SpreadAngleDegrees) / (projectileCount - 1)
+            ? Mathf.DegToRad((float)spreadAngle) / (projectileCount - 1)
             : 0.0f;
 
         for (var index = 0; index < projectileCount; index++)
@@ -111,23 +111,25 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         return true;
     }
 
-    public bool CastAreaSkill(SkillDefinition definition, Vector2 targetPosition, PackedScene areaEffectScene)
+    public bool CastAreaSkill(
+        SkillDefinition definition,
+        Vector2 targetPosition,
+        PackedScene areaEffectScene,
+        IReadOnlyList<SupportDefinition> supports = null)
     {
         if (!IsAlive || areaEffectScene == null || !definition.IsArea)
         {
             return false;
         }
 
-        var damage = CombatMath.SkillDamage(
-            definition.BaseDamage,
-            EffectiveStats,
-            definition.DamageType,
-            SkillDamageCategory.Area);
+        var damage = SkillSupportMath.Damage(definition, EffectiveStats, supports);
+        var radius = SkillSupportMath.Radius(definition, EffectiveStats, supports);
         var effect = areaEffectScene.Instantiate<SkillAreaEffect>();
         effect.Configure(
             definition,
             targetPosition,
-            new DamageRequest(damage, definition.DamageType, definition.Id));
+            new DamageRequest(damage, definition.DamageType, definition.Id),
+            radius);
         GetParent().AddChild(effect);
         return true;
     }
