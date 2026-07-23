@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/BrimstoneColossusController.cs" id="1_boss"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/EnemyAreaEffect.tscn" id="4_area"]
 [ext_resource type="PackedScene" path="res://scenes/ItemDrop.tscn" id="5_drop_scene"]
 [ext_resource type="Script" path="res://scripts/EnemyLootDropper.cs" id="6_dropper"]
+[ext_resource type="Resource" path="res://resources/BrimstoneColossus.tres" id="7_definition"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_boss"]
 radius = 42.0
@@ -28,6 +29,7 @@ _data = {
 collision_layer = 4
 collision_mask = 1
 script = ExtResource("1_boss")
+definition_resource = ExtResource("7_definition")
 move_speed = 55.0
 radius = 42.0
 slam_radius = 130.0

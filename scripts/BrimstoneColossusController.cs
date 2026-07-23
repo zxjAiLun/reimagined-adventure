@@ -14,6 +14,7 @@ public enum BrimstoneColossusState
 
 public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
 {
+    [Export] public BossDefinitionResource DefinitionResource { get; set; }
     [Export] public float MoveSpeed { get; set; } = 55.0f;
     [Export] public float Radius { get; set; } = 42.0f;
     [Export] public float SlamRadius { get; set; } = 130.0f;
@@ -39,6 +40,7 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
     private bool _deathHandled;
     private Label _healthLabel;
     private AnimationPlayer _animationPlayer;
+    private BossDefinition _definition;
 
     public override void _Ready()
     {
@@ -48,6 +50,8 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
 
         _health = GetNode<HealthComponent>("HealthComponent");
         _health.Died += OnDied;
+        _definition = DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus();
+        ApplyDefinition(_definition);
         _healthLabel = GetNodeOrNull<Label>("HealthLabel");
         _animationPlayer = GetNodeOrNull<AnimationPlayer>("AnimationPlayer");
         FindPlayer();
@@ -255,5 +259,20 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
         }
 
         QueueRedraw();
+    }
+
+    private void ApplyDefinition(BossDefinition definition)
+    {
+        MoveSpeed = (float)definition.MoveSpeed;
+        RecoverySeconds = (float)definition.RecoverySeconds;
+        SlamDamage = definition.Attack(BossAttackKind.MagmaSlam).Damage;
+        SlamPreparationSeconds = (float)definition.Attack(BossAttackKind.MagmaSlam).PreparationSeconds;
+        SlamRadius = (float)definition.Attack(BossAttackKind.MagmaSlam).Radius;
+        SlamRange = (float)definition.Attack(BossAttackKind.MagmaSlam).Range;
+        SpearDamage = definition.Attack(BossAttackKind.FlameSpear).Damage;
+        SpearPreparationSeconds = (float)definition.Attack(BossAttackKind.FlameSpear).PreparationSeconds;
+        SpearRange = (float)definition.Attack(BossAttackKind.FlameSpear).Range;
+        _health.SetMaxHealth(definition.MaxHealth);
+        _health.SetDefensiveStats(new Stats { FireResistance = definition.FireResistance });
     }
 }
