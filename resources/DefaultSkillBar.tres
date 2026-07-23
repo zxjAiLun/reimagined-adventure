@@ -1,0 +1,64 @@
+[gd_resource type="Resource" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/SkillBarResource.cs" id="1_bar"]
+[ext_resource type="Script" path="res://scripts/SkillDefinitionResource.cs" id="2_skill"]
+
+[sub_resource type="Resource" id="Skill_spread"]
+script = ExtResource("2_skill")
+skill_id = "spread_shot"
+display_name = "Spread Shot"
+slot = 0
+cast_type = 0
+delivery = 0
+cooldown_seconds = 0.35
+base_damage = 1
+projectile_count = 3
+spread_angle_degrees = 30.0
+mana_cost = 2.0
+damage_type = 0
+
+[sub_resource type="Resource" id="Skill_meteor"]
+script = ExtResource("2_skill")
+skill_id = "meteor"
+display_name = "Meteor"
+slot = 1
+cast_type = 2
+delivery = 1
+cooldown_seconds = 1.4
+radius = 110.0
+base_damage = 4
+effect_duration_seconds = 0.3
+cast_delay_seconds = 0.55
+mana_cost = 12.0
+damage_type = 1
+
+[sub_resource type="Resource" id="Skill_pulse"]
+script = ExtResource("2_skill")
+skill_id = "pulse"
+display_name = "Pulse"
+slot = 2
+cast_type = 1
+delivery = 0
+cooldown_seconds = 2.0
+radius = 160.0
+base_damage = 3
+effect_duration_seconds = 0.3
+mana_cost = 12.0
+damage_type = 3
+
+[sub_resource type="Resource" id="Skill_dash"]
+script = ExtResource("2_skill")
+skill_id = "dash"
+display_name = "Dash"
+slot = 3
+cast_type = 3
+delivery = 0
+dash_distance = 120.0
+damage_type = 0
+
+[resource]
+script = ExtResource("1_bar")
+primary = SubResource("Skill_spread")
+secondary = SubResource("Skill_meteor")
+utility = SubResource("Skill_pulse")
+movement = SubResource("Skill_dash")

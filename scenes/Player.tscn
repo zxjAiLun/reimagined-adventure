@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/PlayerController.cs" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/BasicProjectile.tscn" id="2_projectile"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/PlayerSkillController.cs" id="4_skill_controller"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="5_health"]
 [ext_resource type="Script" path="res://scripts/InventoryController.cs" id="6_inventory"]
+[ext_resource type="Resource" path="res://resources/DefaultSkillBar.tres" id="7_skill_bar"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_player"]
 radius = 20.0
@@ -41,3 +42,4 @@ limit_bottom = 900
 [node name="SkillBarController" type="Node" parent="."]
 script = ExtResource("4_skill_controller")
 area_effect_scene = ExtResource("3_area_effect")
+skill_bar_resource = ExtResource("7_skill_bar")

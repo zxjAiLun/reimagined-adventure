@@ -6,8 +6,9 @@ using Godot;
 public partial class PlayerSkillController : Node
 {
     [Export] public PackedScene AreaEffectScene { get; set; }
+    [Export] public SkillBarResource SkillBarResource { get; set; }
 
-    private readonly SkillBar _skillBar = SkillLibrary.DefaultBar();
+    private SkillBar _skillBar;
     private readonly Dictionary<SkillSlot, float> _cooldowns = new();
     private PlayerController _player;
 
@@ -26,6 +27,7 @@ public partial class PlayerSkillController : Node
     {
         SetProcessUnhandledInput(true);
         _player = GetParent<PlayerController>();
+        _skillBar = SkillBarResource?.ToDomain() ?? SkillLibrary.DefaultBar();
         foreach (var slot in Enum.GetValues<SkillSlot>())
         {
             _cooldowns[slot] = 0.0f;
