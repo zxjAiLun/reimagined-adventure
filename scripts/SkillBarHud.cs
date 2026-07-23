@@ -9,9 +9,9 @@ public partial class SkillBarHud : Label
 
     public override void _Ready()
     {
-        _controller = GetNodeOrNull<PlayerSkillController>("../../Player/SkillBarController");
-        _player = GetNodeOrNull<PlayerController>("../../Player");
-        _inventory = GetNodeOrNull<InventoryController>("../../Player/InventoryController");
+        _player = GetTree().GetFirstNodeInGroup("player") as PlayerController;
+        _controller = _player?.GetNodeOrNull<PlayerSkillController>("SkillBarController");
+        _inventory = _player?.Inventory;
         RefreshText();
     }
 

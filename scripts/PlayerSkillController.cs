@@ -24,7 +24,7 @@ public partial class PlayerSkillController : Node
 
     public override void _Ready()
     {
-        SetProcessInput(true);
+        SetProcessUnhandledInput(true);
         _player = GetParent<PlayerController>();
         foreach (var slot in Enum.GetValues<SkillSlot>())
         {
@@ -42,47 +42,29 @@ public partial class PlayerSkillController : Node
 
         // Spread Shot is the primary attack, so holding LMB repeats it as
         // soon as its Domain cooldown allows the next cast.
-        if (Input.IsMouseButtonPressed(MouseButton.Left))
+        if (Input.IsActionPressed("skill_spread_shot"))
         {
             TryCast(SkillSlot.Primary);
         }
     }
 
-    public override void _Input(InputEvent @event)
+    public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event is InputEventMouseButton mouseButton && mouseButton.Pressed)
+        if (@event.IsActionPressed("skill_meteor", true))
         {
-            switch (mouseButton.ButtonIndex)
-            {
-                case MouseButton.Left:
-                    TryCast(SkillSlot.Primary);
-                    break;
-                case MouseButton.Right:
-                    TryCast(SkillSlot.Secondary);
-                    break;
-            }
-
+            TryCast(SkillSlot.Secondary);
             return;
         }
 
-        if (@event is InputEventKey keyEvent && keyEvent.Pressed && !keyEvent.Echo)
+        if (@event.IsActionPressed("skill_pulse", true))
         {
-            var isQ = keyEvent.Keycode == Key.Q
-                || keyEvent.PhysicalKeycode == Key.Q
-                || keyEvent.Unicode == 'q'
-                || keyEvent.Unicode == 'Q';
-            var isSpace = keyEvent.Keycode == Key.Space
-                || keyEvent.PhysicalKeycode == Key.Space
-                || keyEvent.Unicode == ' ';
+            TryCast(SkillSlot.Utility);
+            return;
+        }
 
-            if (isQ)
-            {
-                TryCast(SkillSlot.Utility);
-            }
-            else if (isSpace)
-            {
-                TryCast(SkillSlot.Movement);
-            }
+        if (@event.IsActionPressed("skill_dash", true))
+        {
+            TryCast(SkillSlot.Movement);
         }
     }
 

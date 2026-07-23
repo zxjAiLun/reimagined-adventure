@@ -38,6 +38,7 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
     private bool _nextAttackIsSlam = true;
     private bool _deathHandled;
     private Label _healthLabel;
+    private AnimationPlayer _animationPlayer;
 
     public override void _Ready()
     {
@@ -48,6 +49,7 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
         _health = GetNode<HealthComponent>("HealthComponent");
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label>("HealthLabel");
+        _animationPlayer = GetNodeOrNull<AnimationPlayer>("AnimationPlayer");
         FindPlayer();
         RefreshVisuals();
     }
@@ -186,6 +188,7 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
         State = BrimstoneColossusState.PreparingSlam;
         _stateRemaining = Mathf.Max(0.05f, SlamPreparationSeconds);
         _nextAttackIsSlam = false;
+        _animationPlayer?.Play("magma_slam");
 
         if (AreaEffectScene == null)
         {
@@ -208,6 +211,7 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
         State = BrimstoneColossusState.PreparingSpear;
         _stateRemaining = Mathf.Max(0.05f, SpearPreparationSeconds);
         _nextAttackIsSlam = true;
+        _animationPlayer?.Play("flame_spear");
     }
 
     private void FireFlameSpear()
@@ -235,6 +239,7 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
 
         _deathHandled = true;
         State = BrimstoneColossusState.Dead;
+        _animationPlayer?.Stop();
         Velocity = Vector2.Zero;
         CollisionLayer = 0;
         CollisionMask = 0;

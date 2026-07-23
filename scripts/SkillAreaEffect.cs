@@ -4,6 +4,7 @@ using Godot;
 
 public partial class SkillAreaEffect : Node2D
 {
+    [Export] public PackedScene HitEffectScene { get; set; }
     private SkillDefinition _definition;
     private Vector2 _targetPosition;
     private DamageRequest _damageRequest;
@@ -108,6 +109,13 @@ public partial class SkillAreaEffect : Node2D
             {
                 target.ApplyDamage(_damageRequest);
             }
+        }
+
+        if (HitEffectScene != null)
+        {
+            var effect = HitEffectScene.Instantiate<HitEffect>();
+            GetParent().AddChild(effect);
+            effect.GlobalPosition = _targetPosition;
         }
     }
 }

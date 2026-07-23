@@ -45,16 +45,11 @@ public partial class InventoryController : Node
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event is not InputEventKey keyEvent || !keyEvent.Pressed || keyEvent.Echo)
-        {
-            return;
-        }
-
-        if (IsKey(keyEvent, Key.F))
+        if (@event.IsActionPressed("pickup_item", true))
         {
             TryPickupNearest();
         }
-        else if (IsKey(keyEvent, Key.E))
+        else if (@event.IsActionPressed("equip_item", true))
         {
             TryEquipNewestWeapon();
         }
@@ -157,11 +152,4 @@ public partial class InventoryController : Node
         _player?.SetEffectiveStats(Equipment.CombinedStats());
     }
 
-    private static bool IsKey(InputEventKey keyEvent, Key key)
-    {
-        return keyEvent.Keycode == key
-            || keyEvent.PhysicalKeycode == key
-            || keyEvent.Unicode == (uint)char.ToLowerInvariant((char)key)
-            || keyEvent.Unicode == (uint)char.ToUpperInvariant((char)key);
-    }
 }

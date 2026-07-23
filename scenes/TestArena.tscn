@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/TestArena.cs" id="1_arena"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" path="res://scenes/Spitter.tscn" id="5_spitter"]
 [ext_resource type="PackedScene" path="res://scenes/BrimstoneColossus.tscn" id="6_boss"]
 [ext_resource type="Script" path="res://scripts/GameFlowController.cs" id="7_flow"]
+[ext_resource type="Script" path="res://scripts/InventoryPanel.cs" id="8_inventory_panel"]
+[ext_resource type="Script" path="res://scripts/EquipmentTooltip.cs" id="9_equipment_tooltip"]
 
 [node name="TestArena" type="Node2D"]
 script = ExtResource("1_arena")
@@ -38,14 +40,60 @@ theme_override_colors/font_color = Color(0.78, 0.88, 0.98, 1)
 theme_override_font_sizes/font_size = 15
 text = "MILESTONE 5 — LOOT & EQUIPMENT\nWASD move | Mouse aim | 左键 Spread | 右键 Meteor | Q Pulse | Space Dash\nFeral近战 | Spitter酸液 | Boss: Magma Slam / Flame Spear\n击杀掉落武器 | F 拾取附近掉落 | E 装备最新武器（旧武器会回到背包）"
 
-[node name="SkillBar" type="Label" parent="CanvasLayer"]
+[node name="SkillBar" type="PanelContainer" parent="CanvasLayer"]
 offset_left = 24.0
 offset_top = 88.0
 offset_right = 780.0
 offset_bottom = 168.0
 theme_override_colors/font_color = Color(0.95, 0.82, 0.48, 1)
+
+[node name="SkillBarText" type="Label" parent="CanvasLayer/SkillBar"]
+theme_override_colors/font_color = Color(0.95, 0.82, 0.48, 1)
 theme_override_font_sizes/font_size = 15
 script = ExtResource("4_skill_hud")
+
+[node name="InventoryPanel" type="PanelContainer" parent="CanvasLayer"]
+offset_left = 1190.0
+offset_top = 20.0
+offset_right = 1576.0
+offset_bottom = 245.0
+script = ExtResource("8_inventory_panel")
+
+[node name="Margin" type="MarginContainer" parent="CanvasLayer/InventoryPanel"]
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/InventoryPanel/Margin"]
+
+[node name="Title" type="Label" parent="CanvasLayer/InventoryPanel/Margin/VBox"]
+theme_override_colors/font_color = Color(0.82, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "INVENTORY"
+
+[node name="InventoryText" type="Label" parent="CanvasLayer/InventoryPanel/Margin/VBox"]
+theme_override_colors/font_color = Color(0.78, 0.84, 0.92, 1)
+theme_override_font_sizes/font_size = 13
+text = "Bag 0/8"
+
+[node name="EquipmentTooltip" type="PanelContainer" parent="CanvasLayer"]
+offset_left = 1190.0
+offset_top = 265.0
+offset_right = 1576.0
+offset_bottom = 405.0
+script = ExtResource("9_equipment_tooltip")
+
+[node name="Margin" type="MarginContainer" parent="CanvasLayer/EquipmentTooltip"]
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="TooltipText" type="Label" parent="CanvasLayer/EquipmentTooltip/Margin"]
+theme_override_colors/font_color = Color(1, 0.86, 0.58, 1)
+theme_override_font_sizes/font_size = 13
+text = "EQUIPMENT\nWeapon slot empty"
 
 [node name="ResultOverlay" type="Label" parent="CanvasLayer"]
 visible = false

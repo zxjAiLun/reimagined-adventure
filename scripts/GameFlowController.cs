@@ -33,18 +33,12 @@ public partial class GameFlowController : Node
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (State == GameFlowState.Playing
-            || @event is not InputEventKey keyEvent
-            || !keyEvent.Pressed
-            || keyEvent.Echo)
+        if (State == GameFlowState.Playing)
         {
             return;
         }
 
-        if (keyEvent.Keycode == Key.R
-            || keyEvent.PhysicalKeycode == Key.R
-            || keyEvent.Unicode == 'r'
-            || keyEvent.Unicode == 'R')
+        if (@event.IsActionPressed("restart_run", true))
         {
             RestartRun();
         }

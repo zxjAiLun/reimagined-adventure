@@ -8,6 +8,7 @@ public partial class BasicProjectile : Area2D
     [Export] public float Lifetime { get; set; } = 4.0f;
     [Export] public float Radius { get; set; } = 5.0f;
     [Export] public Color ProjectileColor { get; set; } = new(1.0f, 0.85f, 0.25f, 1.0f);
+    [Export] public PackedScene HitEffectScene { get; set; }
 
     public int Damage { get; private set; }
     public DamageRequest DamageRequest { get; private set; } = new(0, DamageType.Physical, "unconfigured");
@@ -77,6 +78,19 @@ public partial class BasicProjectile : Area2D
         Monitoring = false;
         SetPhysicsProcess(false);
         target.ApplyDamage(DamageRequest);
+        SpawnHitEffect(GlobalPosition);
         QueueFree();
+    }
+
+    private void SpawnHitEffect(Vector2 position)
+    {
+        if (HitEffectScene == null)
+        {
+            return;
+        }
+
+        var effect = HitEffectScene.Instantiate<HitEffect>();
+        GetParent().AddChild(effect);
+        effect.GlobalPosition = position;
     }
 }
