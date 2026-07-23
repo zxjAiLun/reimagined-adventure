@@ -14,6 +14,7 @@ public partial class MapEventNode : Node2D
     private MapEventDefinition _definition;
     private readonly MapEventState _state = new();
     private Label _label;
+    public bool HasActiveShrineBuff { get; private set; }
 
     public bool IsCompleted => _state.Completed;
     public MapEventType EventType => _definition?.Type ?? MapEventType.LootCache;
@@ -52,11 +53,22 @@ public partial class MapEventNode : Node2D
 
         if (activation!.Type == MapEventType.LootCache)
         {
-            SpawnCacheDrops(player, activation.ItemDropCount);
-            _label.Text = $"{_definition.Name}\nOpened: {activation.ItemDropCount} drops";
+            var dropCount = Mathf.Max(
+                1,
+                Mathf.CeilToInt((float)(activation.ItemDropCount
+                    * activation.RewardMultiplier
+                    * player.EffectiveStats.ItemQuantityMultiplier)));
+            SpawnCacheDrops(player, dropCount);
+            _label.Text = $"{_definition.Name}\nOpened: {dropCount} drops";
         }
         else
         {
+            HasActiveShrineBuff = true;
+            player.SetEventStats(new Stats
+            {
+                DamageMultiplier = activation.DamageMultiplier,
+            });
+            GetTree().CreateTimer((float)activation.BuffDurationSeconds).Timeout += ClearShrineBuff;
             _label.Text = $"{_definition.Name}\n+{(int)((activation.DamageMultiplier - 1.0) * 100.0)}% damage for {activation.BuffDurationSeconds:0}s";
         }
 
@@ -100,5 +112,17 @@ public partial class MapEventNode : Node2D
         {
             _label.Text = _definition?.Name ?? "Map Event";
         }
+    }
+
+    private void ClearShrineBuff()
+    {
+        if (!HasActiveShrineBuff)
+        {
+            return;
+        }
+
+        HasActiveShrineBuff = false;
+        var player = GetTree().GetFirstNodeInGroup("player") as PlayerController;
+        player?.SetEventStats(Stats.Neutral);
     }
 }

@@ -19,6 +19,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
     private Stats _equipmentStats = Stats.Neutral;
     private Stats _passiveStats = Stats.Neutral;
     private Stats _rewardStats = Stats.Neutral;
+    private Stats _eventStats = Stats.Neutral;
     private int _baseMaxHealth;
 
     public Vector2 AimDirection => _aimDirection;
@@ -51,6 +52,14 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         ArgumentNullException.ThrowIfNull(stats);
         stats.Validate();
         _rewardStats = stats;
+        RecalculateEffectiveStats();
+    }
+
+    public void SetEventStats(Stats stats)
+    {
+        ArgumentNullException.ThrowIfNull(stats);
+        stats.Validate();
+        _eventStats = stats;
         RecalculateEffectiveStats();
     }
 
@@ -215,7 +224,8 @@ public partial class PlayerController : CharacterBody2D, IDamageable
     private void RecalculateEffectiveStats()
     {
         var passiveAndRewardStats = Stats.Combine(_passiveStats, _rewardStats);
-        EffectiveStats = Stats.Combine(_equipmentStats, passiveAndRewardStats);
+        var persistentStats = Stats.Combine(passiveAndRewardStats, _eventStats);
+        EffectiveStats = Stats.Combine(_equipmentStats, persistentStats);
         if (_health != null && _baseMaxHealth > 0)
         {
             _health.SetMaxHealthPreservingCurrent(

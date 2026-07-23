@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/MapEventNode.cs" id="1_event"]
+[ext_resource type="Resource" path="res://resources/Shrine.tres" id="2_definition"]
+
+[node name="Shrine" type="Node2D"]
+script = ExtResource("1_event")
+DefinitionResource = ExtResource("2_definition")
+
+[node name="Label" type="Label" parent="."]
+offset_left = -95.0
+offset_top = -48.0
+offset_right = 95.0
+offset_bottom = -24.0
+theme_override_colors/font_color = Color(1, 0.48, 0.2, 1)
+theme_override_font_sizes/font_size = 12
+text = "Ember Shrine"
+horizontal_alignment = 1

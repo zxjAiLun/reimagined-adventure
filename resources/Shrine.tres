@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="MapEventResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/MapEventResource.cs" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+EventId = "shrine"
+DisplayName = "Ember Shrine"
+EventType = 1
+Radius = 70.0
+DamageMultiplier = 1.35
+BuffDurationSeconds = 20.0
+ForgeFragmentReward = 1
