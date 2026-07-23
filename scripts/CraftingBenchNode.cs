@@ -21,7 +21,9 @@ public partial class CraftingBenchNode : Node
 
     public override void _Ready()
     {
-        _generator = new LootGenerator((ulong)Mathf.Max(1, Seed));
+        var session = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        _generator = session?.CraftingGenerator
+            ?? new LootGenerator((ulong)Mathf.Max(1, Seed));
         AddToGroup("crafting_benches");
     }
 

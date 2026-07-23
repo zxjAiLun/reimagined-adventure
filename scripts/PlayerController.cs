@@ -11,6 +11,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
     [Export] public PackedScene ProjectileScene { get; set; }
 
     public Stats EffectiveStats { get; private set; } = Stats.Neutral;
+    public Stats RewardStats => _rewardStats;
     public InventoryController Inventory { get; private set; }
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
     public int MaxHealth => _health?.MaxHealth ?? 0;
@@ -65,7 +66,28 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
     public bool TryRestoreCurrentHealth(int currentHealth)
     {
-        return _health != null && _health.TryRestoreCurrentHealth(currentHealth);
+        if (!CanRestoreCurrentHealth(currentHealth))
+        {
+            return false;
+        }
+
+        _health.TryRestoreCurrentHealth(currentHealth);
+        return true;
+    }
+
+    public bool CanRestoreCurrentHealth(int currentHealth)
+    {
+        return _health != null && currentHealth >= 0 && currentHealth <= _health.MaxHealth;
+    }
+
+    public void ApplyRestoredHealth(int currentHealth)
+    {
+        if (!CanRestoreCurrentHealth(currentHealth) || !_health.TryRestoreCurrentHealth(currentHealth))
+        {
+            throw new InvalidOperationException("Validated player health could not be applied.");
+        }
+
+        QueueRedraw();
     }
 
     public override void _Ready()
@@ -235,6 +257,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         {
             _health.SetMaxHealthPreservingCurrent(
                 Mathf.Max(1, _baseMaxHealth + EffectiveStats.MaxHp));
+            _health.SetDefensiveStats(EffectiveStats);
         }
     }
 }

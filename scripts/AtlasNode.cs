@@ -41,4 +41,9 @@ public partial class AtlasNode : Node
     {
         return State.TryRestore(unlockedMapIds, completedMapIds);
     }
+
+    public bool CanRestore(IEnumerable<string> unlockedMapIds, IEnumerable<string> completedMapIds)
+    {
+        return State.CanRestore(unlockedMapIds, completedMapIds);
+    }
 }

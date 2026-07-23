@@ -165,6 +165,25 @@ public sealed class AtlasState
         var unlocked = unlockedMapIds.ToHashSet(StringComparer.Ordinal);
         var completed = completedMapIds.ToHashSet(StringComparer.Ordinal);
 
+        if (!CanRestore(unlocked, completed))
+        {
+            return false;
+        }
+
+        _unlocked.Clear();
+        _completed.Clear();
+        _unlocked.UnionWith(unlocked);
+        _completed.UnionWith(completed);
+        return true;
+    }
+
+    public bool CanRestore(IEnumerable<string> unlockedMapIds, IEnumerable<string> completedMapIds)
+    {
+        ArgumentNullException.ThrowIfNull(unlockedMapIds);
+        ArgumentNullException.ThrowIfNull(completedMapIds);
+        var unlocked = unlockedMapIds.ToHashSet(StringComparer.Ordinal);
+        var completed = completedMapIds.ToHashSet(StringComparer.Ordinal);
+
         if (!unlocked.All(id => _definition.Find(id) != null)
             || !completed.All(id => _definition.Find(id) != null)
             || !completed.IsSubsetOf(unlocked))
@@ -194,10 +213,6 @@ public sealed class AtlasState
             }
         }
 
-        _unlocked.Clear();
-        _completed.Clear();
-        _unlocked.UnionWith(unlocked);
-        _completed.UnionWith(completed);
         return true;
     }
 

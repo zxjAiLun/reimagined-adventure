@@ -4,9 +4,13 @@ public partial class TestArena : Node2D
 {
     [Export] public Vector2 ArenaSize { get; set; } = new(1600.0f, 900.0f);
     [Export] public int GridSpacing { get; set; } = 80;
+    [Export] public int MapLevel { get; set; } = 1;
 
     public override void _Ready()
     {
+        var runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        var mapModifier = GetNodeOrNull<MapModifierNode>("MapModifier");
+        mapModifier?.ConfigureMapLevel(runSession?.CurrentMapLevel ?? MapLevel);
         QueueRedraw();
     }
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/TestArena.cs" id="1_arena"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -10,10 +10,24 @@
 [ext_resource type="Script" path="res://scripts/InventoryPanel.cs" id="8_inventory_panel"]
 [ext_resource type="Script" path="res://scripts/EquipmentTooltip.cs" id="9_equipment_tooltip"]
 [ext_resource type="Script" path="res://scripts/SaveBoundaryNode.cs" id="10_save"]
+[ext_resource type="Script" path="res://scripts/RunSessionNode.cs" id="11_run_session"]
+[ext_resource type="Script" path="res://scripts/InteractionController.cs" id="12_interaction"]
+[ext_resource type="PackedScene" path="res://scenes/MapModifier.tscn" id="13_modifier"]
+[ext_resource type="PackedScene" path="res://scenes/MapEvent.tscn" id="14_event"]
+[ext_resource type="PackedScene" path="res://scenes/MapRewards.tscn" id="15_rewards"]
+[ext_resource type="PackedScene" path="res://scenes/Atlas.tscn" id="16_atlas"]
 
 [node name="TestArena" type="Node2D"]
 script = ExtResource("1_arena")
 ArenaSize = Vector2(1600, 900)
+
+[node name="RunSession" type="Node" parent="."]
+script = ExtResource("11_run_session")
+RunSeed = 5573589318791800903
+MapLevel = 1
+
+[node name="MapModifier" parent="." instance=ExtResource("13_modifier")]
+MapLevel = 1
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(800, 450)
@@ -26,6 +40,16 @@ position = Vector2(1250, 220)
 
 [node name="BrimstoneColossus" parent="." instance=ExtResource("6_boss")]
 position = Vector2(1400, 680)
+
+[node name="MapEvent" parent="." instance=ExtResource("14_event")]
+position = Vector2(1010, 450)
+
+[node name="Atlas" parent="." instance=ExtResource("16_atlas")]
+
+[node name="MapRewards" parent="." instance=ExtResource("15_rewards")]
+
+[node name="InteractionController" type="Node" parent="."]
+script = ExtResource("12_interaction")
 
 [node name="GameFlowController" type="Node" parent="."]
 script = ExtResource("7_flow")

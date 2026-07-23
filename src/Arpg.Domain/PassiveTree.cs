@@ -107,6 +107,25 @@ public sealed class PassiveTreeState
     {
         ArgumentNullException.ThrowIfNull(indices);
         var requested = indices.ToArray();
+        if (!CanRestore(requested))
+        {
+            return false;
+        }
+
+        var next = new bool[_allocated.Length];
+        foreach (var index in requested)
+        {
+            next[index] = true;
+        }
+
+        Array.Copy(next, _allocated, next.Length);
+        return true;
+    }
+
+    public bool CanRestore(IEnumerable<int> indices)
+    {
+        ArgumentNullException.ThrowIfNull(indices);
+        var requested = indices.ToArray();
         var next = new bool[_allocated.Length];
         foreach (var index in requested)
         {
@@ -127,7 +146,6 @@ public sealed class PassiveTreeState
             }
         }
 
-        Array.Copy(next, _allocated, next.Length);
         return true;
     }
 

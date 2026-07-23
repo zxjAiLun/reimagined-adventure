@@ -1,0 +1,64 @@
+name: Godot migration CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.302
+
+      - name: Domain tests
+        shell: pwsh
+        run: dotnet test tests\Arpg.Domain.Tests\Arpg.Domain.Tests.csproj --configuration Release
+
+      - name: Download Godot 4.7.1 .NET
+        shell: pwsh
+        run: |
+          $godotVersion = "4.7.1"
+          $godotArchive = Join-Path $env:RUNNER_TEMP "Godot_v${godotVersion}-stable_mono_win64.zip"
+          $godotDirectory = Join-Path $env:RUNNER_TEMP "godot-${godotVersion}"
+          $godotUrl = "https://github.com/godotengine/godot/releases/download/${godotVersion}-stable/Godot_v${godotVersion}-stable_mono_win64.zip"
+          Invoke-WebRequest -Uri $godotUrl -OutFile $godotArchive
+          Expand-Archive -Path $godotArchive -DestinationPath $godotDirectory -Force
+          $godotExecutable = Get-ChildItem -Path $godotDirectory -Filter "Godot_v${godotVersion}-stable_mono_win64.exe" -Recurse | Select-Object -First 1
+          if ($null -eq $godotExecutable) { throw "Godot executable was not found after extraction." }
+          "GODOT_EXECUTABLE=$($godotExecutable.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build Godot C# project
+        shell: pwsh
+        run: |
+          & $env:GODOT_EXECUTABLE --headless --editor --path $env:GITHUB_WORKSPACE --quit --build-solutions
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Main scene load
+        shell: pwsh
+        run: |
+          & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene res://scenes/RunShell.tscn --quit-after 120
+          if ($LASTEXITCODE -ne 0) { throw "Godot main scene failed to load ($LASTEXITCODE)" }
+
+      - name: Combat, save, and content smoke
+        shell: pwsh
+        run: |
+          $scenes = @(
+            "res://scenes/Milestone4Smoke.tscn",
+            "res://scenes/Milestone19FullSaveSmoke.tscn",
+            "res://scenes/Milestone20ContentRuntimeSmoke.tscn",
+            "res://scenes/StabilizationRunLoopSmoke.tscn",
+            "res://scenes/RunLoopTransitionSmoke.tscn"
+          )
+          foreach ($scene in $scenes) {
+            Write-Host "Running $scene"
+            & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene $scene
+            if ($LASTEXITCODE -ne 0) { throw "Godot smoke failed: $scene ($LASTEXITCODE)" }
+          }

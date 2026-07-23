@@ -51,6 +51,11 @@ public partial class PassiveTreeNode : Node
         return true;
     }
 
+    public bool CanRestore(IEnumerable<int> indices)
+    {
+        return State.CanRestore(indices);
+    }
+
     private void ApplyStats()
     {
         _player?.SetPassiveStats(State.CombinedStats());

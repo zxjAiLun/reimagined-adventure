@@ -5,7 +5,7 @@ using Godot;
 /// Godot adapter for simple one-shot map events. Complex encounter spawning
 /// and map generation are intentionally outside this node.
 /// </summary>
-public partial class MapEventNode : Node2D
+public partial class MapEventNode : Node2D, IPlayerInteractable
 {
     [Export] public MapEventResource DefinitionResource { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
@@ -14,27 +14,34 @@ public partial class MapEventNode : Node2D
     private MapEventDefinition _definition;
     private readonly MapEventState _state = new();
     private Label _label;
+    private RunSessionNode _runSession;
     public bool HasActiveShrineBuff { get; private set; }
 
     public bool IsCompleted => _state.Completed;
     public MapEventType EventType => _definition?.Type ?? MapEventType.LootCache;
+    public int InteractionPriority => 100;
 
     public override void _Ready()
     {
         AddToGroup("map_events");
+        AddToGroup("interactables");
+        SetProcessUnhandledInput(false);
+        _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         _definition = DefinitionResource?.ToDomain() ?? MapEventLibrary.LootCache();
         _label = GetNodeOrNull<Label>("Label");
         RefreshLabel();
         QueueRedraw();
     }
 
-    public override void _UnhandledInput(InputEvent @event)
+    public bool CanInteract(PlayerController player)
     {
-        if (@event.IsActionPressed("pickup_item", true))
-        {
-            TryActivate(GetTree().GetFirstNodeInGroup("player") as PlayerController);
-        }
+        return player != null
+            && player.IsAlive
+            && _state.CanActivate
+            && GlobalPosition.DistanceTo(player.GlobalPosition) <= (_definition?.Radius ?? 0.0);
     }
+
+    public bool TryInteract(PlayerController player) => TryActivate(player);
 
     public bool TryActivate(PlayerController player)
     {
@@ -73,7 +80,7 @@ public partial class MapEventNode : Node2D
             {
                 DamageMultiplier = activation.DamageMultiplier,
             });
-            GetTree().CreateTimer((float)activation.BuffDurationSeconds).Timeout += ClearShrineBuff;
+            GetTree().CreateTimer((float)activation.BuffDurationSeconds, processAlways: false).Timeout += ClearShrineBuff;
             _label.Text = $"{_definition.Name}\n+{(int)((activation.DamageMultiplier - 1.0) * 100.0)}% damage for {activation.BuffDurationSeconds:0}s";
         }
 
@@ -100,14 +107,16 @@ public partial class MapEventNode : Node2D
             return;
         }
 
-        var generator = new LootGenerator((ulong)Mathf.Max(1, DropSeed));
         for (var index = 0; index < count; index++)
         {
             var drop = itemDropScene.Instantiate<ItemDrop>();
             GetParent().AddChild(drop);
             var offset = new Vector2(index * 30.0f - (count - 1) * 15.0f, 28.0f);
             drop.GlobalPosition = player.GlobalPosition + offset;
-            drop.Configure(generator.GenerateWeaponDrop(1));
+            var item = _runSession != null
+                ? _runSession.GenerateWeaponDrop(Mathf.Max(1, _runSession.CurrentMapLevel))
+                : new LootGenerator((ulong)Mathf.Max(1, DropSeed)).GenerateWeaponDrop(1);
+            drop.Configure(item);
         }
     }
 

@@ -37,6 +37,11 @@ public partial class MapModifierNode : Node
     public double ItemQuantityMultiplier => Definition.Effects.ItemQuantityMultiplier;
     public double EventRewardMultiplier => Definition.Effects.EventRewardMultiplier;
 
+    public void ConfigureMapLevel(int mapLevel)
+    {
+        MapLevel = Mathf.Max(1, mapLevel);
+    }
+
     public int ScaleEnemyHealth(int baseHealth) => MapScaling.EnemyHp(baseHealth, MapLevel, Definition.Effects);
     public int ScaleEnemyDamage(int baseDamage) => MapScaling.EnemyDamage(baseDamage, MapLevel, Definition.Effects);
     public int ScaleBossHealth(int baseHealth) => MapScaling.BossHp(baseHealth, MapLevel, Definition.Effects, new BossScalingProfile());

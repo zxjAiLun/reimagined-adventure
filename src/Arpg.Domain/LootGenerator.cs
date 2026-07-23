@@ -35,11 +35,19 @@ public sealed class LootGenerator
     ];
 
     private readonly RandomService _random;
+    private readonly IItemIdSource _itemIdSource;
     private int _nextItemNumber;
 
-    public LootGenerator(ulong seed = RandomService.DefaultSeed)
+    public LootGenerator(ulong seed = RandomService.DefaultSeed, IItemIdSource? itemIdSource = null)
     {
         _random = new RandomService(seed);
+        _itemIdSource = itemIdSource ?? new LocalItemIdSource();
+    }
+
+    public LootGenerator(RandomService random, IItemIdSource itemIdSource)
+    {
+        _random = random ?? throw new ArgumentNullException(nameof(random));
+        _itemIdSource = itemIdSource ?? throw new ArgumentNullException(nameof(itemIdSource));
     }
 
     public Item GenerateWeaponDrop(int itemLevel = 1, bool boss = false)
@@ -60,7 +68,7 @@ public sealed class LootGenerator
 
         var item = new Item
         {
-            Id = $"drop_{_nextItemNumber++:D4}",
+            Id = NextItemId(),
             Name = name,
             BaseId = baseDefinition.Id,
             Slot = baseDefinition.Slot,
@@ -91,10 +99,10 @@ public sealed class LootGenerator
             throw new ArgumentException($"Item base '{baseId}' is not a weapon.", nameof(baseId));
         }
 
-        var itemId = $"drop_{_nextItemNumber++:D4}";
+        var itemId = NextItemId();
         while (itemId == disallowedItemId)
         {
-            itemId = $"drop_{_nextItemNumber++:D4}";
+            itemId = NextItemId();
         }
 
         var affix = WeaponAffixes[_random.NextIndex(WeaponAffixes.Length)];
@@ -112,5 +120,22 @@ public sealed class LootGenerator
         };
         item.Validate();
         return item;
+    }
+
+    private string NextItemId()
+    {
+        if (_itemIdSource is LocalItemIdSource)
+        {
+            return $"drop_{_nextItemNumber++:D4}";
+        }
+
+        return _itemIdSource.NextId();
+    }
+
+    private sealed class LocalItemIdSource : IItemIdSource
+    {
+        public int ItemSequence => 0;
+
+        public string NextId() => throw new InvalidOperationException("Local item id source is generator-owned.");
     }
 }

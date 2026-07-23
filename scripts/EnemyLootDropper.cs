@@ -16,12 +16,14 @@ public partial class EnemyLootDropper : Node
 
     private HealthComponent _health;
     private Node2D _owner;
+    private RunSessionNode _runSession;
     private bool _dropped;
 
     public override void _Ready()
     {
         AddToGroup("enemy_loot_droppers");
         _owner = GetParent<Node2D>();
+        _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         _health = _owner.GetNodeOrNull<HealthComponent>("HealthComponent");
         if (_health != null)
         {
@@ -43,8 +45,10 @@ public partial class EnemyLootDropper : Node
         }
 
         _dropped = true;
-        var item = new LootGenerator((ulong)Mathf.Max(1, DropSeed))
-            .GenerateWeaponDrop(Mathf.Max(1, ItemLevel), BossDrop);
+        var item = _runSession != null
+            ? _runSession.GenerateWeaponDrop(Mathf.Max(1, ItemLevel), BossDrop)
+            : new LootGenerator((ulong)Mathf.Max(1, DropSeed))
+                .GenerateWeaponDrop(Mathf.Max(1, ItemLevel), BossDrop);
         var drop = ItemDropScene.Instantiate<ItemDrop>();
         _owner.GetParent().AddChild(drop);
         drop.GlobalPosition = _owner.GlobalPosition;

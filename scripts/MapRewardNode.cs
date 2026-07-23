@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Arpg.Domain;
 using Godot;
 
@@ -17,20 +18,55 @@ public partial class MapRewardNode : Node
     private readonly List<MapRewardDefinition> _rewards = new();
     private PlayerController _player;
     private bool _chosen;
+    private bool _choiceActive;
+    private Label _overlay;
 
     public IReadOnlyList<MapRewardDefinition> Rewards => _rewards;
     public MapRewardDefinition ChosenReward { get; private set; }
+    public bool ChoiceActive => _choiceActive;
+    public bool HasChosen => _chosen;
+    public string ChoiceText => _chosen
+        ? $"MAP COMPLETE\nReward: {ChosenReward?.Title}\nPress N for next map | R to replay"
+        : "MAP COMPLETE\nChoose reward: 1 / 2 / 3\n" + string.Join("\n", _rewards.Select((reward, index) => $"{index + 1}. {reward.Title}"));
 
     public override void _Ready()
     {
+        ProcessMode = Node.ProcessModeEnum.Always;
         _player = GetParentOrNull<PlayerController>()
             ?? GetNodeOrNull<PlayerController>("../Player");
+        _overlay = GetNodeOrNull<Label>("../CanvasLayer/ResultOverlay");
         foreach (var reward in DefinitionResource?.ToDomain() ?? MapRewardLibrary.FallbackRewards)
         {
             _rewards.Add(reward);
         }
 
         AddToGroup("map_rewards");
+    }
+
+    public void BeginChoice()
+    {
+        _choiceActive = true;
+        _chosen = false;
+        ChosenReward = null;
+        RefreshOverlay();
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!_choiceActive || !@event.IsActionPressed("reward_1", true)
+            && !@event.IsActionPressed("reward_2", true)
+            && !@event.IsActionPressed("reward_3", true))
+        {
+            return;
+        }
+
+        var index = @event.IsActionPressed("reward_1", true)
+            ? 0
+            : @event.IsActionPressed("reward_2", true) ? 1 : 2;
+        if (TryChooseReward(index))
+        {
+            GetViewport().SetInputAsHandled();
+        }
     }
 
     public bool TryChooseReward(int index)
@@ -45,7 +81,17 @@ public partial class MapRewardNode : Node
         _player?.SetRewardStats(stats);
         ChosenReward = reward;
         _chosen = true;
+        _choiceActive = false;
         EmitSignal(SignalName.RewardChosen, reward.Id);
+        RefreshOverlay();
         return true;
+    }
+
+    private void RefreshOverlay()
+    {
+        if (_overlay != null && _choiceActive || _overlay != null && _chosen)
+        {
+            _overlay.Text = ChoiceText;
+        }
     }
 }

@@ -38,7 +38,7 @@ public partial class Milestone19FullSaveSmoke : Node2D
             && restored.EquippedWeapon?.Id == savedEquippedId
             && inventory.EquippedWeapon?.Id == savedEquippedId
             && inventory.ItemCount == 1
-            && player.MaxHealth == 105
+            && player.MaxHealth == 100
             && player.CurrentHealth == 100
             && passiveTree.State.IsAllocated(0)
             && atlas.State.IsCompleted("quiet-coast");

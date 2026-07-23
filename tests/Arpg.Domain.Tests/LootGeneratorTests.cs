@@ -33,4 +33,21 @@ public sealed class LootGeneratorTests
         Assert.Equal("brimstone_brand", item.BaseId);
         Assert.True(item.Stats.DamageMultiplier > 1.0);
     }
+
+    [Fact]
+    public void RunSessionSharesIdentityAcrossLootAndCraftingStreams()
+    {
+        var session = new RunSession(9017);
+        var loot = session.CreateLootGenerator();
+        var crafting = session.CreateCraftingGenerator();
+
+        var first = loot.GenerateWeaponDrop();
+        var second = crafting.GenerateWeaponDropForBase(first.BaseId, first.ItemLevel, first.Id);
+        var third = loot.GenerateWeaponDrop(2, boss: true);
+
+        Assert.Equal("item_00000001", first.Id);
+        Assert.Equal("item_00000002", second.Id);
+        Assert.Equal("item_00000003", third.Id);
+        Assert.Equal(3, session.ItemSequence);
+    }
 }

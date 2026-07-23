@@ -99,6 +99,33 @@ public sealed class Stats
         };
     }
 
+    public bool EquivalentTo(Stats other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        return MaxHp == other.MaxHp
+            && MoveSpeedMultiplier == other.MoveSpeedMultiplier
+            && DamageMultiplier == other.DamageMultiplier
+            && AttackSpeedMultiplier == other.AttackSpeedMultiplier
+            && PickupRangeMultiplier == other.PickupRangeMultiplier
+            && ProjectileDamageMultiplier == other.ProjectileDamageMultiplier
+            && AreaDamageMultiplier == other.AreaDamageMultiplier
+            && AreaRadiusMultiplier == other.AreaRadiusMultiplier
+            && Armor == other.Armor
+            && ProjectileCountBonus == other.ProjectileCountBonus
+            && LifeFlaskEffectMultiplier == other.LifeFlaskEffectMultiplier
+            && ItemQuantityMultiplier == other.ItemQuantityMultiplier
+            && IncomingDamageMultiplier == other.IncomingDamageMultiplier
+            && PhysicalDamageMultiplier == other.PhysicalDamageMultiplier
+            && FireDamageMultiplier == other.FireDamageMultiplier
+            && ColdDamageMultiplier == other.ColdDamageMultiplier
+            && LightningDamageMultiplier == other.LightningDamageMultiplier
+            && PoisonDamageMultiplier == other.PoisonDamageMultiplier
+            && FireResistance == other.FireResistance
+            && ColdResistance == other.ColdResistance
+            && LightningResistance == other.LightningResistance
+            && PoisonResistance == other.PoisonResistance;
+    }
+
     private static void ValidateMultiplier(string name, double value)
     {
         if (double.IsNaN(value) || double.IsInfinity(value) || value < 0.0)

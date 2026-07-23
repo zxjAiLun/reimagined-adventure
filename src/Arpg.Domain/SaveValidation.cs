@@ -3,6 +3,7 @@ namespace Arpg.Domain;
 public enum SaveRunState
 {
     Playing,
+    GameOver,
     MapComplete,
 }
 
@@ -13,9 +14,15 @@ public enum SaveRunState
 public sealed class MinimalRunState
 {
     public SaveRunState State { get; init; } = SaveRunState.Playing;
+    public ulong RunSeed { get; init; } = RandomService.DefaultSeed;
+    public int ItemSequence { get; init; }
     public int MapLevel { get; init; } = 1;
+    public ulong LootRandomState { get; init; } = RandomService.DeriveSeed(RandomService.DefaultSeed, 1);
+    public ulong CraftingRandomState { get; init; } = RandomService.DeriveSeed(RandomService.DefaultSeed, 2);
+    public ulong EventRandomState { get; init; } = RandomService.DeriveSeed(RandomService.DefaultSeed, 3);
     public int PlayerMaxHealth { get; init; } = 100;
     public int PlayerCurrentHealth { get; init; } = 100;
+    public Stats RewardStats { get; init; } = Stats.Neutral;
     public int ManaCharges { get; init; } = SaveSnapshot.MaxManaCharges;
     public IReadOnlyList<string> InventoryItemIds { get; init; } = Array.Empty<string>();
     public string? EquippedWeaponId { get; init; }
@@ -40,9 +47,15 @@ public sealed class SaveSnapshot
     public uint Magic { get; init; } = ExpectedMagic;
     public int Version { get; init; } = CurrentVersion;
     public SaveRunState State { get; init; } = SaveRunState.Playing;
+    public ulong RunSeed { get; init; } = RandomService.DefaultSeed;
+    public int ItemSequence { get; init; }
     public int MapLevel { get; init; } = 1;
+    public ulong LootRandomState { get; init; } = RandomService.DeriveSeed(RandomService.DefaultSeed, 1);
+    public ulong CraftingRandomState { get; init; } = RandomService.DeriveSeed(RandomService.DefaultSeed, 2);
+    public ulong EventRandomState { get; init; } = RandomService.DeriveSeed(RandomService.DefaultSeed, 3);
     public int PlayerMaxHealth { get; init; } = 100;
     public int PlayerCurrentHealth { get; init; } = 100;
+    public Stats RewardStats { get; init; } = Stats.Neutral;
     public int ManaCharges { get; init; } = MaxManaCharges;
     public int InventoryCount { get; init; }
     public IReadOnlyList<string> InventoryItemIds { get; init; } = Array.Empty<string>();
@@ -69,9 +82,15 @@ public sealed class SaveSnapshot
         var snapshot = new SaveSnapshot
         {
             State = state.State,
+            RunSeed = state.RunSeed,
+            ItemSequence = state.ItemSequence,
             MapLevel = state.MapLevel,
+            LootRandomState = state.LootRandomState,
+            CraftingRandomState = state.CraftingRandomState,
+            EventRandomState = state.EventRandomState,
             PlayerMaxHealth = state.PlayerMaxHealth,
             PlayerCurrentHealth = state.PlayerCurrentHealth,
+            RewardStats = state.RewardStats,
             ManaCharges = state.ManaCharges,
             InventoryCount = itemIds.Length,
             InventoryItemIds = itemIds,
@@ -92,9 +111,15 @@ public sealed class SaveSnapshot
         return new MinimalRunState
         {
             State = State,
+            RunSeed = RunSeed,
+            ItemSequence = ItemSequence,
             MapLevel = MapLevel,
+            LootRandomState = LootRandomState,
+            CraftingRandomState = CraftingRandomState,
+            EventRandomState = EventRandomState,
             PlayerMaxHealth = PlayerMaxHealth,
             PlayerCurrentHealth = PlayerCurrentHealth,
+            RewardStats = RewardStats,
             ManaCharges = ManaCharges,
             InventoryItemIds = InventoryItemIds.ToArray(),
             EquippedWeaponId = EquippedWeaponId,
@@ -120,7 +145,7 @@ public sealed class SaveSnapshot
             return false;
         }
 
-        if (!Enum.IsDefined(State) || MapLevel < 1)
+        if (!Enum.IsDefined(State) || MapLevel < 1 || ItemSequence < 0)
         {
             error = "invalid run state or map level";
             return false;
@@ -129,6 +154,8 @@ public sealed class SaveSnapshot
         if (PlayerMaxHealth < 1
             || PlayerCurrentHealth < 0
             || PlayerCurrentHealth > PlayerMaxHealth
+            || RewardStats == null
+            || !IsValidStats(RewardStats)
             || ManaCharges < 0
             || ManaCharges > MaxManaCharges
             || InventoryCount < 0
@@ -193,6 +220,19 @@ public sealed class SaveSnapshot
         try
         {
             item.Validate();
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidStats(Stats stats)
+    {
+        try
+        {
+            stats.Validate();
             return true;
         }
         catch (ArgumentException)

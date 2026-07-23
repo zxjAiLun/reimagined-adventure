@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Arpg.Domain;
 using Godot;
 
@@ -10,6 +11,12 @@ using Godot;
 /// </summary>
 public partial class InventoryController : Node
 {
+    public sealed class RestorePlan
+    {
+        public required IReadOnlyList<Item> Items { get; init; }
+        public Item EquippedWeapon { get; init; }
+    }
+
     [Signal]
     public delegate void InventoryChangedEventHandler();
 
@@ -45,11 +52,7 @@ public partial class InventoryController : Node
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event.IsActionPressed("pickup_item", true))
-        {
-            TryPickupNearest();
-        }
-        else if (@event.IsActionPressed("equip_item", true))
+        if (@event.IsActionPressed("equip_item", true))
         {
             TryEquipNewestWeapon();
         }
@@ -60,6 +63,12 @@ public partial class InventoryController : Node
         ArgumentNullException.ThrowIfNull(item);
         item.Validate();
         if (_items.Count >= Capacity)
+        {
+            return false;
+        }
+
+        if (_items.Any(existing => existing.Id == item.Id)
+            || Equipment.Items.Values.Any(existing => existing.Id == item.Id))
         {
             return false;
         }
@@ -115,8 +124,19 @@ public partial class InventoryController : Node
 
     public bool TryRestoreSavedState(MinimalRunState state)
     {
-        ArgumentNullException.ThrowIfNull(state);
-        if (state.InventoryItems == null || state.InventoryItems.Count > Capacity)
+        if (!TryPrepareRestoreState(state, out var plan))
+        {
+            return false;
+        }
+
+        ApplyRestorePlan(plan);
+        return true;
+    }
+
+    public bool TryPrepareRestoreState(MinimalRunState state, out RestorePlan plan)
+    {
+        plan = null;
+        if (state == null || state.InventoryItems == null || state.InventoryItems.Count > Capacity)
         {
             return false;
         }
@@ -151,18 +171,28 @@ public partial class InventoryController : Node
             }
         }
 
-        _items.Clear();
-        _items.AddRange(restoredItems);
-        Equipment.Reset();
-        if (state.EquippedWeapon != null)
+        plan = new RestorePlan
         {
-            Equipment.Equip(state.EquippedWeapon, PlayerLevel);
+            Items = restoredItems,
+            EquippedWeapon = state.EquippedWeapon,
+        };
+        return true;
+    }
+
+    public void ApplyRestorePlan(RestorePlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        _items.Clear();
+        _items.AddRange(plan.Items);
+        Equipment.Reset();
+        if (plan.EquippedWeapon != null)
+        {
+            Equipment.Equip(plan.EquippedWeapon, PlayerLevel);
         }
 
         RecalculatePlayerStats();
         EmitSignal(SignalName.InventoryChanged);
         EmitSignal(SignalName.EquipmentChanged);
-        return true;
     }
 
     public bool TryRemoveItem(int index, out Item item)
@@ -184,6 +214,12 @@ public partial class InventoryController : Node
         ArgumentNullException.ThrowIfNull(replacement);
         replacement.Validate();
         if (index < 0 || index >= _items.Count)
+        {
+            return false;
+        }
+
+        if (_items.Where((_, itemIndex) => itemIndex != index).Any(existing => existing.Id == replacement.Id)
+            || Equipment.Items.Values.Any(existing => existing.Id == replacement.Id))
         {
             return false;
         }

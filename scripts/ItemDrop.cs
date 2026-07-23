@@ -1,7 +1,7 @@
 using Arpg.Domain;
 using Godot;
 
-public partial class ItemDrop : Node2D
+public partial class ItemDrop : Node2D, IPlayerInteractable
 {
     [Export] public float Radius { get; set; } = 12.0f;
 
@@ -11,14 +11,28 @@ public partial class ItemDrop : Node2D
     private bool _collected;
 
     public Item Item => _item;
+    public int InteractionPriority => 10;
 
     public override void _Ready()
     {
         AddToGroup("item_drops");
+        AddToGroup("interactables");
         _label = GetNodeOrNull<Label>("Label");
         RefreshLabel();
         QueueRedraw();
     }
+
+    public bool CanInteract(PlayerController player)
+    {
+        return !_collected
+            && _item != null
+            && player?.Inventory != null
+            && player.Inventory.ItemCount < player.Inventory.Capacity
+            && GlobalPosition.DistanceTo(player.GlobalPosition)
+                <= player.Inventory.PickupRange * player.EffectiveStats.PickupRangeMultiplier;
+    }
+
+    public bool TryInteract(PlayerController player) => TryCollect(player);
 
     public override void _Process(double delta)
     {

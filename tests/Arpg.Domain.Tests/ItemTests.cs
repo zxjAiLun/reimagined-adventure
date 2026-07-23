@@ -27,6 +27,47 @@ public sealed class ItemTests
             ItemLevel = 0,
         };
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => item.Validate());
+        Assert.Throws<ArgumentException>(() => item.Validate());
+    }
+
+    [Fact]
+    public void ForgedStatsDoNotPassValidation()
+    {
+        var generated = new LootGenerator(43).GenerateWeaponDrop();
+        var forged = new Item
+        {
+            Id = generated.Id,
+            Name = generated.Name,
+            BaseId = generated.BaseId,
+            Slot = generated.Slot,
+            Rarity = generated.Rarity,
+            ItemLevel = generated.ItemLevel,
+            RequiredLevel = generated.RequiredLevel,
+            Stats = Stats.Neutral,
+            Affixes = generated.Affixes,
+        };
+
+        Assert.Throws<ArgumentException>(() => forged.Validate());
+    }
+
+    [Fact]
+    public void DuplicateAffixClassIsRejected()
+    {
+        var generated = new LootGenerator(44).GenerateWeaponDrop();
+        var duplicate = generated.Affixes[0];
+        var forged = new Item
+        {
+            Id = generated.Id,
+            Name = generated.Name,
+            BaseId = generated.BaseId,
+            Slot = generated.Slot,
+            Rarity = generated.Rarity,
+            ItemLevel = generated.ItemLevel,
+            RequiredLevel = generated.RequiredLevel,
+            Stats = Stats.Combine(generated.Stats, duplicate.Stats),
+            Affixes = [duplicate, duplicate],
+        };
+
+        Assert.Throws<ArgumentException>(() => forged.Validate());
     }
 }

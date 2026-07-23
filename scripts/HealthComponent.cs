@@ -56,9 +56,7 @@ public partial class HealthComponent : Node
 
         var currentHealth = CurrentHealth;
         MaxHealth = maxHealth;
-        CurrentHealth = currentHealth <= 0
-            ? maxHealth
-            : Mathf.Min(currentHealth, maxHealth);
+        CurrentHealth = Mathf.Min(currentHealth, maxHealth);
     }
 
     public void SetDefensiveStats(Stats stats)

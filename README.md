@@ -16,7 +16,9 @@ Godot or GodotSharp.
 
 ## Run the playable slice
 
-Open the repository with Godot 4.7.1 .NET and run `scenes/TestArena.tscn`.
+Open the repository with Godot 4.7.1 .NET and run the main scene. It loads
+`scenes/RunShell.tscn`, which owns the run session and transitions between map
+instances; `scenes/TestArena.tscn` remains useful as a single-map sandbox.
 
 | Input | Action |
 | --- | --- |
@@ -30,8 +32,11 @@ Open the repository with Godot 4.7.1 .NET and run `scenes/TestArena.tscn`.
 | E | Equip the newest weapon |
 | R | Restart after Game Over / Map Complete |
 
-The fixed arena contains Feral, Spitter, and Brimstone Colossus. Boss death
-enters Map Complete; the optional Atlas adapter is not part of the main arena.
+The fixed arena contains a Hardened Front map modifier, a Loot Cache, Feral,
+Spitter, Brimstone Colossus, Atlas progression, and the three map rewards.
+Boss death enters Map Complete and opens the reward choice; F is handled by one
+interaction controller, with map events taking priority over item drops. After
+choosing a reward, press N to enter the next map while keeping the run state.
 
 ## Tests and smoke scenes
 
@@ -48,7 +53,9 @@ The Domain suite is split by system (`CombatMathTests`, `LootGeneratorTests`,
 Godot smoke scenes are named `Milestone4Smoke.tscn` through
 `Milestone20ContentRuntimeSmoke.tscn`. They cover enemy behavior, equipment,
 flow states, map events, supports, passive allocation, content save/restore,
-map modifiers, Atlas progression, Stash, and Crafting.
+map modifiers, Atlas progression, Stash, and Crafting. The stabilization
+branch also runs the main scene, combat smoke, save smoke, and content smoke
+from `.github/workflows/ci.yml`.
 
 ## Migration boundaries
 
@@ -58,6 +65,7 @@ root project. Deferred large systems such as procedural maps, encounter
 composition, the full Boss catalogue, and advanced exceptions are outside the
 first vertical slice.
 
-The local Windows console runner currently crashes with a native signal 11
-before printing scene smoke output; editor C# builds and the Domain suite are
-independent validation gates.
+The `pre-stabilization` tag marks the last baseline before run-loop work.
+Development after that point is on `stabilization/run-loop-v1`; no new
+Milestone 21+ content is being added until this run-loop is stable and CI is
+green.

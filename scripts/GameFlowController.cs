@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 public enum GameFlowState
@@ -20,14 +21,20 @@ public partial class GameFlowController : Node
     private PlayerController _player;
     private BrimstoneColossusController _boss;
     private AtlasNode _atlas;
+    private MapRewardNode _mapRewards;
+    private RunSessionNode _runSession;
     private Label _overlay;
 
     public override void _Ready()
     {
+        ProcessMode = Node.ProcessModeEnum.Always;
         _player = GetNodeOrNull<PlayerController>("../Player");
         _boss = GetNodeOrNull<BrimstoneColossusController>("../BrimstoneColossus");
         _atlas = GetNodeOrNull<AtlasNode>("../Atlas");
+        _mapRewards = GetNodeOrNull<MapRewardNode>("../MapRewards");
+        _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         _overlay = GetNodeOrNull<Label>("../CanvasLayer/ResultOverlay");
+        AddToGroup("game_flows");
 
         var playerHealth = _player?.GetNodeOrNull<HealthComponent>("HealthComponent");
         if (playerHealth != null)
@@ -51,6 +58,18 @@ public partial class GameFlowController : Node
             return;
         }
 
+        if (State == GameFlowState.MapComplete
+            && @event.IsActionPressed("next_map", true)
+            && _mapRewards?.HasChosen == true)
+        {
+            if (_runSession?.LoadNextMap() == true)
+            {
+                GetViewport().SetInputAsHandled();
+            }
+
+            return;
+        }
+
         if (@event.IsActionPressed("restart_run", true))
         {
             RestartRun();
@@ -59,7 +78,42 @@ public partial class GameFlowController : Node
 
     public void RestartRun()
     {
+        GetTree().Paused = false;
         GetTree().ReloadCurrentScene();
+    }
+
+    public bool RestoreState(GameFlowState state)
+    {
+        if (!Enum.IsDefined(state))
+        {
+            return false;
+        }
+
+        State = state;
+        if (State != GameFlowState.Playing)
+        {
+            FreezeGameplay();
+        }
+        else
+        {
+            GetTree().Paused = false;
+        }
+
+        RefreshOverlay();
+        return true;
+    }
+
+    public bool PrepareNextMap()
+    {
+        if (State != GameFlowState.MapComplete)
+        {
+            return false;
+        }
+
+        State = GameFlowState.Playing;
+        GetTree().Paused = false;
+        RefreshOverlay();
+        return true;
     }
 
     private void OnPlayerDied()
@@ -89,25 +143,14 @@ public partial class GameFlowController : Node
 
         _atlas?.TryCompleteMap(AtlasMapId);
         State = GameFlowState.MapComplete;
+        _mapRewards?.BeginChoice();
         FreezeGameplay();
         RefreshOverlay();
     }
 
     private void FreezeGameplay()
     {
-        _player?.SetPhysicsProcess(false);
-        var skillController = _player?.GetNodeOrNull<PlayerSkillController>("SkillBarController");
-        skillController?.SetProcess(false);
-        skillController?.SetProcessUnhandledInput(false);
-        _player?.GetNodeOrNull<InventoryController>("InventoryController")?.SetProcessUnhandledInput(false);
-
-        foreach (var node in GetTree().GetNodesInGroup("enemies"))
-        {
-            if (node is Node actor)
-            {
-                actor.SetPhysicsProcess(false);
-            }
-        }
+        GetTree().Paused = true;
     }
 
     private void RefreshOverlay()
@@ -121,7 +164,8 @@ public partial class GameFlowController : Node
         _overlay.Text = State switch
         {
             GameFlowState.GameOver => "GAME OVER\nPress R to restart",
-            GameFlowState.MapComplete => "MAP COMPLETE\nBrimstone Colossus defeated\nPress R to replay",
+            GameFlowState.MapComplete => _mapRewards?.ChoiceText
+                ?? "MAP COMPLETE\nBrimstone Colossus defeated\nPress R to replay",
             _ => string.Empty,
         };
     }

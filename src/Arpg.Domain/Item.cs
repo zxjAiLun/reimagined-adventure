@@ -32,6 +32,9 @@ public sealed class Item
             throw new ArgumentException("Item base id cannot be empty.", nameof(BaseId));
         }
 
+        var baseDefinition = ItemBaseLibrary.Find(BaseId)
+            ?? throw new ArgumentException($"Unknown item base '{BaseId}'.", nameof(BaseId));
+
         if (!Enum.IsDefined(Slot))
         {
             throw new ArgumentOutOfRangeException(nameof(Slot), Slot, "Unknown equipment slot.");
@@ -52,13 +55,52 @@ public sealed class Item
             throw new ArgumentOutOfRangeException(nameof(RequiredLevel), "Required level must be positive.");
         }
 
+        if (Slot != baseDefinition.Slot)
+        {
+            throw new ArgumentException("Item slot does not match its base definition.", nameof(Slot));
+        }
+
+        if (RequiredLevel != baseDefinition.RequiredLevel)
+        {
+            throw new ArgumentException("Item required level does not match its base definition.", nameof(RequiredLevel));
+        }
+
         ArgumentNullException.ThrowIfNull(Stats);
         Stats.Validate();
         ArgumentNullException.ThrowIfNull(Affixes);
+        var affixIds = new HashSet<string>(StringComparer.Ordinal);
+        var prefixCount = 0;
+        var suffixCount = 0;
+        var expectedStats = baseDefinition.ImplicitStats;
         foreach (var affix in Affixes)
         {
             ArgumentNullException.ThrowIfNull(affix);
             affix.Validate();
+            if (!affixIds.Add(affix.Id))
+            {
+                throw new ArgumentException($"Item contains duplicate affix '{affix.Id}'.", nameof(Affixes));
+            }
+
+            if (affix.IsPrefix)
+            {
+                prefixCount++;
+            }
+            else
+            {
+                suffixCount++;
+            }
+
+            if (prefixCount > 1 || suffixCount > 1)
+            {
+                throw new ArgumentException("Item contains duplicate affix class.", nameof(Affixes));
+            }
+
+            expectedStats = Stats.Combine(expectedStats, affix.Stats);
+        }
+
+        if (!Stats.EquivalentTo(expectedStats))
+        {
+            throw new ArgumentException("Item stats do not match base implicit stats and affixes.", nameof(Stats));
         }
     }
 }
