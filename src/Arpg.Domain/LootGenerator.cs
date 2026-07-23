@@ -73,4 +73,44 @@ public sealed class LootGenerator
         item.Validate();
         return item;
     }
+
+    public Item GenerateWeaponDropForBase(
+        string baseId,
+        int itemLevel = 1,
+        string? disallowedItemId = null)
+    {
+        if (itemLevel < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(itemLevel), "Item level must be positive.");
+        }
+
+        var baseDefinition = ItemBaseLibrary.Find(baseId)
+            ?? throw new ArgumentException($"Unknown weapon base '{baseId}'.", nameof(baseId));
+        if (baseDefinition.Slot != EquipmentSlot.Weapon)
+        {
+            throw new ArgumentException($"Item base '{baseId}' is not a weapon.", nameof(baseId));
+        }
+
+        var itemId = $"drop_{_nextItemNumber++:D4}";
+        while (itemId == disallowedItemId)
+        {
+            itemId = $"drop_{_nextItemNumber++:D4}";
+        }
+
+        var affix = WeaponAffixes[_random.NextIndex(WeaponAffixes.Length)];
+        var item = new Item
+        {
+            Id = itemId,
+            Name = $"{baseDefinition.Name} of {affix.Name}",
+            BaseId = baseDefinition.Id,
+            Slot = baseDefinition.Slot,
+            Rarity = _random.Chance(35) ? Rarity.Magic : Rarity.Normal,
+            ItemLevel = itemLevel,
+            RequiredLevel = baseDefinition.RequiredLevel,
+            Stats = Stats.Combine(baseDefinition.ImplicitStats, affix.Stats),
+            Affixes = [affix],
+        };
+        item.Validate();
+        return item;
+    }
 }

@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/CraftingBenchNode.cs" id="1_bench_node"]
+[ext_resource type="Resource" path="res://resources/ReforgeWeapon.tres" id="2_recipe"]
+
+[node name="CraftingBench" type="Node"]
+script = ExtResource("1_bench_node")
+recipe_resource = ExtResource("2_recipe")
+seed = 2401

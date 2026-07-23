@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/StashNode.cs" id="1_stash_node"]
+[ext_resource type="Resource" path="res://resources/DefaultStash.tres" id="2_stash_resource"]
+
+[node name="Stash" type="Node"]
+script = ExtResource("1_stash_node")
+definition_resource = ExtResource("2_stash_resource")

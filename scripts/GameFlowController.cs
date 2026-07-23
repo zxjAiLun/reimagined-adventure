@@ -25,8 +25,17 @@ public partial class GameFlowController : Node
         _boss = GetNodeOrNull<BrimstoneColossusController>("../BrimstoneColossus");
         _overlay = GetNodeOrNull<Label>("../CanvasLayer/ResultOverlay");
 
-        _player?.GetNodeOrNull<HealthComponent>("HealthComponent")?.Died += OnPlayerDied;
-        _boss?.GetNodeOrNull<HealthComponent>("HealthComponent")?.Died += OnBossDied;
+        var playerHealth = _player?.GetNodeOrNull<HealthComponent>("HealthComponent");
+        if (playerHealth != null)
+        {
+            playerHealth.Died += OnPlayerDied;
+        }
+
+        var bossHealth = _boss?.GetNodeOrNull<HealthComponent>("HealthComponent");
+        if (bossHealth != null)
+        {
+            bossHealth.Died += OnBossDied;
+        }
         SetProcessUnhandledInput(true);
         RefreshOverlay();
     }

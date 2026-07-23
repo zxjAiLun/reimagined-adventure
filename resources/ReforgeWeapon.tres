@@ -1,0 +1,10 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/CraftingRecipeResource.cs" id="1_recipe"]
+
+[resource]
+script = ExtResource("1_recipe")
+recipe_id = "reforge_weapon"
+display_name = "Reforge Weapon"
+slot = 0
+forge_fragment_cost = 1

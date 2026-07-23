@@ -1,0 +1,15 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/Milestone10ContentBatchSmoke.cs" id="1_smoke"]
+[ext_resource type="PackedScene" path="res://scenes/Stash.tscn" id="2_stash"]
+[ext_resource type="PackedScene" path="res://scenes/CraftingBench.tscn" id="3_bench"]
+[ext_resource type="PackedScene" path="res://scenes/Atlas.tscn" id="4_atlas"]
+
+[node name="Milestone10ContentBatchSmoke" type="Node"]
+script = ExtResource("1_smoke")
+
+[node name="Stash" parent="." instance=ExtResource("2_stash")]
+
+[node name="CraftingBench" parent="." instance=ExtResource("3_bench")]
+
+[node name="Atlas" parent="." instance=ExtResource("4_atlas")]

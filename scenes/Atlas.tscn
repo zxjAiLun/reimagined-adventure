@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/AtlasNode.cs" id="1_atlas_node"]
+[ext_resource type="Resource" path="res://resources/MinimumAtlas.tres" id="2_atlas_resource"]
+
+[node name="Atlas" type="Node"]
+script = ExtResource("1_atlas_node")
+definition_resource = ExtResource("2_atlas_resource")

@@ -69,7 +69,7 @@ public partial class MapEventNode : Node2D
         var color = EventType == MapEventType.Shrine
             ? new Color(0.36f, 0.72f, 1.0f, 1.0f)
             : new Color(1.0f, 0.72f, 0.24f, 1.0f);
-        DrawCircle(Vector2.Zero, _definition?.Radius ?? 70.0f, new Color(color, 0.10f));
+        DrawCircle(Vector2.Zero, (float)(_definition?.Radius ?? 70.0), new Color(color, 0.10f));
         DrawArc(Vector2.Zero, 18.0f, 0.0f, Mathf.Tau, 24, color, 3.0f);
         DrawLine(new Vector2(-9.0f, 0.0f), new Vector2(9.0f, 0.0f), color, 3.0f);
         DrawLine(new Vector2(0.0f, -9.0f), new Vector2(0.0f, 9.0f), color, 3.0f);
