@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/PlayerController.cs" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/BasicProjectile.tscn" id="2_projectile"]
@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="5_health"]
 [ext_resource type="Script" path="res://scripts/InventoryController.cs" id="6_inventory"]
 [ext_resource type="Resource" path="res://resources/DefaultSkillBar.tres" id="7_skill_bar"]
+[ext_resource type="Script" path="res://scripts/PassiveTreeNode.cs" id="8_passive_tree"]
+[ext_resource type="Resource" path="res://resources/MinimumPassiveTree.tres" id="9_passive_resource"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_player"]
 radius = 20.0
@@ -30,6 +32,10 @@ script = ExtResource("6_inventory")
 Capacity = 8
 PickupRange = 84.0
 PlayerLevel = 1
+
+[node name="PassiveTree" type="Node" parent="."]
+script = ExtResource("8_passive_tree")
+DefinitionResource = ExtResource("9_passive_resource")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position_smoothing_enabled = true

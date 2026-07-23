@@ -47,6 +47,20 @@ public partial class HealthComponent : Node
         }
     }
 
+    public void SetMaxHealthPreservingCurrent(int maxHealth)
+    {
+        if (maxHealth < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxHealth), "Max health must be positive.");
+        }
+
+        var currentHealth = CurrentHealth;
+        MaxHealth = maxHealth;
+        CurrentHealth = currentHealth <= 0
+            ? maxHealth
+            : Mathf.Min(currentHealth, maxHealth);
+    }
+
     public void SetDefensiveStats(Stats stats)
     {
         ArgumentNullException.ThrowIfNull(stats);

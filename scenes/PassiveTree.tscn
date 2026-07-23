@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/PassiveTreeNode.cs" id="1_node"]
+[ext_resource type="Resource" path="res://resources/MinimumPassiveTree.tres" id="2_tree"]
+
+[node name="PassiveTree" type="Node"]
+script = ExtResource("1_node")
+DefinitionResource = ExtResource("2_tree")

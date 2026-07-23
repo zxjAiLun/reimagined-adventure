@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="PassiveTreeResource" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/PassiveTreeResource.cs" id="1_tree"]
+[ext_resource type="Script" path="res://scripts/PassiveNodeResource.cs" id="2_node"]
+
+[sub_resource type="Resource" id="Passive_sharpened_bolt"]
+script = ExtResource("2_node")
+NodeId = "sharpened-bolt"
+DisplayName = "Sharpened Bolt"
+Description = "+8% projectile damage"
+Branch = 0
+PrerequisiteIndex = -1
+ProjectileDamageMultiplier = 1.08
+
+[sub_resource type="Resource" id="Passive_rapid_fire"]
+script = ExtResource("2_node")
+NodeId = "rapid-fire"
+DisplayName = "Rapid Fire"
+Description = "+6% attack speed"
+Branch = 0
+PrerequisiteIndex = 0
+AttackSpeedMultiplier = 1.06
+
+[sub_resource type="Resource" id="Passive_vigour"]
+script = ExtResource("2_node")
+NodeId = "vigour"
+DisplayName = "Vigour"
+Description = "+5 max HP"
+Branch = 1
+PrerequisiteIndex = -1
+MaxHp = 5
+
+[resource]
+script = ExtResource("1_tree")
+Nodes = [SubResource("Passive_sharpened_bolt"), SubResource("Passive_rapid_fire"), SubResource("Passive_vigour")]

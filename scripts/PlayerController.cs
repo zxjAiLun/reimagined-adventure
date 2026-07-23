@@ -16,6 +16,9 @@ public partial class PlayerController : CharacterBody2D, IDamageable
     public int MaxHealth => _health?.MaxHealth ?? 0;
     public bool IsAlive => _health?.IsAlive ?? false;
     private Vector2 _aimDirection = Vector2.Right;
+    private Stats _equipmentStats = Stats.Neutral;
+    private Stats _passiveStats = Stats.Neutral;
+    private int _baseMaxHealth;
 
     public Vector2 AimDirection => _aimDirection;
 
@@ -23,9 +26,23 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
     public void SetEffectiveStats(Stats stats)
     {
+        SetEquipmentStats(stats);
+    }
+
+    public void SetEquipmentStats(Stats stats)
+    {
         ArgumentNullException.ThrowIfNull(stats);
         stats.Validate();
-        EffectiveStats = stats;
+        _equipmentStats = stats;
+        RecalculateEffectiveStats();
+    }
+
+    public void SetPassiveStats(Stats stats)
+    {
+        ArgumentNullException.ThrowIfNull(stats);
+        stats.Validate();
+        _passiveStats = stats;
+        RecalculateEffectiveStats();
     }
 
     public override void _Ready()
@@ -33,8 +50,10 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         AddToGroup("player");
         AddToGroup("damageables");
         _health = GetNode<HealthComponent>("HealthComponent");
+        _baseMaxHealth = _health.MaxHealth;
         Inventory = GetNodeOrNull<InventoryController>("InventoryController");
         _health.Died += OnDied;
+        RecalculateEffectiveStats();
         QueueRedraw();
     }
 
@@ -182,5 +201,15 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         Velocity = Vector2.Zero;
         SetPhysicsProcess(false);
         QueueRedraw();
+    }
+
+    private void RecalculateEffectiveStats()
+    {
+        EffectiveStats = Stats.Combine(_equipmentStats, _passiveStats);
+        if (_health != null && _baseMaxHealth > 0)
+        {
+            _health.SetMaxHealthPreservingCurrent(
+                Mathf.Max(1, _baseMaxHealth + EffectiveStats.MaxHp));
+        }
     }
 }

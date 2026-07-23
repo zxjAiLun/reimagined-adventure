@@ -149,7 +149,7 @@ public partial class InventoryController : Node
 
     private void RecalculatePlayerStats()
     {
-        _player?.SetEffectiveStats(Equipment.CombinedStats());
+        _player?.SetEquipmentStats(Equipment.CombinedStats());
     }
 
 }
