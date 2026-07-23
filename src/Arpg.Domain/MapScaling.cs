@@ -4,16 +4,25 @@ public sealed class MapModifierStats
 {
     public double MonsterHpMultiplier { get; init; } = 1.0;
     public int MonsterDamageBonus { get; init; }
+    public double MonsterSpeedMultiplier { get; init; } = 1.0;
+    public double ItemQuantityMultiplier { get; init; } = 1.0;
+    public int BossDropBonus { get; init; }
     public double BossHpMultiplier { get; init; } = 1.0;
     public double BossDamageMultiplier { get; init; } = 1.0;
     public int ItemLevelBonus { get; init; }
+    public double EventRewardMultiplier { get; init; } = 1.0;
+    public double ItemRarityMultiplier { get; init; } = 1.0;
 
     public void Validate()
     {
         ValidateMultiplier(nameof(MonsterHpMultiplier), MonsterHpMultiplier);
+        ValidateMultiplier(nameof(MonsterSpeedMultiplier), MonsterSpeedMultiplier);
+        ValidateMultiplier(nameof(ItemQuantityMultiplier), ItemQuantityMultiplier);
         ValidateMultiplier(nameof(BossHpMultiplier), BossHpMultiplier);
         ValidateMultiplier(nameof(BossDamageMultiplier), BossDamageMultiplier);
-        if (MonsterDamageBonus < 0 || ItemLevelBonus < -100)
+        ValidateMultiplier(nameof(EventRewardMultiplier), EventRewardMultiplier);
+        ValidateMultiplier(nameof(ItemRarityMultiplier), ItemRarityMultiplier);
+        if (MonsterDamageBonus < 0 || BossDropBonus < 0 || ItemLevelBonus < -100)
         {
             throw new ArgumentOutOfRangeException(nameof(MonsterDamageBonus), "Map modifier bonuses are out of range.");
         }
