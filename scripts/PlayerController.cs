@@ -2,7 +2,7 @@ using System;
 using Arpg.Domain;
 using Godot;
 
-public partial class PlayerController : CharacterBody2D
+public partial class PlayerController : CharacterBody2D, IDamageable
 {
     [Export] public float MoveSpeed { get; set; } = 300.0f;
     [Export] public float Radius { get; set; } = 20.0f;
@@ -10,9 +10,14 @@ public partial class PlayerController : CharacterBody2D
     [Export] public PackedScene ProjectileScene { get; set; }
 
     public Stats EffectiveStats { get; private set; } = Stats.Neutral;
+    public int CurrentHealth => _health?.CurrentHealth ?? 0;
+    public int MaxHealth => _health?.MaxHealth ?? 0;
+    public bool IsAlive => _health?.IsAlive ?? false;
     private Vector2 _aimDirection = Vector2.Right;
 
     public Vector2 AimDirection => _aimDirection;
+
+    private HealthComponent _health;
 
     public void SetEffectiveStats(Stats stats)
     {
@@ -23,6 +28,9 @@ public partial class PlayerController : CharacterBody2D
 
     public override void _Ready()
     {
+        AddToGroup("player");
+        _health = GetNode<HealthComponent>("HealthComponent");
+        _health.Died += OnDied;
         QueueRedraw();
     }
 
@@ -44,14 +52,30 @@ public partial class PlayerController : CharacterBody2D
 
     public override void _Draw()
     {
-        DrawCircle(Vector2.Zero, Radius, new Color(0.20f, 0.75f, 1.0f, 1.0f));
+        var bodyColor = IsAlive
+            ? new Color(0.20f, 0.75f, 1.0f, 1.0f)
+            : new Color(0.25f, 0.28f, 0.34f, 1.0f);
+        DrawCircle(Vector2.Zero, Radius, bodyColor);
         DrawArc(Vector2.Zero, Radius, 0.0f, Mathf.Tau, 32, new Color(0.85f, 0.95f, 1.0f, 1.0f), 2.0f);
         DrawLine(Vector2.Zero, Vector2.Right * (Radius + 12.0f), new Color(0.95f, 0.98f, 1.0f, 0.9f), 4.0f);
     }
 
+    public DamageResult ApplyDamage(DamageRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (_health == null || !IsAlive)
+        {
+            return new DamageResult(0, false);
+        }
+
+        var result = _health.ApplyDamage(request);
+        QueueRedraw();
+        return result;
+    }
+
     public bool CastSpreadShot(SkillDefinition definition)
     {
-        if (ProjectileScene == null || definition.CastType != SkillCastType.Projectile)
+        if (!IsAlive || ProjectileScene == null || definition.CastType != SkillCastType.Projectile)
         {
             return false;
         }
@@ -86,7 +110,7 @@ public partial class PlayerController : CharacterBody2D
 
     public bool CastAreaSkill(SkillDefinition definition, Vector2 targetPosition, PackedScene areaEffectScene)
     {
-        if (areaEffectScene == null || !definition.IsArea)
+        if (!IsAlive || areaEffectScene == null || !definition.IsArea)
         {
             return false;
         }
@@ -107,7 +131,7 @@ public partial class PlayerController : CharacterBody2D
 
     public void PerformDash(double distance)
     {
-        if (distance <= 0.0)
+        if (!IsAlive || distance <= 0.0)
         {
             return;
         }
@@ -138,5 +162,12 @@ public partial class PlayerController : CharacterBody2D
         GlobalPosition = new Vector2(
             Mathf.Clamp(GlobalPosition.X, left, right),
             Mathf.Clamp(GlobalPosition.Y, top, bottom));
+    }
+
+    private void OnDied()
+    {
+        Velocity = Vector2.Zero;
+        SetPhysicsProcess(false);
+        QueueRedraw();
     }
 }

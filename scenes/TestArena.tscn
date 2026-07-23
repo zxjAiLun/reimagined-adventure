@@ -2,8 +2,10 @@
 
 [ext_resource type="Script" path="res://scripts/TestArena.cs" id="1_arena"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
-[ext_resource type="PackedScene" path="res://scenes/TestTarget.tscn" id="3_target"]
+[ext_resource type="PackedScene" path="res://scenes/Feral.tscn" id="3_feral"]
 [ext_resource type="Script" path="res://scripts/SkillBarHud.cs" id="4_skill_hud"]
+[ext_resource type="PackedScene" path="res://scenes/Spitter.tscn" id="5_spitter"]
+[ext_resource type="PackedScene" path="res://scenes/BrimstoneColossus.tscn" id="6_boss"]
 
 [node name="TestArena" type="Node2D"]
 script = ExtResource("1_arena")
@@ -12,8 +14,14 @@ arena_size = Vector2(1600, 900)
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(800, 450)
 
-[node name="TestTarget" parent="." instance=ExtResource("3_target")]
-position = Vector2(920, 450)
+[node name="Feral" parent="." instance=ExtResource("3_feral")]
+position = Vector2(1080, 450)
+
+[node name="Spitter" parent="." instance=ExtResource("5_spitter")]
+position = Vector2(1040, 220)
+
+[node name="BrimstoneColossus" parent="." instance=ExtResource("6_boss")]
+position = Vector2(1240, 660)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -24,7 +32,7 @@ offset_right = 1120.0
 offset_bottom = 110.0
 theme_override_colors/font_color = Color(0.78, 0.88, 0.98, 1)
 theme_override_font_sizes/font_size = 15
-text = "MILESTONE 3\nWASD move | Mouse aim | 左键 Spread | 右键 Meteor | Q Pulse | Space Dash"
+text = "MILESTONE 4 — ENEMIES & BOSS\nWASD move | Mouse aim | 左键 Spread | 右键 Meteor | Q Pulse | Space Dash\nFeral近战 | Spitter保持距离并发射酸液 | Boss预警 Magma Slam / Flame Spear"
 
 [node name="SkillBar" type="Label" parent="CanvasLayer"]
 offset_left = 24.0

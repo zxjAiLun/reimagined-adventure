@@ -1,0 +1,22 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/Milestone4Smoke.cs" id="1_smoke"]
+[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/Feral.tscn" id="3_feral"]
+[ext_resource type="PackedScene" path="res://scenes/Spitter.tscn" id="4_spitter"]
+[ext_resource type="PackedScene" path="res://scenes/BrimstoneColossus.tscn" id="5_boss"]
+
+[node name="Milestone4Smoke" type="Node2D"]
+script = ExtResource("1_smoke")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(400, 450)
+
+[node name="Feral" parent="." instance=ExtResource("3_feral")]
+position = Vector2(450, 450)
+
+[node name="Spitter" parent="." instance=ExtResource("4_spitter")]
+position = Vector2(400, 200)
+
+[node name="BrimstoneColossus" parent="." instance=ExtResource("5_boss")]
+position = Vector2(520, 450)

@@ -90,7 +90,7 @@ public partial class PlayerSkillController : Node
 
     private void TryCast(SkillSlot slot)
     {
-        if (_player == null || _cooldowns[slot] > 0.0f)
+        if (_player == null || !_player.IsAlive || _cooldowns[slot] > 0.0f)
         {
             return;
         }

@@ -7,6 +7,7 @@ public partial class BasicProjectile : Area2D
     [Export] public float Speed { get; set; } = 500.0f;
     [Export] public float Lifetime { get; set; } = 4.0f;
     [Export] public float Radius { get; set; } = 5.0f;
+    [Export] public Color ProjectileColor { get; set; } = new(1.0f, 0.85f, 0.25f, 1.0f);
 
     public int Damage { get; private set; }
     public DamageRequest DamageRequest { get; private set; } = new(0, DamageType.Physical, "unconfigured");
@@ -57,8 +58,12 @@ public partial class BasicProjectile : Area2D
 
     public override void _Draw()
     {
-        DrawCircle(Vector2.Zero, Radius, new Color(1.0f, 0.85f, 0.25f, 1.0f));
-        DrawLine(new Vector2(-Radius * 2.0f, 0.0f), new Vector2(Radius * 2.0f, 0.0f), new Color(1.0f, 0.98f, 0.75f, 1.0f), 2.0f);
+        DrawCircle(Vector2.Zero, Radius, ProjectileColor);
+        DrawLine(
+            new Vector2(-Radius * 2.0f, 0.0f),
+            new Vector2(Radius * 2.0f, 0.0f),
+            ProjectileColor.Lightened(0.30f),
+            2.0f);
     }
 
     private void OnBodyEntered(Node2D body)

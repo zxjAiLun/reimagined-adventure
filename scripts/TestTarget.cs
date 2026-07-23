@@ -7,17 +7,24 @@ public partial class TestTarget : StaticBody2D, IDamageable
     [Export] public int MaxHealth { get; set; } = 100;
     [Export] public float Radius { get; set; } = 30.0f;
 
-    public int CurrentHealth { get; private set; }
+    public int CurrentHealth => _health?.CurrentHealth ?? 0;
     public int HitCount { get; private set; }
-    public Stats DefensiveStats { get; set; } = Stats.Neutral;
-    public bool IsAlive => CurrentHealth > 0;
+    public Stats DefensiveStats
+    {
+        get => _health?.DefensiveStats ?? Stats.Neutral;
+        set => _health?.SetDefensiveStats(value);
+    }
 
+    public bool IsAlive => _health?.IsAlive ?? false;
+
+    private HealthComponent _health;
     private Label _healthLabel;
 
     public override void _Ready()
     {
         AddToGroup("damageables");
-        CurrentHealth = Mathf.Max(1, MaxHealth);
+        _health = GetNode<HealthComponent>("HealthComponent");
+        _health.SetMaxHealth(MaxHealth);
         _healthLabel = GetNodeOrNull<Label>("HealthLabel");
         RefreshVisuals();
     }
@@ -25,27 +32,19 @@ public partial class TestTarget : StaticBody2D, IDamageable
     public DamageResult ApplyDamage(DamageRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (!IsAlive || request.RawDamage <= 0)
+        var result = _health.ApplyDamage(request);
+        if (result.DamageApplied > 0)
         {
-            return new DamageResult(0, false);
+            HitCount++;
         }
 
-        var mitigatedDamage = CombatMath.ResolveIncomingDamage(request, DefensiveStats);
-        if (mitigatedDamage <= 0)
-        {
-            return new DamageResult(0, false);
-        }
-
-        var appliedDamage = Math.Min(CurrentHealth, mitigatedDamage);
-        CurrentHealth -= appliedDamage;
-        HitCount++;
         RefreshVisuals();
-        return new DamageResult(appliedDamage, !IsAlive);
+        return result;
     }
 
     public void ResetTarget()
     {
-        CurrentHealth = Mathf.Max(1, MaxHealth);
+        _health.ResetHealth();
         HitCount = 0;
         RefreshVisuals();
     }

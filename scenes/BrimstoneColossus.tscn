@@ -1,0 +1,44 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/BrimstoneColossusController.cs" id="1_boss"]
+[ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
+[ext_resource type="PackedScene" path="res://scenes/EnemyProjectile.tscn" id="3_projectile"]
+[ext_resource type="PackedScene" path="res://scenes/EnemyAreaEffect.tscn" id="4_area"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_boss"]
+radius = 42.0
+
+[node name="BrimstoneColossus" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_boss")
+move_speed = 55.0
+radius = 42.0
+slam_radius = 130.0
+slam_range = 165.0
+slam_damage = 14
+slam_preparation_seconds = 0.75
+spear_range = 520.0
+spear_damage = 10
+spear_preparation_seconds = 0.55
+recovery_seconds = 0.65
+projectile_scene = ExtResource("3_projectile")
+area_effect_scene = ExtResource("4_area")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_boss")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("2_health")
+max_health = 160
+fire_resistance = 25
+
+[node name="HealthLabel" type="Label" parent="."]
+offset_left = -132.0
+offset_top = -100.0
+offset_right = 132.0
+offset_bottom = -58.0
+theme_override_colors/font_color = Color(1, 0.76, 0.46, 1)
+theme_override_font_sizes/font_size = 13
+text = "BRIMSTONE COLOSSUS 160/160\nIdle"
+horizontal_alignment = 1

@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/BasicProjectile.cs" id="1_projectile"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_enemy_projectile"]
+radius = 7.0
+
+[node name="EnemyProjectile" type="Area2D"]
+collision_layer = 8
+collision_mask = 1
+monitoring = true
+monitorable = true
+script = ExtResource("1_projectile")
+speed = 280.0
+lifetime = 5.0
+radius = 7.0
+projectile_color = Color(1, 0.24, 0.08, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_enemy_projectile")
