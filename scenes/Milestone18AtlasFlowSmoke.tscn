@@ -1,0 +1,21 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/Milestone18AtlasFlowSmoke.cs" id="1_smoke"]
+[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/BrimstoneColossus.tscn" id="3_boss"]
+[ext_resource type="PackedScene" path="res://scenes/Atlas.tscn" id="4_atlas"]
+[ext_resource type="Script" path="res://scripts/GameFlowController.cs" id="5_flow"]
+
+[node name="Milestone18AtlasFlowSmoke" type="Node2D"]
+script = ExtResource("1_smoke")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(400, 450)
+
+[node name="BrimstoneColossus" parent="." instance=ExtResource("3_boss")]
+position = Vector2(900, 450)
+
+[node name="Atlas" parent="." instance=ExtResource("4_atlas")]
+
+[node name="GameFlowController" type="Node" parent="."]
+script = ExtResource("5_flow")

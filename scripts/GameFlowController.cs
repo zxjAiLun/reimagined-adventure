@@ -13,16 +13,20 @@ public enum GameFlowState
 /// </summary>
 public partial class GameFlowController : Node
 {
+    [Export] public string AtlasMapId { get; set; } = "quiet-coast";
+
     public GameFlowState State { get; private set; } = GameFlowState.Playing;
 
     private PlayerController _player;
     private BrimstoneColossusController _boss;
+    private AtlasNode _atlas;
     private Label _overlay;
 
     public override void _Ready()
     {
         _player = GetNodeOrNull<PlayerController>("../Player");
         _boss = GetNodeOrNull<BrimstoneColossusController>("../BrimstoneColossus");
+        _atlas = GetNodeOrNull<AtlasNode>("../Atlas");
         _overlay = GetNodeOrNull<Label>("../CanvasLayer/ResultOverlay");
 
         var playerHealth = _player?.GetNodeOrNull<HealthComponent>("HealthComponent");
@@ -83,6 +87,7 @@ public partial class GameFlowController : Node
             return;
         }
 
+        _atlas?.TryCompleteMap(AtlasMapId);
         State = GameFlowState.MapComplete;
         FreezeGameplay();
         RefreshOverlay();
