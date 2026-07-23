@@ -75,7 +75,7 @@ public partial class BasicProjectile : Area2D
         }
 
         _spent = true;
-        Monitoring = false;
+        SetDeferred("monitoring", false);
         SetPhysicsProcess(false);
         target.ApplyDamage(DamageRequest);
         SpawnHitEffect(GlobalPosition);

@@ -38,7 +38,7 @@ offset_right = 1120.0
 offset_bottom = 110.0
 theme_override_colors/font_color = Color(0.78, 0.88, 0.98, 1)
 theme_override_font_sizes/font_size = 15
-text = "MILESTONE 5 — LOOT & EQUIPMENT\nWASD move | Mouse aim | 左键 Spread | 右键 Meteor | Q Pulse | Space Dash\nFeral近战 | Spitter酸液 | Boss: Magma Slam / Flame Spear\n击杀掉落武器 | F 拾取附近掉落 | E 装备最新武器（旧武器会回到背包）"
+text = "MINIMUM ARPG VERTICAL SLICE\nWASD 移动 | 鼠标瞄准 | 鼠标左键 Spread Shot | 鼠标右键 Meteor | Q Pulse | Space Dash\nFeral 近战 | Spitter 远程 | Brimstone Colossus: Magma Slam / Flame Spear\n击杀掉落武器 | F 拾取附近掉落 | E 装备最新武器（旧武器回到背包）"
 
 [node name="SkillBar" type="PanelContainer" parent="CanvasLayer"]
 offset_left = 24.0

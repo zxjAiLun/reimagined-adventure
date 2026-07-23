@@ -30,6 +30,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
     public override void _Ready()
     {
         AddToGroup("player");
+        AddToGroup("damageables");
         _health = GetNode<HealthComponent>("HealthComponent");
         Inventory = GetNodeOrNull<InventoryController>("InventoryController");
         _health.Died += OnDied;
@@ -145,6 +146,14 @@ public partial class PlayerController : CharacterBody2D, IDamageable
 
     private void UpdateAimDirection()
     {
+        // Headless smoke runs do not expose a real viewport mouse. Avoid
+        // querying it there; the interactive build still updates aim every
+        // physics frame from the actual cursor position.
+        if (OS.HasFeature("headless"))
+        {
+            return;
+        }
+
         var mouseOffset = GetGlobalMousePosition() - GlobalPosition;
         if (mouseOffset.LengthSquared() > 0.001f)
         {

@@ -91,8 +91,9 @@ public partial class GameFlowController : Node
     private void FreezeGameplay()
     {
         _player?.SetPhysicsProcess(false);
-        _player?.GetNodeOrNull<PlayerSkillController>("SkillBarController")?.SetProcess(false);
-        _player?.GetNodeOrNull<PlayerSkillController>("SkillBarController")?.SetProcessInput(false);
+        var skillController = _player?.GetNodeOrNull<PlayerSkillController>("SkillBarController");
+        skillController?.SetProcess(false);
+        skillController?.SetProcessUnhandledInput(false);
         _player?.GetNodeOrNull<InventoryController>("InventoryController")?.SetProcessUnhandledInput(false);
 
         foreach (var node in GetTree().GetNodesInGroup("enemies"))
