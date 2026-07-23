@@ -165,6 +165,34 @@ public partial class InventoryController : Node
         return true;
     }
 
+    public bool TryRemoveItem(int index, out Item item)
+    {
+        item = null;
+        if (index < 0 || index >= _items.Count)
+        {
+            return false;
+        }
+
+        item = _items[index];
+        _items.RemoveAt(index);
+        EmitSignal(SignalName.InventoryChanged);
+        return true;
+    }
+
+    public bool TryReplaceItem(int index, Item replacement)
+    {
+        ArgumentNullException.ThrowIfNull(replacement);
+        replacement.Validate();
+        if (index < 0 || index >= _items.Count)
+        {
+            return false;
+        }
+
+        _items[index] = replacement;
+        EmitSignal(SignalName.InventoryChanged);
+        return true;
+    }
+
     public bool TryPickupNearest(float? rangeOverride = null)
     {
         if (_player == null || _items.Count >= Capacity)

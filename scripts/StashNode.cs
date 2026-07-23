@@ -44,4 +44,52 @@ public partial class StashNode : Node
 
         return item;
     }
+
+    public bool TryStoreInventoryItem(string tabId, PlayerController player, int inventoryIndex)
+    {
+        if (player?.Inventory == null
+            || inventoryIndex < 0
+            || inventoryIndex >= player.Inventory.ItemCount)
+        {
+            return false;
+        }
+
+        var item = player.Inventory.Items[inventoryIndex];
+        if (!DomainStash.TryDeposit(tabId, item))
+        {
+            return false;
+        }
+
+        if (!player.Inventory.TryRemoveItem(inventoryIndex, out _))
+        {
+            DomainStash.Withdraw(tabId, item.Id);
+            return false;
+        }
+
+        EmitSignal(SignalName.StashChanged);
+        return true;
+    }
+
+    public bool TryWithdrawToInventory(string tabId, string itemId, PlayerController player)
+    {
+        if (player?.Inventory == null)
+        {
+            return false;
+        }
+
+        var item = DomainStash.Withdraw(tabId, itemId);
+        if (item == null)
+        {
+            return false;
+        }
+
+        if (!player.Inventory.TryAddItem(item))
+        {
+            DomainStash.TryDeposit(tabId, item);
+            return false;
+        }
+
+        EmitSignal(SignalName.StashChanged);
+        return true;
+    }
 }

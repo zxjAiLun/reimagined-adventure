@@ -1,0 +1,19 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/Milestone20ContentRuntimeSmoke.cs" id="1_smoke"]
+[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/Stash.tscn" id="3_stash"]
+[ext_resource type="PackedScene" path="res://scenes/CraftingBench.tscn" id="4_bench"]
+[ext_resource type="PackedScene" path="res://scenes/Atlas.tscn" id="5_atlas"]
+
+[node name="Milestone20ContentRuntimeSmoke" type="Node2D"]
+script = ExtResource("1_smoke")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(400, 450)
+
+[node name="Stash" parent="." instance=ExtResource("3_stash")]
+
+[node name="CraftingBench" parent="." instance=ExtResource("4_bench")]
+
+[node name="Atlas" parent="." instance=ExtResource("5_atlas")]
