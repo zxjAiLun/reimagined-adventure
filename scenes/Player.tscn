@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/PlayerController.cs" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/BasicProjectile.tscn" id="2_projectile"]
 [ext_resource type="PackedScene" path="res://scenes/SkillAreaEffect.tscn" id="3_area_effect"]
 [ext_resource type="Script" path="res://scripts/PlayerSkillController.cs" id="4_skill_controller"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="5_health"]
+[ext_resource type="Script" path="res://scripts/InventoryController.cs" id="6_inventory"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_player"]
 radius = 20.0
@@ -22,6 +23,12 @@ shape = SubResource("CircleShape2D_player")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("5_health")
 max_health = 100
+
+[node name="InventoryController" type="Node" parent="."]
+script = ExtResource("6_inventory")
+capacity = 8
+pickup_range = 84.0
+player_level = 1
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position_smoothing_enabled = true

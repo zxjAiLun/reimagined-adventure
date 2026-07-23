@@ -1,9 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/BrimstoneColossusController.cs" id="1_boss"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
 [ext_resource type="PackedScene" path="res://scenes/EnemyProjectile.tscn" id="3_projectile"]
 [ext_resource type="PackedScene" path="res://scenes/EnemyAreaEffect.tscn" id="4_area"]
+[ext_resource type="PackedScene" path="res://scenes/ItemDrop.tscn" id="5_drop_scene"]
+[ext_resource type="Script" path="res://scripts/EnemyLootDropper.cs" id="6_dropper"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_boss"]
 radius = 42.0
@@ -32,6 +34,13 @@ shape = SubResource("CircleShape2D_boss")
 script = ExtResource("2_health")
 max_health = 160
 fire_resistance = 25
+
+[node name="LootDropper" type="Node" parent="."]
+script = ExtResource("6_dropper")
+item_drop_scene = ExtResource("5_drop_scene")
+item_level = 3
+drop_seed = 9511
+boss_drop = true
 
 [node name="HealthLabel" type="Label" parent="."]
 offset_left = -132.0

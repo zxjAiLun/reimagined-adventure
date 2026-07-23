@@ -1,7 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/FeralController.cs" id="1_feral"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
+[ext_resource type="PackedScene" path="res://scenes/ItemDrop.tscn" id="3_drop_scene"]
+[ext_resource type="Script" path="res://scripts/EnemyLootDropper.cs" id="4_dropper"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_feral"]
 radius = 18.0
@@ -22,6 +24,12 @@ shape = SubResource("CircleShape2D_feral")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")
 max_health = 40
+
+[node name="LootDropper" type="Node" parent="."]
+script = ExtResource("4_dropper")
+item_drop_scene = ExtResource("3_drop_scene")
+item_level = 1
+drop_seed = 4181
 
 [node name="HealthLabel" type="Label" parent="."]
 offset_left = -58.0

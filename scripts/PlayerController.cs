@@ -10,6 +10,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
     [Export] public PackedScene ProjectileScene { get; set; }
 
     public Stats EffectiveStats { get; private set; } = Stats.Neutral;
+    public InventoryController Inventory { get; private set; }
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
     public int MaxHealth => _health?.MaxHealth ?? 0;
     public bool IsAlive => _health?.IsAlive ?? false;
@@ -30,6 +31,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
     {
         AddToGroup("player");
         _health = GetNode<HealthComponent>("HealthComponent");
+        Inventory = GetNodeOrNull<InventoryController>("InventoryController");
         _health.Died += OnDied;
         QueueRedraw();
     }

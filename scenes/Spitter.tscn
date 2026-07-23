@@ -1,8 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/SpitterController.cs" id="1_spitter"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
 [ext_resource type="PackedScene" path="res://scenes/EnemyProjectile.tscn" id="3_projectile"]
+[ext_resource type="PackedScene" path="res://scenes/ItemDrop.tscn" id="4_drop_scene"]
+[ext_resource type="Script" path="res://scripts/EnemyLootDropper.cs" id="5_dropper"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_spitter"]
 radius = 16.0
@@ -26,6 +28,12 @@ shape = SubResource("CircleShape2D_spitter")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")
 max_health = 28
+
+[node name="LootDropper" type="Node" parent="."]
+script = ExtResource("5_dropper")
+item_drop_scene = ExtResource("4_drop_scene")
+item_level = 1
+drop_seed = 7351
 
 [node name="HealthLabel" type="Label" parent="."]
 offset_left = -64.0

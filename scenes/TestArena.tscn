@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/TestArena.cs" id="1_arena"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/SkillBarHud.cs" id="4_skill_hud"]
 [ext_resource type="PackedScene" path="res://scenes/Spitter.tscn" id="5_spitter"]
 [ext_resource type="PackedScene" path="res://scenes/BrimstoneColossus.tscn" id="6_boss"]
+[ext_resource type="Script" path="res://scripts/GameFlowController.cs" id="7_flow"]
 
 [node name="TestArena" type="Node2D"]
 script = ExtResource("1_arena")
@@ -23,6 +24,9 @@ position = Vector2(1040, 220)
 [node name="BrimstoneColossus" parent="." instance=ExtResource("6_boss")]
 position = Vector2(1240, 660)
 
+[node name="GameFlowController" type="Node" parent="."]
+script = ExtResource("7_flow")
+
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="Instructions" type="Label" parent="CanvasLayer"]
@@ -32,13 +36,28 @@ offset_right = 1120.0
 offset_bottom = 110.0
 theme_override_colors/font_color = Color(0.78, 0.88, 0.98, 1)
 theme_override_font_sizes/font_size = 15
-text = "MILESTONE 4 — ENEMIES & BOSS\nWASD move | Mouse aim | 左键 Spread | 右键 Meteor | Q Pulse | Space Dash\nFeral近战 | Spitter保持距离并发射酸液 | Boss预警 Magma Slam / Flame Spear"
+text = "MILESTONE 5 — LOOT & EQUIPMENT\nWASD move | Mouse aim | 左键 Spread | 右键 Meteor | Q Pulse | Space Dash\nFeral近战 | Spitter酸液 | Boss: Magma Slam / Flame Spear\n击杀掉落武器 | F 拾取附近掉落 | E 装备最新武器（旧武器会回到背包）"
 
 [node name="SkillBar" type="Label" parent="CanvasLayer"]
 offset_left = 24.0
 offset_top = 88.0
 offset_right = 780.0
-offset_bottom = 136.0
+offset_bottom = 168.0
 theme_override_colors/font_color = Color(0.95, 0.82, 0.48, 1)
 theme_override_font_sizes/font_size = 15
 script = ExtResource("4_skill_hud")
+
+[node name="ResultOverlay" type="Label" parent="CanvasLayer"]
+visible = false
+offset_left = 480.0
+offset_top = 300.0
+offset_right = 1120.0
+offset_bottom = 430.0
+theme_override_colors/font_color = Color(1, 0.82, 0.42, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 26
+text = "MAP COMPLETE"
+horizontal_alignment = 1
+vertical_alignment = 1

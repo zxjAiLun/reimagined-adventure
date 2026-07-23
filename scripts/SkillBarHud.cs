@@ -5,11 +5,13 @@ public partial class SkillBarHud : Label
 {
     private PlayerSkillController _controller;
     private PlayerController _player;
+    private InventoryController _inventory;
 
     public override void _Ready()
     {
         _controller = GetNodeOrNull<PlayerSkillController>("../../Player/SkillBarController");
         _player = GetNodeOrNull<PlayerController>("../../Player");
+        _inventory = GetNodeOrNull<InventoryController>("../../Player/InventoryController");
         RefreshText();
     }
 
@@ -22,11 +24,12 @@ public partial class SkillBarHud : Label
     {
         var cooldowns = _controller == null ? string.Empty : $"\n{_controller.CooldownStatusLine}";
         var health = _player == null ? string.Empty : $"\nHP {_player.CurrentHealth}/{_player.MaxHealth}";
+        var inventory = _inventory == null ? string.Empty : $"\n[F] Pick up   [E] Equip newest   {_inventory.InventorySummary()}";
         var primary = SkillName(SkillSlot.Primary, "Spread Shot");
         var secondary = SkillName(SkillSlot.Secondary, "Meteor");
         var utility = SkillName(SkillSlot.Utility, "Pulse");
         var movement = SkillName(SkillSlot.Movement, "Dash");
-        Text = $"[左键/LMB] {primary}   [右键/RMB] {secondary}   [Q] {utility}   [Space] {movement}" + cooldowns + health;
+        Text = $"[左键/LMB] {primary}   [右键/RMB] {secondary}   [Q] {utility}   [Space] {movement}" + cooldowns + health + inventory;
     }
 
     private string SkillName(SkillSlot slot, string fallback)
