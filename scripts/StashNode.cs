@@ -34,7 +34,7 @@ public partial class StashNode : Node
         return deposited;
     }
 
-    public Item? Withdraw(string tabId, string itemId)
+    public Item Withdraw(string tabId, string itemId)
     {
         var item = DomainStash.Withdraw(tabId, itemId);
         if (item != null)

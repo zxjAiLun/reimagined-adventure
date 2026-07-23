@@ -26,7 +26,7 @@ public partial class InventoryController : Node
     public Equipment Equipment { get; } = new();
     public IReadOnlyList<Item> Items => _items;
     public int ItemCount => _items.Count;
-    public Item? EquippedWeapon => Equipment.ItemInSlot(EquipmentSlot.Weapon);
+    public Item EquippedWeapon => Equipment.ItemInSlot(EquipmentSlot.Weapon);
     public int SpreadShotDamage => CombatMath.SkillDamage(
         SkillLibrary.SpreadShot().BaseDamage,
         _player?.EffectiveStats ?? Stats.Neutral,

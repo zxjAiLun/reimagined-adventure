@@ -19,13 +19,13 @@ ArenaSize = Vector2(1600, 900)
 position = Vector2(800, 450)
 
 [node name="Feral" parent="." instance=ExtResource("3_feral")]
-position = Vector2(1080, 450)
+position = Vector2(1160, 450)
 
 [node name="Spitter" parent="." instance=ExtResource("5_spitter")]
-position = Vector2(1040, 220)
+position = Vector2(1250, 220)
 
 [node name="BrimstoneColossus" parent="." instance=ExtResource("6_boss")]
-position = Vector2(1240, 660)
+position = Vector2(1400, 680)
 
 [node name="GameFlowController" type="Node" parent="."]
 script = ExtResource("7_flow")

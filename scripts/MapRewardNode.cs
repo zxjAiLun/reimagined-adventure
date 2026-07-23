@@ -19,7 +19,7 @@ public partial class MapRewardNode : Node
     private bool _chosen;
 
     public IReadOnlyList<MapRewardDefinition> Rewards => _rewards;
-    public MapRewardDefinition? ChosenReward { get; private set; }
+    public MapRewardDefinition ChosenReward { get; private set; }
 
     public override void _Ready()
     {
