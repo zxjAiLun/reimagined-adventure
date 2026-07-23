@@ -1,0 +1,25 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/Milestone17MapModifierRuntimeSmoke.cs" id="1_smoke"]
+[ext_resource type="PackedScene" path="res://scenes/MapModifier.tscn" id="2_modifier"]
+[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/Feral.tscn" id="4_feral"]
+[ext_resource type="PackedScene" path="res://scenes/Spitter.tscn" id="5_spitter"]
+[ext_resource type="PackedScene" path="res://scenes/BrimstoneColossus.tscn" id="6_boss"]
+
+[node name="Milestone17MapModifierRuntimeSmoke" type="Node2D"]
+script = ExtResource("1_smoke")
+
+[node name="MapModifier" parent="." instance=ExtResource("2_modifier")]
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+position = Vector2(400, 450)
+
+[node name="Feral" parent="." instance=ExtResource("4_feral")]
+position = Vector2(800, 450)
+
+[node name="Spitter" parent="." instance=ExtResource("5_spitter")]
+position = Vector2(800, 200)
+
+[node name="BrimstoneColossus" parent="." instance=ExtResource("6_boss")]
+position = Vector2(1200, 650)

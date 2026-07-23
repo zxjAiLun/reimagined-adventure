@@ -19,12 +19,19 @@ public partial class EnemyLootDropper : Node
 
     public override void _Ready()
     {
+        AddToGroup("enemy_loot_droppers");
         _owner = GetParent<Node2D>();
         _health = _owner.GetNodeOrNull<HealthComponent>("HealthComponent");
         if (_health != null)
         {
             _health.Died += OnOwnerDied;
         }
+    }
+
+    public void ApplyMapModifier(MapModifierNode modifier)
+    {
+        ArgumentNullException.ThrowIfNull(modifier);
+        ItemLevel = modifier.ScaleItemLevel(ItemLevel);
     }
 
     private void OnOwnerDied()

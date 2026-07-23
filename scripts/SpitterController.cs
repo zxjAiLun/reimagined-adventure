@@ -31,6 +31,7 @@ public partial class SpitterController : CharacterBody2D, IDamageable
     private PlayerController _player;
     private float _attackCooldownRemaining;
     private bool _deathHandled;
+    private bool _mapModifierApplied;
     private Label _healthLabel;
 
     public override void _Ready()
@@ -43,6 +44,21 @@ public partial class SpitterController : CharacterBody2D, IDamageable
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label>("HealthLabel");
         FindPlayer();
+        RefreshVisuals();
+    }
+
+    public void ApplyMapModifier(MapModifierNode modifier)
+    {
+        ArgumentNullException.ThrowIfNull(modifier);
+        if (_mapModifierApplied || _health == null)
+        {
+            return;
+        }
+
+        _mapModifierApplied = true;
+        _health.SetMaxHealth(modifier.ScaleEnemyHealth(_health.MaxHealth));
+        ProjectileDamage = modifier.ScaleEnemyDamage(ProjectileDamage);
+        MoveSpeed *= (float)modifier.EnemySpeedMultiplier;
         RefreshVisuals();
     }
 

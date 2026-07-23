@@ -53,11 +53,16 @@ public partial class MapEventNode : Node2D
 
         if (activation!.Type == MapEventType.LootCache)
         {
+            var mapModifier = GetTree().GetFirstNodeInGroup("map_modifiers") as MapModifierNode;
+            var itemQuantityMultiplier = mapModifier?.ItemQuantityMultiplier ?? 1.0;
+            var eventRewardMultiplier = mapModifier?.EventRewardMultiplier ?? 1.0;
             var dropCount = Mathf.Max(
                 1,
                 Mathf.CeilToInt((float)(activation.ItemDropCount
                     * activation.RewardMultiplier
-                    * player.EffectiveStats.ItemQuantityMultiplier)));
+                    * player.EffectiveStats.ItemQuantityMultiplier
+                    * eventRewardMultiplier
+                    * itemQuantityMultiplier)));
             SpawnCacheDrops(player, dropCount);
             _label.Text = $"{_definition.Name}\nOpened: {dropCount} drops";
         }

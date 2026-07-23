@@ -40,6 +40,7 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
     private float _stateRemaining;
     private bool _nextAttackIsSlam = true;
     private bool _deathHandled;
+    private bool _mapModifierApplied;
     private Label _healthLabel;
     private AnimationPlayer _animationPlayer;
     private BossDefinition _definition;
@@ -57,6 +58,22 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
         _healthLabel = GetNodeOrNull<Label>("HealthLabel");
         _animationPlayer = GetNodeOrNull<AnimationPlayer>("AnimationPlayer");
         FindPlayer();
+        RefreshVisuals();
+    }
+
+    public void ApplyMapModifier(MapModifierNode modifier)
+    {
+        ArgumentNullException.ThrowIfNull(modifier);
+        if (_mapModifierApplied || _health == null)
+        {
+            return;
+        }
+
+        _mapModifierApplied = true;
+        _health.SetMaxHealth(modifier.ScaleBossHealth(_health.MaxHealth));
+        SlamDamage = modifier.ScaleBossDamage(SlamDamage);
+        SpearDamage = modifier.ScaleBossDamage(SpearDamage);
+        MoveSpeed *= (float)modifier.EnemySpeedMultiplier;
         RefreshVisuals();
     }
 

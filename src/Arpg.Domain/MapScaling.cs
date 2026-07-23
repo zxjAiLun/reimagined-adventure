@@ -63,19 +63,31 @@ public static class MapScaling
 
     public static int EnemyHp(int mapLevel, MapModifierStats modifier)
     {
+        return EnemyHp(BaseEnemyHp, mapLevel, modifier);
+    }
+
+    public static int EnemyHp(int baseHealth, int mapLevel, MapModifierStats modifier)
+    {
+        ValidateBaseValue(baseHealth, nameof(baseHealth));
         ValidateMapLevel(mapLevel);
         ArgumentNullException.ThrowIfNull(modifier);
         modifier.Validate();
         var levelMultiplier = 1.0 + (mapLevel - 1) * 0.25;
-        return Math.Max(1, CeilingToInt(BaseEnemyHp * levelMultiplier * modifier.MonsterHpMultiplier));
+        return Math.Max(1, CeilingToInt(baseHealth * levelMultiplier * modifier.MonsterHpMultiplier));
     }
 
     public static int EnemyDamage(int mapLevel, MapModifierStats modifier)
     {
+        return EnemyDamage(BaseEnemyDamage, mapLevel, modifier);
+    }
+
+    public static int EnemyDamage(int baseDamage, int mapLevel, MapModifierStats modifier)
+    {
+        ValidateBaseValue(baseDamage, nameof(baseDamage));
         ValidateMapLevel(mapLevel);
         ArgumentNullException.ThrowIfNull(modifier);
         modifier.Validate();
-        return BaseEnemyDamage + (mapLevel - 1) / 3 + modifier.MonsterDamageBonus;
+        return baseDamage + (mapLevel - 1) / 3 + modifier.MonsterDamageBonus;
     }
 
     public static int ItemLevel(int mapLevel, MapModifierStats modifier)
@@ -88,7 +100,17 @@ public static class MapScaling
 
     public static int BossHp(int mapLevel, MapModifierStats modifier, BossScalingProfile boss)
     {
-        var enemyHp = EnemyHp(mapLevel, modifier);
+        return BossHp(BaseEnemyHp, mapLevel, modifier, boss);
+    }
+
+    public static int BossHp(
+        int baseHealth,
+        int mapLevel,
+        MapModifierStats modifier,
+        BossScalingProfile boss)
+    {
+        ValidateBaseValue(baseHealth, nameof(baseHealth));
+        var enemyHp = EnemyHp(baseHealth, mapLevel, modifier);
         ArgumentNullException.ThrowIfNull(boss);
         boss.Validate();
         return Math.Max(1, CeilingToInt(enemyHp * boss.HpMultiplier * modifier.BossHpMultiplier));
@@ -96,7 +118,17 @@ public static class MapScaling
 
     public static int BossContactDamage(int mapLevel, MapModifierStats modifier, BossScalingProfile boss)
     {
-        var enemyDamage = EnemyDamage(mapLevel, modifier);
+        return BossContactDamage(BaseEnemyDamage, mapLevel, modifier, boss);
+    }
+
+    public static int BossContactDamage(
+        int baseDamage,
+        int mapLevel,
+        MapModifierStats modifier,
+        BossScalingProfile boss)
+    {
+        ValidateBaseValue(baseDamage, nameof(baseDamage));
+        var enemyDamage = EnemyDamage(baseDamage, mapLevel, modifier);
         ArgumentNullException.ThrowIfNull(boss);
         boss.Validate();
         return Math.Max(1, CeilingToInt(
@@ -108,6 +140,14 @@ public static class MapScaling
         if (mapLevel < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(mapLevel), "Map level must be positive.");
+        }
+    }
+
+    private static void ValidateBaseValue(int value, string name)
+    {
+        if (value < 1)
+        {
+            throw new ArgumentOutOfRangeException(name, "Base scaling value must be positive.");
         }
     }
 

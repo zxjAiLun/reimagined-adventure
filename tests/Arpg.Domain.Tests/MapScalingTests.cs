@@ -36,4 +36,21 @@ public sealed class MapScalingTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => MapScaling.EnemyHp(0, new MapModifierStats()));
     }
+
+    [Fact]
+    public void EntityBaseValuesAreScaledWithoutUsingGodotTypes()
+    {
+        var modifier = new MapModifierStats
+        {
+            MonsterHpMultiplier = 1.15,
+            MonsterDamageBonus = 2,
+            BossHpMultiplier = 1.05,
+            BossDamageMultiplier = 1.10,
+        };
+
+        Assert.Equal(69, MapScaling.EnemyHp(40, 3, modifier));
+        Assert.Equal(10, MapScaling.EnemyDamage(8, 3, modifier));
+        Assert.Equal(290, MapScaling.BossHp(160, 3, modifier, new BossScalingProfile()));
+        Assert.Equal(14, MapScaling.BossContactDamage(10, 3, modifier, new BossScalingProfile()));
+    }
 }
