@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="MapRewardSetResource" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/MapRewardSetResource.cs" id="1_set"]
+[ext_resource type="Script" path="res://scripts/MapRewardResource.cs" id="2_reward"]
+
+[sub_resource type="Resource" id="Reward_damage"]
+script = ExtResource("2_reward")
+RewardId = "global_damage"
+Title = "+20% Global Damage"
+Type = 0
+DamageMultiplier = 1.2
+
+[sub_resource type="Resource" id="Reward_hp"]
+script = ExtResource("2_reward")
+RewardId = "max_hp"
+Title = "+1 Max HP"
+Type = 1
+MaxHpBonus = 1
+
+[sub_resource type="Resource" id="Reward_quantity"]
+script = ExtResource("2_reward")
+RewardId = "item_quantity"
+Title = "+15% Future Item Quantity"
+Type = 2
+ItemQuantityMultiplier = 1.15
+
+[resource]
+script = ExtResource("1_set")
+Rewards = [SubResource("Reward_damage"), SubResource("Reward_hp"), SubResource("Reward_quantity")]

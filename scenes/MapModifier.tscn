@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/MapModifierNode.cs" id="1_node"]
+[ext_resource type="Resource" path="res://resources/HardenedFront.tres" id="2_definition"]
+
+[node name="MapModifier" type="Node"]
+script = ExtResource("1_node")
+DefinitionResource = ExtResource("2_definition")
+MapLevel = 3
