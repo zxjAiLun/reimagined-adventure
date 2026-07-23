@@ -32,6 +32,8 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
     public int MaxHealth => _health?.MaxHealth ?? 0;
     public bool IsAlive => _health?.IsAlive ?? false;
     public BrimstoneColossusState State { get; private set; } = BrimstoneColossusState.Idle;
+    public int MagmaSlamCount { get; private set; }
+    public int FlameSpearCount { get; private set; }
 
     private HealthComponent _health;
     private PlayerController _player;
@@ -190,6 +192,7 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
     private void BeginMagmaSlam()
     {
         State = BrimstoneColossusState.PreparingSlam;
+        MagmaSlamCount++;
         _stateRemaining = Mathf.Max(0.05f, SlamPreparationSeconds);
         _nextAttackIsSlam = false;
         _animationPlayer?.Play("magma_slam");
@@ -213,6 +216,7 @@ public partial class BrimstoneColossusController : CharacterBody2D, IDamageable
     private void BeginFlameSpear()
     {
         State = BrimstoneColossusState.PreparingSpear;
+        FlameSpearCount++;
         _stateRemaining = Mathf.Max(0.05f, SpearPreparationSeconds);
         _nextAttackIsSlam = true;
         _animationPlayer?.Play("flame_spear");

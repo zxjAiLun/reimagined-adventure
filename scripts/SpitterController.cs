@@ -25,6 +25,7 @@ public partial class SpitterController : CharacterBody2D, IDamageable
     public int MaxHealth => _health?.MaxHealth ?? 0;
     public bool IsAlive => _health?.IsAlive ?? false;
     public SpitterState State { get; private set; } = SpitterState.Approaching;
+    public int ProjectilesFired { get; private set; }
 
     private HealthComponent _health;
     private PlayerController _player;
@@ -158,6 +159,7 @@ public partial class SpitterController : CharacterBody2D, IDamageable
         projectile.Launch(
             direction,
             new DamageRequest(ProjectileDamage, DamageType.Poison, "spitter_acid"));
+        ProjectilesFired++;
         _attackCooldownRemaining = Mathf.Max(0.05f, AttackCooldown);
     }
 

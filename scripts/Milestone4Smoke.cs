@@ -13,6 +13,7 @@ public partial class Milestone4Smoke : Node2D
     private FeralController _feral;
     private SpitterController _spitter;
     private BrimstoneColossusController _boss;
+    private int _feralDeathEvents;
 
     public override void _Ready()
     {
@@ -20,10 +21,12 @@ public partial class Milestone4Smoke : Node2D
         _feral = GetNode<FeralController>("Feral");
         _spitter = GetNode<SpitterController>("Spitter");
         _boss = GetNode<BrimstoneColossusController>("BrimstoneColossus");
+        _feral.GetNode<HealthComponent>("HealthComponent").Died += OnFeralDied;
 
         AssertDamageableActorsAreAlive();
         GetTree().CreateTimer(0.35).Timeout += CheckInitialStates;
-        GetTree().CreateTimer(2.50).Timeout += Finish;
+        GetTree().CreateTimer(0.45).Timeout += KillFeralAndCheckDeathSignal;
+        GetTree().CreateTimer(3.20).Timeout += Finish;
     }
 
     private void AssertDamageableActorsAreAlive()
@@ -61,6 +64,36 @@ public partial class Milestone4Smoke : Node2D
         {
             _errors.Add("Spitter died before its ranged behavior could run");
         }
+
+        if (_feral.ContactAttackCount == 0)
+        {
+            _errors.Add("Feral did not perform a contact attack");
+        }
+
+        if (_spitter.ProjectilesFired == 0)
+        {
+            _errors.Add("Spitter did not fire a ranged projectile");
+        }
+
+        if (_boss.MagmaSlamCount == 0)
+        {
+            _errors.Add("Boss did not enter Magma Slam");
+        }
+    }
+
+    private void KillFeralAndCheckDeathSignal()
+    {
+        _feral.ApplyDamage(new DamageRequest(999, DamageType.Physical, "milestone4_death_once"));
+        _feral.ApplyDamage(new DamageRequest(999, DamageType.Physical, "milestone4_dead_target"));
+        if (_feral.IsAlive || _feralDeathEvents != 1)
+        {
+            _errors.Add($"Feral death was not finalized exactly once: alive={_feral.IsAlive}, events={_feralDeathEvents}");
+        }
+    }
+
+    private void OnFeralDied()
+    {
+        _feralDeathEvents++;
     }
 
     private void Finish()
@@ -68,6 +101,11 @@ public partial class Milestone4Smoke : Node2D
         if (_player.CurrentHealth >= _player.MaxHealth)
         {
             _errors.Add("enemy attacks did not damage the player");
+        }
+
+        if (_boss.FlameSpearCount == 0)
+        {
+            _errors.Add("Boss did not transition to Flame Spear");
         }
 
         if (GetTree().GetNodesInGroup("damageables").Count < 4)

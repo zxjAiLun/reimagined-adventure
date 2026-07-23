@@ -21,6 +21,7 @@ public partial class FeralController : CharacterBody2D, IDamageable
     public int MaxHealth => _health?.MaxHealth ?? 0;
     public bool IsAlive => _health?.IsAlive ?? false;
     public FeralState State { get; private set; } = FeralState.Chasing;
+    public int ContactAttackCount { get; private set; }
 
     private HealthComponent _health;
     private PlayerController _player;
@@ -128,6 +129,7 @@ public partial class FeralController : CharacterBody2D, IDamageable
             ContactDamage,
             DamageType.Physical,
             "feral_contact"));
+        ContactAttackCount++;
         _attackCooldownRemaining = Mathf.Max(0.05f, AttackCooldown);
     }
 
