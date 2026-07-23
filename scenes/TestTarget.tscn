@@ -17,7 +17,7 @@ shape = SubResource("CircleShape2D_target")
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")
-max_health = 100
+MaxHealth = 100
 
 [node name="HealthLabel" type="Label" parent="."]
 offset_left = -70.0

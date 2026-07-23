@@ -15,21 +15,21 @@ radius = 20.0
 collision_layer = 1
 collision_mask = 4
 script = ExtResource("1_player")
-movement_bounds = Rect2(0, 0, 1600, 900)
-projectile_scene = ExtResource("2_projectile")
+MovementBounds = Rect2(0, 0, 1600, 900)
+ProjectileScene = ExtResource("2_projectile")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_player")
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("5_health")
-max_health = 100
+MaxHealth = 100
 
 [node name="InventoryController" type="Node" parent="."]
 script = ExtResource("6_inventory")
-capacity = 8
-pickup_range = 84.0
-player_level = 1
+Capacity = 8
+PickupRange = 84.0
+PlayerLevel = 1
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position_smoothing_enabled = true
@@ -41,5 +41,5 @@ limit_bottom = 900
 
 [node name="SkillBarController" type="Node" parent="."]
 script = ExtResource("4_skill_controller")
-area_effect_scene = ExtResource("3_area_effect")
-skill_bar_resource = ExtResource("7_skill_bar")
+AreaEffectScene = ExtResource("3_area_effect")
+SkillBarResource = ExtResource("7_skill_bar")

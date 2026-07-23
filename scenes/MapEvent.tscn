@@ -6,9 +6,9 @@
 
 [node name="MapEvent" type="Node2D"]
 script = ExtResource("1_event")
-definition_resource = ExtResource("2_definition")
-item_drop_scene = ExtResource("3_drop")
-drop_seed = 1201
+DefinitionResource = ExtResource("2_definition")
+ItemDropScene = ExtResource("3_drop")
+DropSeed = 1201
 
 [node name="Label" type="Label" parent="."]
 offset_left = -95.0

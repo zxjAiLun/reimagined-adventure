@@ -8,16 +8,16 @@ public partial class MapModifierResource : Resource
     [Export] public string DisplayName { get; set; } = "Quiet Coast";
     [Export] public string RiskDescription { get; set; } = "No modifier";
     [Export] public string RewardDescription { get; set; } = "Baseline map rewards";
-    [Export] public double MonsterHpMultiplier { get; set; } = 1.0;
+    [Export] public float MonsterHpMultiplier { get; set; } = 1.0f;
     [Export] public int MonsterDamageBonus { get; set; }
-    [Export] public double MonsterSpeedMultiplier { get; set; } = 1.0;
-    [Export] public double ItemQuantityMultiplier { get; set; } = 1.0;
+    [Export] public float MonsterSpeedMultiplier { get; set; } = 1.0f;
+    [Export] public float ItemQuantityMultiplier { get; set; } = 1.0f;
     [Export] public int BossDropBonus { get; set; }
-    [Export] public double BossHpMultiplier { get; set; } = 1.0;
-    [Export] public double BossDamageMultiplier { get; set; } = 1.0;
+    [Export] public float BossHpMultiplier { get; set; } = 1.0f;
+    [Export] public float BossDamageMultiplier { get; set; } = 1.0f;
     [Export] public int ItemLevelBonus { get; set; }
-    [Export] public double EventRewardMultiplier { get; set; } = 1.0;
-    [Export] public double ItemRarityMultiplier { get; set; } = 1.0;
+    [Export] public float EventRewardMultiplier { get; set; } = 1.0f;
+    [Export] public float ItemRarityMultiplier { get; set; } = 1.0f;
 
     public MapModifierDefinition ToDomain()
     {

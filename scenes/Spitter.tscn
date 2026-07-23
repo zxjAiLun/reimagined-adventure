@@ -13,27 +13,27 @@ radius = 16.0
 collision_layer = 4
 collision_mask = 1
 script = ExtResource("1_spitter")
-move_speed = 72.0
-radius = 16.0
-preferred_range = 260.0
-range_tolerance = 45.0
-attack_range = 420.0
-projectile_damage = 6
-attack_cooldown = 1.6
-projectile_scene = ExtResource("3_projectile")
+MoveSpeed = 72.0
+Radius = 16.0
+PreferredRange = 260.0
+RangeTolerance = 45.0
+AttackRange = 420.0
+ProjectileDamage = 6
+AttackCooldown = 1.6
+ProjectileScene = ExtResource("3_projectile")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_spitter")
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")
-max_health = 28
+MaxHealth = 28
 
 [node name="LootDropper" type="Node" parent="."]
 script = ExtResource("5_dropper")
-item_drop_scene = ExtResource("4_drop_scene")
-item_level = 1
-drop_seed = 7351
+ItemDropScene = ExtResource("4_drop_scene")
+ItemLevel = 1
+DropSeed = 7351
 
 [node name="HealthLabel" type="Label" parent="."]
 offset_left = -64.0

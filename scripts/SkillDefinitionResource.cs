@@ -13,15 +13,15 @@ public partial class SkillDefinitionResource : Resource
     [Export] public int Slot { get; set; }
     [Export] public int CastType { get; set; }
     [Export] public int Delivery { get; set; }
-    [Export] public double CooldownSeconds { get; set; }
-    [Export] public double Radius { get; set; }
+    [Export] public float CooldownSeconds { get; set; }
+    [Export] public float Radius { get; set; }
     [Export] public int BaseDamage { get; set; }
-    [Export] public double EffectDurationSeconds { get; set; }
+    [Export] public float EffectDurationSeconds { get; set; }
     [Export] public int ProjectileCount { get; set; } = 1;
-    [Export] public double SpreadAngleDegrees { get; set; }
-    [Export] public double CastDelaySeconds { get; set; }
-    [Export] public double DashDistance { get; set; }
-    [Export] public double ManaCost { get; set; }
+    [Export] public float SpreadAngleDegrees { get; set; }
+    [Export] public float CastDelaySeconds { get; set; }
+    [Export] public float DashDistance { get; set; }
+    [Export] public float ManaCost { get; set; }
     [Export] public int DamageType { get; set; }
 
     public SkillDefinition ToDomain()

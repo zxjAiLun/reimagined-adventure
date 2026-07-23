@@ -5,4 +5,4 @@
 
 [node name="SkillAreaEffect" type="Node2D"]
 script = ExtResource("1_area_effect")
-hit_effect_scene = ExtResource("2_hit")
+HitEffectScene = ExtResource("2_hit")

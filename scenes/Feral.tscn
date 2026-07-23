@@ -12,24 +12,24 @@ radius = 18.0
 collision_layer = 4
 collision_mask = 1
 script = ExtResource("1_feral")
-move_speed = 100.0
-radius = 18.0
-attack_range = 50.0
-contact_damage = 8
-attack_cooldown = 1.0
+MoveSpeed = 100.0
+Radius = 18.0
+AttackRange = 50.0
+ContactDamage = 8
+AttackCooldown = 1.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_feral")
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")
-max_health = 40
+MaxHealth = 40
 
 [node name="LootDropper" type="Node" parent="."]
 script = ExtResource("4_dropper")
-item_drop_scene = ExtResource("3_drop_scene")
-item_level = 1
-drop_seed = 4181
+ItemDropScene = ExtResource("3_drop_scene")
+ItemLevel = 1
+DropSeed = 4181
 
 [node name="HealthLabel" type="Label" parent="."]
 offset_left = -58.0

@@ -8,17 +8,17 @@ public partial class BossDefinitionResource : Resource
     [Export] public string DisplayName { get; set; } = "Brimstone Colossus";
     [Export] public int MaxHealth { get; set; } = 160;
     [Export] public int FireResistance { get; set; } = 25;
-    [Export] public double MoveSpeed { get; set; } = 55.0;
-    [Export] public double RecoverySeconds { get; set; } = 0.65;
+    [Export] public float MoveSpeed { get; set; } = 55.0f;
+    [Export] public float RecoverySeconds { get; set; } = 0.65f;
 
     [Export] public int MagmaSlamDamage { get; set; } = 14;
-    [Export] public double MagmaSlamPreparationSeconds { get; set; } = 0.75;
-    [Export] public double MagmaSlamRadius { get; set; } = 130.0;
-    [Export] public double MagmaSlamRange { get; set; } = 165.0;
+    [Export] public float MagmaSlamPreparationSeconds { get; set; } = 0.75f;
+    [Export] public float MagmaSlamRadius { get; set; } = 130.0f;
+    [Export] public float MagmaSlamRange { get; set; } = 165.0f;
 
     [Export] public int FlameSpearDamage { get; set; } = 10;
-    [Export] public double FlameSpearPreparationSeconds { get; set; } = 0.55;
-    [Export] public double FlameSpearRange { get; set; } = 520.0;
+    [Export] public float FlameSpearPreparationSeconds { get; set; } = 0.55f;
+    [Export] public float FlameSpearRange { get; set; } = 520.0f;
 
     public BossDefinition ToDomain()
     {

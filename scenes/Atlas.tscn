@@ -5,4 +5,4 @@
 
 [node name="Atlas" type="Node"]
 script = ExtResource("1_atlas_node")
-definition_resource = ExtResource("2_atlas_resource")
+DefinitionResource = ExtResource("2_atlas_resource")

@@ -12,7 +12,7 @@ collision_mask = 4
 monitoring = true
 monitorable = true
 script = ExtResource("1_projectile")
-hit_effect_scene = ExtResource("2_hit")
+HitEffectScene = ExtResource("2_hit")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_projectile")

@@ -12,11 +12,11 @@ collision_mask = 1
 monitoring = true
 monitorable = true
 script = ExtResource("1_projectile")
-speed = 280.0
-lifetime = 5.0
-radius = 7.0
-projectile_color = Color(1, 0.24, 0.08, 1)
-hit_effect_scene = ExtResource("2_hit")
+Speed = 280.0
+Lifetime = 5.0
+Radius = 7.0
+ProjectileColor = Color(1, 0.24, 0.08, 1)
+HitEffectScene = ExtResource("2_hit")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_enemy_projectile")

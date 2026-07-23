@@ -77,7 +77,8 @@ public partial class MapEventNode : Node2D
 
     private void SpawnCacheDrops(PlayerController player, int count)
     {
-        if (ItemDropScene == null)
+        var itemDropScene = ItemDropScene ?? GD.Load<PackedScene>("res://scenes/ItemDrop.tscn");
+        if (itemDropScene == null)
         {
             return;
         }
@@ -85,7 +86,7 @@ public partial class MapEventNode : Node2D
         var generator = new LootGenerator((ulong)Mathf.Max(1, DropSeed));
         for (var index = 0; index < count; index++)
         {
-            var drop = ItemDropScene.Instantiate<ItemDrop>();
+            var drop = itemDropScene.Instantiate<ItemDrop>();
             GetParent().AddChild(drop);
             var offset = new Vector2(index * 30.0f - (count - 1) * 15.0f, 28.0f);
             drop.GlobalPosition = player.GlobalPosition + offset;

@@ -1,19 +1,19 @@
-[gd_resource type="Resource" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="BossDefinitionResource" load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/BossDefinitionResource.cs" id="1_boss"]
 
 [resource]
 script = ExtResource("1_boss")
-boss_id = "brimstone_colossus"
-display_name = "Brimstone Colossus"
-max_health = 160
-fire_resistance = 25
-move_speed = 55.0
-recovery_seconds = 0.65
-magma_slam_damage = 14
-magma_slam_preparation_seconds = 0.75
-magma_slam_radius = 130.0
-magma_slam_range = 165.0
-flame_spear_damage = 10
-flame_spear_preparation_seconds = 0.55
-flame_spear_range = 520.0
+BossId = "brimstone_colossus"
+DisplayName = "Brimstone Colossus"
+MaxHealth = 160
+FireResistance = 25
+MoveSpeed = 55.0
+RecoverySeconds = 0.65
+MagmaSlamDamage = 14
+MagmaSlamPreparationSeconds = 0.75
+MagmaSlamRadius = 130.0
+MagmaSlamRange = 165.0
+FlameSpearDamage = 10
+FlameSpearPreparationSeconds = 0.55
+FlameSpearRange = 520.0

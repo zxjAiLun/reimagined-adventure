@@ -2,9 +2,11 @@ using Godot;
 
 public partial class Milestone8MapModifierSmoke : Node
 {
+    [Export] public MapModifierResource DefinitionResource { get; set; }
+
     public override void _Ready()
     {
-        var resource = GD.Load<MapModifierResource>("res://resources/HardenedFront.tres");
+        var resource = DefinitionResource ?? GD.Load<MapModifierResource>("res://resources/HardenedFront.tres");
         var definition = resource?.ToDomain();
         if (definition == null
             || definition.Id != "hardened-front"

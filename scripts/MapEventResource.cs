@@ -7,12 +7,12 @@ public partial class MapEventResource : Resource
     [Export] public string EventId { get; set; } = "loot_cache";
     [Export] public string DisplayName { get; set; } = "Loot Cache";
     [Export] public int EventType { get; set; } = (int)MapEventType.LootCache;
-    [Export] public double Radius { get; set; } = 70.0;
+    [Export] public float Radius { get; set; } = 70.0f;
     [Export] public int ItemDropCount { get; set; } = 2;
-    [Export] public double RewardMultiplier { get; set; } = 1.0;
+    [Export] public float RewardMultiplier { get; set; } = 1.0f;
     [Export] public int ForgeFragmentReward { get; set; } = 1;
-    [Export] public double DamageMultiplier { get; set; } = 1.0;
-    [Export] public double BuffDurationSeconds { get; set; }
+    [Export] public float DamageMultiplier { get; set; } = 1.0f;
+    [Export] public float BuffDurationSeconds { get; set; }
 
     public MapEventDefinition ToDomain()
     {

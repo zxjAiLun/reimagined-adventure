@@ -5,4 +5,4 @@
 
 [node name="Stash" type="Node"]
 script = ExtResource("1_stash_node")
-definition_resource = ExtResource("2_stash_resource")
+DefinitionResource = ExtResource("2_stash_resource")
