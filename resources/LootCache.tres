@@ -1,0 +1,13 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/MapEventResource.cs" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+event_id = "loot_cache"
+display_name = "Loot Cache"
+event_type = 0
+radius = 70.0
+item_drop_count = 2
+reward_multiplier = 1.0
+forge_fragment_reward = 1
