@@ -103,6 +103,11 @@ public sealed class MinimalSaveService
         public int InventoryCount { get; set; }
         public List<string> InventoryItemIds { get; set; } = new();
         public string EquippedWeaponId { get; set; }
+        public List<Item> InventoryItems { get; set; } = new();
+        public Item EquippedWeapon { get; set; }
+        public List<int> PassiveAllocatedIndices { get; set; } = new();
+        public List<string> AtlasUnlockedMapIds { get; set; } = new();
+        public List<string> AtlasCompletedMapIds { get; set; } = new();
         public int SelectedNextMapOption { get; set; } = -1;
         public int SelectedMapRewardOption { get; set; } = -1;
         public bool NextMapOptionChosen { get; set; }
@@ -122,6 +127,11 @@ public sealed class MinimalSaveService
                 InventoryCount = snapshot.InventoryCount,
                 InventoryItemIds = snapshot.InventoryItemIds.ToList(),
                 EquippedWeaponId = snapshot.EquippedWeaponId,
+                InventoryItems = snapshot.InventoryItems.ToList(),
+                EquippedWeapon = snapshot.EquippedWeapon,
+                PassiveAllocatedIndices = snapshot.PassiveAllocatedIndices.ToList(),
+                AtlasUnlockedMapIds = snapshot.AtlasUnlockedMapIds.ToList(),
+                AtlasCompletedMapIds = snapshot.AtlasCompletedMapIds.ToList(),
                 SelectedNextMapOption = snapshot.SelectedNextMapOption,
                 SelectedMapRewardOption = snapshot.SelectedMapRewardOption,
                 NextMapOptionChosen = snapshot.NextMapOptionChosen,
@@ -143,6 +153,11 @@ public sealed class MinimalSaveService
                 InventoryCount = InventoryCount,
                 InventoryItemIds = InventoryItemIds ?? new List<string>(),
                 EquippedWeaponId = EquippedWeaponId,
+                InventoryItems = InventoryItems ?? new List<Item>(),
+                EquippedWeapon = EquippedWeapon,
+                PassiveAllocatedIndices = PassiveAllocatedIndices ?? new List<int>(),
+                AtlasUnlockedMapIds = AtlasUnlockedMapIds ?? new List<string>(),
+                AtlasCompletedMapIds = AtlasCompletedMapIds ?? new List<string>(),
                 SelectedNextMapOption = SelectedNextMapOption,
                 SelectedMapRewardOption = SelectedMapRewardOption,
                 NextMapOptionChosen = NextMapOptionChosen,

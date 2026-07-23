@@ -1,5 +1,6 @@
 using Arpg.Domain;
 using Godot;
+using System.Collections.Generic;
 
 /// <summary>
 /// Minimal Godot boundary for passive allocation. A future Control tree can
@@ -29,6 +30,18 @@ public partial class PassiveTreeNode : Node
     public bool TryAllocate(int index)
     {
         if (!State.TryAllocate(index))
+        {
+            return false;
+        }
+
+        ApplyStats();
+        EmitSignal(SignalName.PassiveChanged);
+        return true;
+    }
+
+    public bool TryRestore(IEnumerable<int> indices)
+    {
+        if (!State.TryRestore(indices))
         {
             return false;
         }

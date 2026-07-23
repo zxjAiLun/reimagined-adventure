@@ -76,6 +76,11 @@ public sealed class PassiveTreeState
 
     public IReadOnlyList<PassiveNodeDefinition> Nodes => _definition.Nodes;
 
+    public IReadOnlyList<int> AllocatedIndices =>
+        Enumerable.Range(0, _allocated.Length)
+            .Where(index => _allocated[index])
+            .ToArray();
+
     public bool IsAllocated(int index)
     {
         return index >= 0 && index < _allocated.Length && _allocated[index];

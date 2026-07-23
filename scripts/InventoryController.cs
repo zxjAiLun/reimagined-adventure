@@ -113,6 +113,58 @@ public partial class InventoryController : Node
         return false;
     }
 
+    public bool TryRestoreSavedState(MinimalRunState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        if (state.InventoryItems == null || state.InventoryItems.Count > Capacity)
+        {
+            return false;
+        }
+
+        var restoredItems = new List<Item>();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in state.InventoryItems)
+        {
+            if (item == null || !ids.Add(item.Id))
+            {
+                return false;
+            }
+
+            try
+            {
+                item.Validate();
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+
+            restoredItems.Add(item);
+        }
+
+        if (state.EquippedWeapon != null)
+        {
+            if (ids.Contains(state.EquippedWeapon.Id)
+                || !Equipment.CanEquip(state.EquippedWeapon, PlayerLevel))
+            {
+                return false;
+            }
+        }
+
+        _items.Clear();
+        _items.AddRange(restoredItems);
+        Equipment.Reset();
+        if (state.EquippedWeapon != null)
+        {
+            Equipment.Equip(state.EquippedWeapon, PlayerLevel);
+        }
+
+        RecalculatePlayerStats();
+        EmitSignal(SignalName.InventoryChanged);
+        EmitSignal(SignalName.EquipmentChanged);
+        return true;
+    }
+
     public bool TryPickupNearest(float? rangeOverride = null)
     {
         if (_player == null || _items.Count >= Capacity)

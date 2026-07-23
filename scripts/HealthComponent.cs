@@ -74,6 +74,18 @@ public partial class HealthComponent : Node
         _deathEmitted = false;
     }
 
+    public bool TryRestoreCurrentHealth(int currentHealth)
+    {
+        if (currentHealth < 0 || currentHealth > MaxHealth)
+        {
+            return false;
+        }
+
+        CurrentHealth = currentHealth;
+        _deathEmitted = !IsAlive;
+        return true;
+    }
+
     public DamageResult ApplyDamage(DamageRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

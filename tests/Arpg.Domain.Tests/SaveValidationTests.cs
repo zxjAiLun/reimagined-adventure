@@ -77,4 +77,32 @@ public sealed class SaveValidationTests
         Assert.False(duplicateItems.TryValidate(out _));
         Assert.False(playingWithReward.TryValidate(out _));
     }
+
+    [Fact]
+    public void FullContentPayloadRoundTripsItemsPassivesAndAtlasProgression()
+    {
+        var generator = new LootGenerator(9017);
+        var inventoryItem = generator.GenerateWeaponDrop(2);
+        var equippedItem = generator.GenerateWeaponDrop(2);
+        var state = new MinimalRunState
+        {
+            State = SaveRunState.MapComplete,
+            MapLevel = 3,
+            PlayerMaxHealth = 125,
+            PlayerCurrentHealth = 107,
+            InventoryItems = [inventoryItem],
+            EquippedWeapon = equippedItem,
+            PassiveAllocatedIndices = [0, 1],
+            AtlasUnlockedMapIds = ["quiet-coast", "hardened-frontier"],
+            AtlasCompletedMapIds = ["quiet-coast"],
+        };
+
+        var restored = SaveSnapshot.Capture(state).Restore();
+
+        Assert.Equal(inventoryItem.Id, restored.InventoryItems[0].Id);
+        Assert.Equal(equippedItem.Id, restored.EquippedWeapon!.Id);
+        Assert.Equal([0, 1], restored.PassiveAllocatedIndices);
+        Assert.Equal(["quiet-coast", "hardened-frontier"], restored.AtlasUnlockedMapIds);
+        Assert.Equal(["quiet-coast"], restored.AtlasCompletedMapIds);
+    }
 }

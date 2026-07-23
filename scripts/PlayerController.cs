@@ -63,6 +63,11 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         RecalculateEffectiveStats();
     }
 
+    public bool TryRestoreCurrentHealth(int currentHealth)
+    {
+        return _health != null && _health.TryRestoreCurrentHealth(currentHealth);
+    }
+
     public override void _Ready()
     {
         AddToGroup("player");

@@ -36,4 +36,9 @@ public partial class AtlasNode : Node
         EmitSignal(SignalName.MapCompleted, mapId);
         return true;
     }
+
+    public bool TryRestore(IEnumerable<string> unlockedMapIds, IEnumerable<string> completedMapIds)
+    {
+        return State.TryRestore(unlockedMapIds, completedMapIds);
+    }
 }
