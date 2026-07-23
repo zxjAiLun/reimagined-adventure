@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/TestArena.cs" id="1_arena"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/GameFlowController.cs" id="7_flow"]
 [ext_resource type="Script" path="res://scripts/InventoryPanel.cs" id="8_inventory_panel"]
 [ext_resource type="Script" path="res://scripts/EquipmentTooltip.cs" id="9_equipment_tooltip"]
+[ext_resource type="Script" path="res://scripts/SaveBoundaryNode.cs" id="10_save"]
 
 [node name="TestArena" type="Node2D"]
 script = ExtResource("1_arena")
@@ -28,6 +29,9 @@ position = Vector2(1240, 660)
 
 [node name="GameFlowController" type="Node" parent="."]
 script = ExtResource("7_flow")
+
+[node name="SaveBoundary" type="Node" parent="."]
+script = ExtResource("10_save")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
