@@ -36,4 +36,45 @@ public sealed class SaveValidationTests
 
         Assert.Throws<ArgumentException>(() => snapshot.Validate());
     }
+
+    [Fact]
+    public void MinimalRunStateRoundTripsThroughValidatedSnapshot()
+    {
+        var state = new MinimalRunState
+        {
+            State = SaveRunState.MapComplete,
+            MapLevel = 3,
+            PlayerMaxHealth = 120,
+            PlayerCurrentHealth = 95,
+            ManaCharges = 2,
+            InventoryItemIds = ["drop_0001", "drop_0002"],
+            EquippedWeaponId = "drop_0001",
+        };
+
+        var restored = SaveSnapshot.Capture(state).Restore();
+
+        Assert.Equal(state.State, restored.State);
+        Assert.Equal(state.MapLevel, restored.MapLevel);
+        Assert.Equal(state.InventoryItemIds, restored.InventoryItemIds);
+        Assert.Equal(state.EquippedWeaponId, restored.EquippedWeaponId);
+    }
+
+    [Fact]
+    public void InventoryIdentityAndPlayingSelectionRulesAreRejected()
+    {
+        var duplicateItems = new SaveSnapshot
+        {
+            InventoryCount = 2,
+            InventoryItemIds = ["same", "same"],
+        };
+        var playingWithReward = new SaveSnapshot
+        {
+            State = SaveRunState.Playing,
+            SelectedMapRewardOption = 0,
+            MapRewardChosen = true,
+        };
+
+        Assert.False(duplicateItems.TryValidate(out _));
+        Assert.False(playingWithReward.TryValidate(out _));
+    }
 }

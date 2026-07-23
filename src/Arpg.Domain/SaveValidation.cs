@@ -6,6 +6,17 @@ public enum SaveRunState
     MapComplete,
 }
 
+public sealed class MinimalRunState
+{
+    public SaveRunState State { get; init; } = SaveRunState.Playing;
+    public int MapLevel { get; init; } = 1;
+    public int PlayerMaxHealth { get; init; } = 100;
+    public int PlayerCurrentHealth { get; init; } = 100;
+    public int ManaCharges { get; init; } = SaveSnapshot.MaxManaCharges;
+    public IReadOnlyList<string> InventoryItemIds { get; init; } = Array.Empty<string>();
+    public string? EquippedWeaponId { get; init; }
+}
+
 /// <summary>
 /// Validation-only snapshot. It is not a save format and intentionally does
 /// not introduce file I/O or the deferred full-save system.
@@ -15,6 +26,7 @@ public sealed class SaveSnapshot
     public const uint ExpectedMagic = 0x4D415247U;
     public const int CurrentVersion = 1;
     public const int MaxManaCharges = 3;
+    public const int MaxInventoryCount = 8;
 
     public uint Magic { get; init; } = ExpectedMagic;
     public int Version { get; init; } = CurrentVersion;
@@ -24,10 +36,45 @@ public sealed class SaveSnapshot
     public int PlayerCurrentHealth { get; init; } = 100;
     public int ManaCharges { get; init; } = MaxManaCharges;
     public int InventoryCount { get; init; }
+    public IReadOnlyList<string> InventoryItemIds { get; init; } = Array.Empty<string>();
+    public string? EquippedWeaponId { get; init; }
     public int SelectedNextMapOption { get; init; } = -1;
     public int SelectedMapRewardOption { get; init; } = -1;
     public bool NextMapOptionChosen { get; init; }
     public bool MapRewardChosen { get; init; }
+
+    public static SaveSnapshot Capture(MinimalRunState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        var snapshot = new SaveSnapshot
+        {
+            State = state.State,
+            MapLevel = state.MapLevel,
+            PlayerMaxHealth = state.PlayerMaxHealth,
+            PlayerCurrentHealth = state.PlayerCurrentHealth,
+            ManaCharges = state.ManaCharges,
+            InventoryCount = state.InventoryItemIds?.Count ?? -1,
+            InventoryItemIds = state.InventoryItemIds?.ToArray() ?? Array.Empty<string>(),
+            EquippedWeaponId = state.EquippedWeaponId,
+        };
+        snapshot.Validate();
+        return snapshot;
+    }
+
+    public MinimalRunState Restore()
+    {
+        Validate();
+        return new MinimalRunState
+        {
+            State = State,
+            MapLevel = MapLevel,
+            PlayerMaxHealth = PlayerMaxHealth,
+            PlayerCurrentHealth = PlayerCurrentHealth,
+            ManaCharges = ManaCharges,
+            InventoryItemIds = InventoryItemIds.ToArray(),
+            EquippedWeaponId = EquippedWeaponId,
+        };
+    }
 
     public bool TryValidate(out string error)
     {
@@ -54,7 +101,13 @@ public sealed class SaveSnapshot
             || PlayerCurrentHealth > PlayerMaxHealth
             || ManaCharges < 0
             || ManaCharges > MaxManaCharges
-            || InventoryCount < 0)
+            || InventoryCount < 0
+            || InventoryCount > MaxInventoryCount
+            || InventoryItemIds == null
+            || InventoryItemIds.Count != InventoryCount
+            || InventoryItemIds.Any(string.IsNullOrWhiteSpace)
+            || InventoryItemIds.Distinct(StringComparer.Ordinal).Count() != InventoryItemIds.Count
+            || EquippedWeaponId != null && string.IsNullOrWhiteSpace(EquippedWeaponId))
         {
             error = "invalid player resource values";
             return false;
@@ -63,7 +116,9 @@ public sealed class SaveSnapshot
         if (!ValidOption(SelectedNextMapOption)
             || !ValidOption(SelectedMapRewardOption)
             || NextMapOptionChosen != (SelectedNextMapOption >= 0)
-            || MapRewardChosen != (SelectedMapRewardOption >= 0))
+            || MapRewardChosen != (SelectedMapRewardOption >= 0)
+            || NextMapOptionChosen && !MapRewardChosen
+            || State == SaveRunState.Playing && (MapRewardChosen || NextMapOptionChosen))
         {
             error = "invalid map option selection state";
             return false;
