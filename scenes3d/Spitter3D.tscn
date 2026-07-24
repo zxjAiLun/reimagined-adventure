@@ -1,9 +1,10 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/SpitterController3D.cs" id="1_spitter"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
 [ext_resource type="PackedScene" path="res://scenes3d/EnemyProjectile3D.tscn" id="3_projectile"]
 [ext_resource type="PackedScene" path="res://scenes3d/ItemDrop3D.tscn" id="4_drop"]
+[ext_resource type="PackedScene" path="res://scenes3d/LineTelegraph3D.tscn" id="5_telegraph"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_spitter"]
 radius = 0.45
@@ -21,24 +22,13 @@ material = SubResource("StandardMaterial3D_spitter")
 radius = 0.45
 height = 1.0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_telegraph"]
-transparency = 1
-shading_mode = 0
-albedo_color = Color(0.95, 0.2, 0.5, 0.72)
-emission_enabled = true
-emission = Color(0.7, 0.03, 0.18, 1)
-emission_energy_multiplier = 2.0
-
-[sub_resource type="BoxMesh" id="BoxMesh_telegraph"]
-size = Vector3(0.06, 0.06, 1.0)
-material = SubResource("StandardMaterial3D_telegraph")
-
 [node name="Spitter3D" type="CharacterBody3D"]
 collision_layer = 8
 collision_mask = 3
 script = ExtResource("1_spitter")
 ProjectileScene = ExtResource("3_projectile")
 ItemDropScene = ExtResource("4_drop")
+TelegraphScene = ExtResource("5_telegraph")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 position = Vector3(0, 0.5, 0)
@@ -58,7 +48,3 @@ text = "SPITTER 3D 24/24"
 font_size = 26
 outline_size = 7
 modulate = Color(0.88, 0.72, 1, 1)
-
-[node name="Telegraph" type="MeshInstance3D" parent="."]
-visible = false
-mesh = SubResource("BoxMesh_telegraph")

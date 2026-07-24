@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/FeralController3D.cs" id="1_feral"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
 [ext_resource type="PackedScene" path="res://scenes3d/ItemDrop3D.tscn" id="3_drop"]
+[ext_resource type="PackedScene" path="res://scenes3d/AreaTelegraph3D.tscn" id="4_telegraph"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_feral"]
 radius = 0.55
@@ -22,6 +23,7 @@ collision_layer = 8
 collision_mask = 3
 script = ExtResource("1_feral")
 ItemDropScene = ExtResource("3_drop")
+TelegraphScene = ExtResource("4_telegraph")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 position = Vector3(0, 0.6, 0)

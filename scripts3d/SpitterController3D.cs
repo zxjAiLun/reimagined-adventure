@@ -7,13 +7,16 @@ public enum SpitterState3D
     Approaching,
     HoldingRange,
     Retreating,
-    PreparingAttack,
+    Aim,
+    Windup,
+    Launch,
+    Recovery,
     Dead,
 }
 
 /// <summary>
-/// 3D ranged enemy adapter. It keeps a readable distance, telegraphs each
-/// shot, and sends an enemy-faction projectile through the shared damage path.
+/// 3D ranged enemy adapter. Aim chooses the attack, Windup locks its target
+/// direction, Launch creates one projectile, and Recovery gates the next shot.
 /// </summary>
 public partial class SpitterController3D : CharacterBody3D, ICombatTarget
 {
@@ -22,8 +25,11 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
     [Export] public float MinimumRange { get; set; } = 3.5f;
     [Export] public int ProjectileDamage { get; set; } = 4;
     [Export] public float AttackCooldown { get; set; } = 1.6f;
+    [Export] public float AimSeconds { get; set; } = 0.20f;
     [Export] public float TelegraphSeconds { get; set; } = 0.35f;
+    [Export] public float RecoverySeconds { get; set; } = 0.25f;
     [Export] public PackedScene ProjectileScene { get; set; }
+    [Export] public PackedScene TelegraphScene { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
 
     public CombatFaction Faction => CombatFaction.Enemy;
@@ -33,15 +39,20 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
     public SpitterState3D State { get; private set; } = SpitterState3D.Approaching;
     public int ProjectileShotCount { get; private set; }
     public int TelegraphCount { get; private set; }
+    public Vector3 LockedTargetPosition { get; private set; }
+    public Vector3 LockedDirection { get; private set; } = Vector3.Forward;
+    public Vector3 LastLaunchDirection { get; private set; } = Vector3.Zero;
+    public LineTelegraph3D ActiveTelegraph => _activeTelegraph;
 
     private HealthComponent _health;
     private PlayerController3D _player;
     private RunSessionNode _runSession;
     private Label3D _healthLabel;
-    private MeshInstance3D _telegraph;
+    private LineTelegraph3D _activeTelegraph;
     private float _attackCooldownRemaining;
     private float _stateRemaining;
     private bool _deathHandled;
+    private bool _launchPerformed;
 
     public override void _Ready()
     {
@@ -51,7 +62,6 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         _health = GetNode<HealthComponent>("HealthComponent");
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
-        _telegraph = GetNodeOrNull<MeshInstance3D>("Telegraph");
         _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         FindPlayer();
         RefreshVisuals();
@@ -73,49 +83,54 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
 
         if (_player == null || !GodotObject.IsInstanceValid(_player) || !_player.IsAlive)
         {
+            CancelAttack();
             Velocity = Vector3.Zero;
-            return;
-        }
-
-        var toPlayer = _player.GlobalPosition - GlobalPosition;
-        toPlayer.Y = 0.0f;
-        var distance = toPlayer.Length();
-        if (State == SpitterState3D.PreparingAttack)
-        {
-            Velocity = Vector3.Zero;
-            _stateRemaining -= frameDelta;
-            if (_stateRemaining <= 0.0f)
-            {
-                FireProjectile();
-                State = SpitterState3D.HoldingRange;
-            }
-
             RefreshVisuals();
             return;
         }
 
-        if (distance < MinimumRange)
+        switch (State)
         {
-            State = SpitterState3D.Retreating;
-            Velocity = distance > 0.001f
-                ? -toPlayer.Normalized() * MoveSpeed
-                : Vector3.Back;
-            MoveAndSlide();
-        }
-        else if (distance > PreferredRange)
-        {
-            State = SpitterState3D.Approaching;
-            Velocity = toPlayer.Normalized() * MoveSpeed;
-            MoveAndSlide();
-        }
-        else
-        {
-            State = SpitterState3D.HoldingRange;
-            Velocity = Vector3.Zero;
-            if (_attackCooldownRemaining <= 0.0f)
-            {
-                BeginTelegraph();
-            }
+            case SpitterState3D.Aim:
+                Velocity = Vector3.Zero;
+                _stateRemaining -= frameDelta;
+                if (_stateRemaining <= 0.0f)
+                {
+                    BeginWindup();
+                }
+
+                break;
+            case SpitterState3D.Windup:
+                Velocity = Vector3.Zero;
+                _stateRemaining -= frameDelta;
+                if (_stateRemaining <= 0.0f)
+                {
+                    BeginLaunch();
+                }
+
+                break;
+            case SpitterState3D.Launch:
+                Velocity = Vector3.Zero;
+                State = SpitterState3D.Recovery;
+                _stateRemaining = Mathf.Max(0.01f, RecoverySeconds);
+                break;
+            case SpitterState3D.Recovery:
+                Velocity = Vector3.Zero;
+                _stateRemaining -= frameDelta;
+                if (_stateRemaining <= 0.0f)
+                {
+                    State = SpitterState3D.HoldingRange;
+                    _attackCooldownRemaining = Mathf.Max(0.05f, AttackCooldown);
+                }
+
+                break;
+            case SpitterState3D.Approaching:
+            case SpitterState3D.HoldingRange:
+            case SpitterState3D.Retreating:
+                MoveOrBeginAim();
+                break;
+            case SpitterState3D.Dead:
+                break;
         }
 
         GlobalPosition = new Vector3(GlobalPosition.X, 0.0f, GlobalPosition.Z);
@@ -140,40 +155,121 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
     }
 
-    private void BeginTelegraph()
+    private void MoveOrBeginAim()
     {
-        State = SpitterState3D.PreparingAttack;
-        _stateRemaining = Mathf.Max(0.05f, TelegraphSeconds);
-        _attackCooldownRemaining = Mathf.Max(0.05f, AttackCooldown);
+        var toPlayer = _player.GlobalPosition - GlobalPosition;
+        toPlayer.Y = 0.0f;
+        var distance = toPlayer.Length();
+        if (distance < MinimumRange)
+        {
+            State = SpitterState3D.Retreating;
+            Velocity = distance > 0.001f
+                ? -toPlayer.Normalized() * MoveSpeed
+                : Vector3.Back;
+            MoveAndSlide();
+        }
+        else if (distance > PreferredRange)
+        {
+            State = SpitterState3D.Approaching;
+            Velocity = toPlayer.LengthSquared() > 0.001f
+                ? toPlayer.Normalized() * MoveSpeed
+                : Vector3.Zero;
+            MoveAndSlide();
+        }
+        else
+        {
+            State = SpitterState3D.HoldingRange;
+            Velocity = Vector3.Zero;
+            if (_attackCooldownRemaining <= 0.0f)
+            {
+                BeginAim();
+            }
+        }
+    }
+
+    private void BeginAim()
+    {
+        State = SpitterState3D.Aim;
+        _stateRemaining = Mathf.Max(0.01f, AimSeconds);
+        _launchPerformed = false;
+    }
+
+    private void BeginWindup()
+    {
+        State = SpitterState3D.Windup;
+        _stateRemaining = Mathf.Max(0.01f, TelegraphSeconds);
+        LockedTargetPosition = _player.GlobalPosition;
+        var direction = LockedTargetPosition - GlobalPosition;
+        direction.Y = 0.0f;
+        LockedDirection = direction.LengthSquared() > 0.001f
+            ? direction.Normalized()
+            : Vector3.Forward;
         TelegraphCount++;
+        _activeTelegraph = CreateLineTelegraph(
+            LockedDirection,
+            Mathf.Max(1.0f, direction.Length() + 0.8f),
+            TelegraphSeconds);
+    }
+
+    private void BeginLaunch()
+    {
+        State = SpitterState3D.Launch;
+        _activeTelegraph?.Complete();
+        _activeTelegraph = null;
+        if (!_launchPerformed)
+        {
+            _launchPerformed = true;
+            FireProjectile();
+        }
+
+        _stateRemaining = 0.0f;
+    }
+
+    private LineTelegraph3D CreateLineTelegraph(Vector3 direction, float length, float duration)
+    {
+        if (TelegraphScene == null || GetParent() == null)
+        {
+            return null;
+        }
+
+        var telegraph = TelegraphScene.Instantiate<LineTelegraph3D>();
+        GetParent().AddChild(telegraph);
+        telegraph.Activate(GlobalPosition + Vector3.Up * 0.08f, direction, length, duration);
+        return telegraph;
     }
 
     private void FireProjectile()
     {
-        if (_player == null || !GodotObject.IsInstanceValid(_player)
-            || ProjectileScene == null || !_player.IsAlive)
-        {
-            return;
-        }
-
-        var direction = _player.GlobalPosition - GlobalPosition;
-        direction.Y = 0.0f;
-        if (direction.LengthSquared() <= 0.001f)
+        if (ProjectileScene == null || !_player.IsAlive || GetParent() == null)
         {
             return;
         }
 
         var projectile = ProjectileScene.Instantiate<BasicProjectile3D>();
         GetParent().AddChild(projectile);
-        projectile.GlobalPosition = GlobalPosition + direction.Normalized() * 0.8f + Vector3.Up * 0.55f;
+        projectile.GlobalPosition = GlobalPosition + LockedDirection * 0.8f + Vector3.Up * 0.55f;
         projectile.Launch(
-            direction,
+            LockedDirection,
             new DamageRequest(
                 ProjectileDamage,
                 DamageType.Poison,
                 "spitter_acid_3d",
                 CombatFaction.Enemy));
+        LastLaunchDirection = projectile.LaunchDirection;
         ProjectileShotCount++;
+    }
+
+    private void CancelAttack()
+    {
+        _activeTelegraph?.Cancel();
+        _activeTelegraph = null;
+        if (State == SpitterState3D.Aim
+            || State == SpitterState3D.Windup
+            || State == SpitterState3D.Launch
+            || State == SpitterState3D.Recovery)
+        {
+            State = SpitterState3D.HoldingRange;
+        }
     }
 
     private void OnDied()
@@ -184,6 +280,8 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         }
 
         _deathHandled = true;
+        _activeTelegraph?.Cancel();
+        _activeTelegraph = null;
         State = SpitterState3D.Dead;
         Velocity = Vector3.Zero;
         CollisionLayer = 0;
@@ -219,29 +317,5 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         {
             _healthLabel.Text = $"SPITTER 3D {CurrentHealth}/{MaxHealth}\n{State}";
         }
-
-        if (_telegraph == null)
-        {
-            return;
-        }
-
-        var visible = State == SpitterState3D.PreparingAttack && _player != null && _player.IsAlive;
-        _telegraph.Visible = visible;
-        if (!visible)
-        {
-            return;
-        }
-
-        var direction = _player.GlobalPosition - GlobalPosition;
-        direction.Y = 0.0f;
-        var distance = direction.Length();
-        if (distance <= 0.001f)
-        {
-            return;
-        }
-
-        _telegraph.GlobalPosition = GlobalPosition + Vector3.Up * 0.6f + direction * 0.5f;
-        _telegraph.Scale = new Vector3(1.0f, 1.0f, distance);
-        _telegraph.LookAt(GlobalPosition + Vector3.Up * 0.6f + direction, Vector3.Up);
     }
 }

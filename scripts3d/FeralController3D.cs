@@ -5,7 +5,9 @@ using Godot;
 public enum FeralState3D
 {
     Chasing,
-    Attacking,
+    Windup,
+    Impact,
+    Recovery,
     Dead,
 }
 
@@ -15,6 +17,9 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     [Export] public float AttackRange { get; set; } = 1.25f;
     [Export] public int ContactDamage { get; set; } = 8;
     [Export] public float AttackCooldown { get; set; } = 1.0f;
+    [Export] public float AttackWindupSeconds { get; set; } = 0.35f;
+    [Export] public float AttackRecoverySeconds { get; set; } = 0.40f;
+    [Export] public PackedScene TelegraphScene { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
 
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
@@ -23,11 +28,17 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     public CombatFaction Faction => CombatFaction.Enemy;
     public FeralState3D State { get; private set; } = FeralState3D.Chasing;
     public int ContactAttackCount { get; private set; }
+    public int ImpactCount { get; private set; }
+    public int SuccessfulContactAttackCount { get; private set; }
+    public Vector3 LockedTargetPosition { get; private set; }
+    public AreaTelegraph3D ActiveTelegraph => _activeTelegraph;
 
     private HealthComponent _health;
     private PlayerController3D _player;
     private Label3D _healthLabel;
+    private AreaTelegraph3D _activeTelegraph;
     private float _attackCooldownRemaining;
+    private float _stateRemaining;
     private bool _deathHandled;
     private RunSessionNode _runSession;
 
@@ -50,9 +61,8 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
             return;
         }
 
-        _attackCooldownRemaining = Mathf.Max(
-            0.0f,
-            _attackCooldownRemaining - (float)delta);
+        var frameDelta = (float)delta;
+        _attackCooldownRemaining = Mathf.Max(0.0f, _attackCooldownRemaining - frameDelta);
         if (_player == null || !GodotObject.IsInstanceValid(_player))
         {
             _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
@@ -60,30 +70,47 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
 
         if (_player == null || !GodotObject.IsInstanceValid(_player) || !_player.IsAlive)
         {
+            CancelAttack();
             Velocity = Vector3.Zero;
             State = FeralState3D.Chasing;
+            RefreshVisuals();
             return;
         }
 
-        var toPlayer = _player.GlobalPosition - GlobalPosition;
-        toPlayer.Y = 0.0f;
-        var distance = toPlayer.Length();
-        if (distance <= AttackRange)
+        switch (State)
         {
-            Velocity = Vector3.Zero;
-            State = FeralState3D.Attacking;
-            if (_attackCooldownRemaining <= 0.0f)
-            {
-                AttackPlayer();
-            }
-        }
-        else
-        {
-            State = FeralState3D.Chasing;
-            Velocity = toPlayer.Normalized() * MoveSpeed;
-            MoveAndSlide();
+            case FeralState3D.Windup:
+                Velocity = Vector3.Zero;
+                _stateRemaining -= frameDelta;
+                if (_stateRemaining <= 0.0f)
+                {
+                    BeginImpact();
+                }
+
+                break;
+            case FeralState3D.Impact:
+                Velocity = Vector3.Zero;
+                State = FeralState3D.Recovery;
+                _stateRemaining = Mathf.Max(0.01f, AttackRecoverySeconds);
+                break;
+            case FeralState3D.Recovery:
+                Velocity = Vector3.Zero;
+                _stateRemaining -= frameDelta;
+                if (_stateRemaining <= 0.0f)
+                {
+                    State = FeralState3D.Chasing;
+                    _attackCooldownRemaining = Mathf.Max(0.05f, AttackCooldown);
+                }
+
+                break;
+            case FeralState3D.Chasing:
+                ChaseOrBeginAttack();
+                break;
+            case FeralState3D.Dead:
+                break;
         }
 
+        GlobalPosition = new Vector3(GlobalPosition.X, 0.0f, GlobalPosition.Z);
         RefreshVisuals();
     }
 
@@ -100,25 +127,88 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         return result;
     }
 
+    private void ChaseOrBeginAttack()
+    {
+        var toPlayer = _player.GlobalPosition - GlobalPosition;
+        toPlayer.Y = 0.0f;
+        var distance = toPlayer.Length();
+        if (distance <= AttackRange)
+        {
+            Velocity = Vector3.Zero;
+            if (_attackCooldownRemaining <= 0.0f)
+            {
+                BeginWindup();
+            }
+
+            return;
+        }
+
+        Velocity = toPlayer.LengthSquared() > 0.001f
+            ? toPlayer.Normalized() * MoveSpeed
+            : Vector3.Zero;
+        MoveAndSlide();
+    }
+
     private void FindPlayer()
     {
         _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
     }
 
-    private void AttackPlayer()
+    private void BeginWindup()
     {
-        if (_player == null || !_player.IsAlive)
+        State = FeralState3D.Windup;
+        _stateRemaining = Mathf.Max(0.01f, AttackWindupSeconds);
+        LockedTargetPosition = _player.GlobalPosition;
+        _activeTelegraph = CreateAreaTelegraph(AttackRange, GlobalPosition, AttackWindupSeconds);
+    }
+
+    private void BeginImpact()
+    {
+        State = FeralState3D.Impact;
+        ImpactCount++;
+        ContactAttackCount++;
+        _activeTelegraph?.Complete();
+        _activeTelegraph = null;
+
+        var toPlayer = _player.GlobalPosition - GlobalPosition;
+        toPlayer.Y = 0.0f;
+        if (_player.IsAlive && toPlayer.Length() <= AttackRange)
         {
-            return;
+            var result = _player.ApplyDamage(new DamageRequest(
+                ContactDamage,
+                DamageType.Physical,
+                "feral_contact_3d",
+                CombatFaction.Enemy));
+            if (result.DamageApplied > 0)
+            {
+                SuccessfulContactAttackCount++;
+            }
+        }
+    }
+
+    private AreaTelegraph3D CreateAreaTelegraph(float radius, Vector3 position, float duration)
+    {
+        if (TelegraphScene == null || GetParent() == null)
+        {
+            return null;
         }
 
-        _player.ApplyDamage(new DamageRequest(
-            ContactDamage,
-            DamageType.Physical,
-            "feral_contact_3d",
-            CombatFaction.Enemy));
-        ContactAttackCount++;
-        _attackCooldownRemaining = Mathf.Max(0.05f, AttackCooldown);
+        var telegraph = TelegraphScene.Instantiate<AreaTelegraph3D>();
+        GetParent().AddChild(telegraph);
+        telegraph.Activate(radius, position, duration);
+        return telegraph;
+    }
+
+    private void CancelAttack()
+    {
+        _activeTelegraph?.Cancel();
+        _activeTelegraph = null;
+        if (State == FeralState3D.Windup
+            || State == FeralState3D.Impact
+            || State == FeralState3D.Recovery)
+        {
+            State = FeralState3D.Chasing;
+        }
     }
 
     private void OnDied()
@@ -129,6 +219,8 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         }
 
         _deathHandled = true;
+        _activeTelegraph?.Cancel();
+        _activeTelegraph = null;
         State = FeralState3D.Dead;
         Velocity = Vector3.Zero;
         CollisionLayer = 0;
