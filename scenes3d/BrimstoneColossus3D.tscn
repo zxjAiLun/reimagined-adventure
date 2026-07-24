@@ -1,0 +1,69 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/BrimstoneColossusController3D.cs" id="1_boss"]
+[ext_resource type="Resource" path="res://resources/BrimstoneColossus.tres" id="2_definition"]
+[ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="3_health"]
+[ext_resource type="PackedScene" path="res://scenes3d/EnemyProjectile3D.tscn" id="4_projectile"]
+[ext_resource type="PackedScene" path="res://scenes3d/EnemyAreaEffect3D.tscn" id="5_area"]
+[ext_resource type="PackedScene" path="res://scenes3d/ItemDrop3D.tscn" id="6_drop"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
+radius = 1.15
+height = 2.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_boss"]
+albedo_color = Color(0.72, 0.2, 0.08, 1)
+metallic = 0.2
+roughness = 0.55
+emission_enabled = true
+emission = Color(0.32, 0.04, 0.01, 1)
+emission_energy_multiplier = 1.4
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_boss"]
+material = SubResource("StandardMaterial3D_boss")
+radius = 1.15
+height = 2.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_telegraph"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 0.74, 0.1, 0.78)
+emission_enabled = true
+emission = Color(1, 0.24, 0.02, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="BoxMesh" id="BoxMesh_telegraph"]
+size = Vector3(0.08, 0.08, 1.0)
+material = SubResource("StandardMaterial3D_telegraph")
+
+[node name="BrimstoneColossus3D" type="CharacterBody3D"]
+collision_layer = 8
+collision_mask = 3
+script = ExtResource("1_boss")
+DefinitionResource = ExtResource("2_definition")
+ProjectileScene = ExtResource("4_projectile")
+AreaEffectScene = ExtResource("5_area")
+ItemDropScene = ExtResource("6_drop")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 1.2, 0)
+shape = SubResource("CapsuleShape3D_boss")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.2, 0)
+mesh = SubResource("CapsuleMesh_boss")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("3_health")
+MaxHealth = 160
+
+[node name="HealthLabel" type="Label3D" parent="."]
+position = Vector3(0, 2.7, 0)
+text = "BRIMSTONE COLOSSUS 160/160"
+font_size = 24
+outline_size = 8
+modulate = Color(1, 0.68, 0.4, 1)
+
+[node name="Telegraph" type="MeshInstance3D" parent="."]
+visible = false
+mesh = SubResource("BoxMesh_telegraph")

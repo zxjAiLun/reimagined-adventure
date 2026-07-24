@@ -10,6 +10,7 @@ public partial class SkillAreaEffect3D : Node3D
     private float _remainingLifetime;
     private float _radius;
     private bool _impactApplied;
+    private bool _configured;
     private MeshInstance3D _visual;
 
     public override void _Ready()
@@ -28,6 +29,7 @@ public partial class SkillAreaEffect3D : Node3D
         ArgumentNullException.ThrowIfNull(damageRequest);
         _definition = definition;
         _damageRequest = damageRequest;
+        _configured = true;
         _radius = (float)radiusOverride;
         _delayRemaining = Mathf.Max(0.0f, (float)definition.CastDelaySeconds);
         _remainingLifetime = Mathf.Max(
@@ -37,9 +39,27 @@ public partial class SkillAreaEffect3D : Node3D
         UpdateVisualScale();
     }
 
+    public void ConfigureHazard(
+        Vector3 targetPosition,
+        double radius,
+        double delay,
+        double duration,
+        DamageRequest damageRequest)
+    {
+        ArgumentNullException.ThrowIfNull(damageRequest);
+        _definition = null;
+        _damageRequest = damageRequest;
+        _configured = true;
+        _radius = Mathf.Max(0.0f, (float)radius);
+        _delayRemaining = Mathf.Max(0.0f, (float)delay);
+        _remainingLifetime = Mathf.Max(0.18f, _delayRemaining + (float)duration);
+        GlobalPosition = new Vector3(targetPosition.X, 0.04f, targetPosition.Z);
+        UpdateVisualScale();
+    }
+
     public override void _Process(double delta)
     {
-        if (_definition == null)
+        if (!_configured)
         {
             return;
         }
