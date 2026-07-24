@@ -44,7 +44,7 @@ jobs:
       - name: Main scene load
         shell: pwsh
         run: |
-          & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene res://scenes/RunShell.tscn --quit-after 120
+          & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene res://scenes3d/RunShell3D.tscn --quit-after 120
           if ($LASTEXITCODE -ne 0) { throw "Godot main scene failed to load ($LASTEXITCODE)" }
 
       - name: Combat, save, and content smoke
