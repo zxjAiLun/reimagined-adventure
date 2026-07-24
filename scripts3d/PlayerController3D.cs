@@ -9,8 +9,6 @@ using Godot;
 /// </summary>
 public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 {
-    [Export] public float MoveSpeed { get; set; } = 5.0f;
-    [Export] public Vector2 MovementBounds { get; set; } = new(11.0f, 7.0f);
     [Export] public float PickupRange { get; set; } = 2.4f;
     [Export] public PackedScene ProjectileScene { get; set; }
     [Export] public PackedScene AreaEffectScene { get; set; }
@@ -32,11 +30,10 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     private readonly Equipment _equipment = new();
     private HealthComponent _health;
     private MouseGroundTargeting3D _targeting;
+    private PlayerMotor3D _motor;
+    private PlayerSkillController3D _skills;
     private Stats _equipmentStats = Stats.Neutral;
     private int _baseMaxHealth;
-    private float _spreadCooldown;
-    private float _pulseCooldown;
-    private float _dashCooldown;
 
     public override void _Ready()
     {
@@ -45,59 +42,31 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
         _health = GetNode<HealthComponent>("HealthComponent");
         _targeting = GetNode<MouseGroundTargeting3D>("MouseGroundTargeting3D");
+        _motor = GetNodeOrNull<PlayerMotor3D>("PlayerMotor3D");
+        _skills = GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
         _targeting.Camera = GetTree().GetFirstNodeInGroup("arena_cameras") as Camera3D;
         _baseMaxHealth = _health.MaxHealth;
         _health.Died += OnDied;
+        SetProcessUnhandledInput(true);
         RecalculateEffectiveStats();
     }
 
-    public override void _PhysicsProcess(double delta)
+    public override void _UnhandledInput(InputEvent @event)
     {
         if (!IsAlive)
         {
             return;
         }
 
-        var frameDelta = (float)delta;
-        _spreadCooldown = Mathf.Max(0.0f, _spreadCooldown - frameDelta);
-        _pulseCooldown = Mathf.Max(0.0f, _pulseCooldown - frameDelta);
-        _dashCooldown = Mathf.Max(0.0f, _dashCooldown - frameDelta);
-
-        var movement = Input.GetVector("move_left", "move_right", "move_up", "move_down");
-        var moveDirection = new Vector3(movement.X, 0.0f, movement.Y);
-        if (moveDirection.LengthSquared() > 1.0f)
-        {
-            moveDirection = moveDirection.Normalized();
-        }
-
-        Velocity = moveDirection * MoveSpeed * (float)EffectiveStats.MoveSpeedMultiplier;
-        MoveAndSlide();
-        ClampToArena();
-        UpdateAimDirection();
-
-        if (Input.IsActionPressed("skill_spread_shot"))
-        {
-            CastSpreadShot();
-        }
-
-        if (Input.IsActionJustPressed("skill_pulse"))
-        {
-            CastPulse();
-        }
-
-        if (Input.IsActionJustPressed("skill_dash"))
-        {
-            PerformDash(SpatialScale3D.Distance(SkillLibrary.Dash().DashDistance));
-        }
-
-        if (Input.IsActionJustPressed("pickup_item"))
+        if (@event.IsActionPressed("pickup_item", true))
         {
             TryPickupNearest();
+            GetViewport().SetInputAsHandled();
         }
-
-        if (Input.IsActionJustPressed("equip_item"))
+        else if (@event.IsActionPressed("equip_item", true))
         {
             TryEquipNewestWeapon();
+            GetViewport().SetInputAsHandled();
         }
     }
 
@@ -126,15 +95,22 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
     public bool CastSpreadShot()
     {
-        if (!IsAlive || _spreadCooldown > 0.0f || ProjectileScene == null)
+        return CastSpreadShot(SkillLibrary.SpreadShot());
+    }
+
+    public bool CastSpreadShot(
+        SkillDefinition skill,
+        IReadOnlyList<SupportDefinition> supports = null)
+    {
+        ArgumentNullException.ThrowIfNull(skill);
+        if (!IsAlive || skill.CastType != SkillCastType.Projectile || ProjectileScene == null)
         {
             return false;
         }
 
-        var skill = SkillLibrary.SpreadShot();
-        var damage = SkillSupportMath.Damage(skill, EffectiveStats);
-        var projectileCount = SkillSupportMath.ProjectileCount(skill, EffectiveStats);
-        var spread = Mathf.DegToRad((float)skill.SpreadAngleDegrees);
+        var damage = SkillSupportMath.Damage(skill, EffectiveStats, supports);
+        var projectileCount = SkillSupportMath.ProjectileCount(skill, EffectiveStats, supports);
+        var spread = Mathf.DegToRad((float)SkillSupportMath.SpreadAngle(skill, supports));
         var halfSpread = spread * 0.5f;
         var step = projectileCount > 1 ? spread / (projectileCount - 1) : 0.0f;
 
@@ -154,45 +130,44 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
                     CombatFaction.Player));
         }
 
-        _spreadCooldown = (float)SkillSupportMath.Cooldown(skill, EffectiveStats);
         return true;
     }
 
     public bool CastPulse()
     {
-        if (!IsAlive || _pulseCooldown > 0.0f || AreaEffectScene == null)
+        return CastAreaSkill(SkillLibrary.Pulse(), GlobalPosition, AreaEffectScene);
+    }
+
+    public bool CastAreaSkill(
+        SkillDefinition skill,
+        Vector3 targetPosition,
+        PackedScene areaEffectScene,
+        IReadOnlyList<SupportDefinition> supports = null)
+    {
+        ArgumentNullException.ThrowIfNull(skill);
+        if (!IsAlive || areaEffectScene == null || !skill.IsArea)
         {
             return false;
         }
 
-        var skill = SkillLibrary.Pulse();
-        var effect = AreaEffectScene.Instantiate<SkillAreaEffect3D>();
+        var effect = areaEffectScene.Instantiate<SkillAreaEffect3D>();
         GetParent().AddChild(effect);
         effect.Configure(
             skill,
-            GlobalPosition,
+            targetPosition,
             new DamageRequest(
-                SkillSupportMath.Damage(skill, EffectiveStats),
+                SkillSupportMath.Damage(skill, EffectiveStats, supports),
                 skill.DamageType,
                 skill.Id,
                 CombatFaction.Player),
-            Mathf.Max(1.5f, SpatialScale3D.Distance(skill.Radius)));
-        _pulseCooldown = (float)SkillSupportMath.Cooldown(skill, EffectiveStats);
+            Mathf.Max(1.5f, SpatialScale3D.Distance(
+                SkillSupportMath.Radius(skill, EffectiveStats, supports))));
         return true;
     }
 
-    public void PerformDash(double distance)
+    public bool PerformDash(double distance)
     {
-        if (!IsAlive || _dashCooldown > 0.0f || distance <= 0.0)
-        {
-            return;
-        }
-
-        Velocity = AimDirection * (float)distance;
-        MoveAndCollide(Velocity);
-        ClampToArena();
-        Velocity = Vector3.Zero;
-        _dashCooldown = (float)SkillLibrary.Dash().CooldownSeconds;
+        return _motor?.PerformDash(distance) ?? false;
     }
 
     public bool TryAddItem(Item item)
@@ -261,30 +236,6 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     public string InventorySummary()
     {
         return $"Bag {ItemCount}/8 | Weapon: {EquippedWeaponName} | Spread damage: {SpreadShotDamage}";
-    }
-
-    private void UpdateAimDirection()
-    {
-        if (_targeting == null || !_targeting.TryGetMouseGroundPoint(out var mouseWorld))
-        {
-            return;
-        }
-
-        var aim = mouseWorld - GlobalPosition;
-        aim.Y = 0.0f;
-        if (aim.LengthSquared() > 0.001f)
-        {
-            SetAimDirectionForTest(aim);
-        }
-    }
-
-    private void ClampToArena()
-    {
-        var position = GlobalPosition;
-        position.X = Mathf.Clamp(position.X, -MovementBounds.X, MovementBounds.X);
-        position.Z = Mathf.Clamp(position.Z, -MovementBounds.Y, MovementBounds.Y);
-        position.Y = 0.0f;
-        GlobalPosition = position;
     }
 
     private void OnDied()

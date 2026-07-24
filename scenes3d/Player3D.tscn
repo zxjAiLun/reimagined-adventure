@@ -1,10 +1,13 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/PlayerController3D.cs" id="1_player"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
 [ext_resource type="Script" path="res://scripts3d/MouseGroundTargeting3D.cs" id="3_targeting"]
 [ext_resource type="PackedScene" path="res://scenes3d/BasicProjectile3D.tscn" id="4_projectile"]
 [ext_resource type="PackedScene" path="res://scenes3d/SkillAreaEffect3D.tscn" id="5_area"]
+[ext_resource type="Script" path="res://scripts3d/PlayerMotor3D.cs" id="6_motor"]
+[ext_resource type="Script" path="res://scripts3d/PlayerAim3D.cs" id="7_aim"]
+[ext_resource type="Script" path="res://scripts3d/PlayerSkillController3D.cs" id="8_skills"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.55
@@ -45,3 +48,15 @@ MaxHealth = 100
 [node name="MouseGroundTargeting3D" type="Node" parent="."]
 script = ExtResource("3_targeting")
 GroundCollisionMask = 1
+
+[node name="PlayerMotor3D" type="Node" parent="."]
+script = ExtResource("6_motor")
+MoveSpeed = 5.0
+MovementBounds = Vector2(11, 7)
+
+[node name="PlayerAim3D" type="Node" parent="."]
+script = ExtResource("7_aim")
+
+[node name="PlayerSkillController3D" type="Node" parent="."]
+script = ExtResource("8_skills")
+AreaEffectScene = ExtResource("5_area")
