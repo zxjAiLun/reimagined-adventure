@@ -8,6 +8,7 @@ public partial class BasicProjectile3D : Area3D
     [Export] public float Lifetime { get; set; } = 3.0f;
 
     public DamageRequest DamageRequest { get; private set; } = new(0, DamageType.Physical, "unconfigured_3d");
+    public Vector3 LaunchDirection { get; private set; } = Vector3.Forward;
 
     private Vector3 _velocity;
     private float _remainingLifetime;
@@ -31,7 +32,11 @@ public partial class BasicProjectile3D : Area3D
         }
 
         _velocity = direction.Normalized() * Speed;
+        LaunchDirection = direction.Normalized();
         DamageRequest = damageRequest;
+        AddToGroup(damageRequest.SourceFaction == CombatFaction.Enemy
+            ? "enemy_projectiles_3d"
+            : "player_projectiles_3d");
         _launched = true;
     }
 

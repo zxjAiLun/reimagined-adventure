@@ -89,6 +89,14 @@ public partial class SkillAreaEffect3D : Node3D
         }
     }
 
+    public void SetVisualVisible(bool visible)
+    {
+        if (_visual != null)
+        {
+            _visual.Visible = visible;
+        }
+    }
+
     private void ApplyImpact()
     {
         _impactApplied = true;
