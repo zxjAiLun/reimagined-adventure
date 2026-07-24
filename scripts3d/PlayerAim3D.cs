@@ -45,4 +45,10 @@ public partial class PlayerAim3D : Node
         point = GroundPoint;
         return HasGroundPoint;
     }
+
+    public void SetGroundPointForTest(Vector3 point)
+    {
+        GroundPoint = point;
+        HasGroundPoint = true;
+    }
 }

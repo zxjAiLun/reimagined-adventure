@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/PlayerController3D.cs" id="1_player"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts3d/PlayerMotor3D.cs" id="6_motor"]
 [ext_resource type="Script" path="res://scripts3d/PlayerAim3D.cs" id="7_aim"]
 [ext_resource type="Script" path="res://scripts3d/PlayerSkillController3D.cs" id="8_skills"]
+[ext_resource type="Resource" path="res://resources/SupportedSkillBar.tres" id="9_skill_bar"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.55
@@ -60,3 +61,4 @@ script = ExtResource("7_aim")
 [node name="PlayerSkillController3D" type="Node" parent="."]
 script = ExtResource("8_skills")
 AreaEffectScene = ExtResource("5_area")
+SkillBarResource = ExtResource("9_skill_bar")

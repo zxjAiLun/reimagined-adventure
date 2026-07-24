@@ -11,6 +11,8 @@ public partial class Isometric3DRegressionSmoke : Node
     private PlayerController3D _player;
     private FeralController3D _feral;
     private MouseGroundTargeting3D _targeting;
+    private PlayerAim3D _aim;
+    private PlayerSkillController3D _skills;
     private int _stage;
     private float _timeout;
     private int _damageBeforeEquipment;
@@ -19,13 +21,20 @@ public partial class Isometric3DRegressionSmoke : Node
     private bool _pulseFeralPass;
     private bool _pulsePlayerFilterPass;
     private bool _enemyAoePass;
+    private bool _supportPass;
+    private bool _meteorCastPass;
+    private bool _meteorCooldownPass;
+    private bool _meteorImpactPass;
     private bool _dashPass;
+    private int _meteorHealthBefore;
 
     public override void _Ready()
     {
         _player = GetNode<PlayerController3D>("Arena3D/Player3D");
         _feral = GetNode<FeralController3D>("Arena3D/Feral3D");
         _targeting = _player.GetNode<MouseGroundTargeting3D>("MouseGroundTargeting3D");
+        _aim = _player.GetNode<PlayerAim3D>("PlayerAim3D");
+        _skills = _player.GetNode<PlayerSkillController3D>("PlayerSkillController3D");
         CallDeferred(nameof(BeginSmoke));
     }
 
@@ -56,11 +65,23 @@ public partial class Isometric3DRegressionSmoke : Node
             _enemyAoePass = _player.CurrentHealth < playerHealthBeforeEnemyAoe
                 && _feral.CurrentHealth == feralHealthBeforeEnemyAoe;
             enemyAoe.QueueFree();
-            _feral.ApplyDamage(new DamageRequest(9999, DamageType.Physical, "3d_smoke_finish"));
+            _supportPass = _skills.SupportCount(SkillSlot.Primary) > 0
+                && _skills.SupportCount(SkillSlot.Secondary) > 0;
+            _meteorHealthBefore = _feral.CurrentHealth;
+            _aim.SetGroundPointForTest(_feral.GlobalPosition);
+            _meteorCastPass = _skills.TryCastForTest(SkillSlot.Secondary);
+            _meteorCooldownPass = _skills.CooldownRemaining(SkillSlot.Secondary) > 0.0f;
             _stage = 2;
         }
 
-        if (_stage == 2)
+        if (_stage == 2 && _feral.CurrentHealth < _meteorHealthBefore)
+        {
+            _meteorImpactPass = true;
+            _feral.ApplyDamage(new DamageRequest(9999, DamageType.Physical, "3d_smoke_finish"));
+            _stage = 3;
+        }
+
+        if (_stage == 3)
         {
             var drop = GetTree().GetFirstNodeInGroup("item_drops_3d") as ItemDrop3D;
             if (drop == null)
@@ -81,16 +102,20 @@ public partial class Isometric3DRegressionSmoke : Node
                 && _pulseFeralPass
                 && _pulsePlayerFilterPass
                 && _enemyAoePass
+                && _supportPass
+                && _meteorCastPass
+                && _meteorCooldownPass
+                && _meteorImpactPass
                 && _dashPass
                 && equipmentPass;
             if (pass)
             {
-                GD.Print("ISOMETRIC_3D_SPIKE_PASS ground_target=true pulse=true faction_filter=true enemy_aoe=true dash=true equipment_damage=true");
+                GD.Print("ISOMETRIC_3D_SPIKE_PASS ground_target=true pulse=true faction_filter=true enemy_aoe=true supports=true meteor=true cooldowns=true dash=true equipment_damage=true");
                 GetTree().Quit(0);
             }
             else
             {
-                Fail($"ground={_groundTargetPass} pulse_feral={_pulseFeralPass} pulse_player_filter={_pulsePlayerFilterPass} enemy_aoe={_enemyAoePass} dash={_dashPass} equipment={equipmentPass}");
+                Fail($"ground={_groundTargetPass} pulse_feral={_pulseFeralPass} pulse_player_filter={_pulsePlayerFilterPass} enemy_aoe={_enemyAoePass} supports={_supportPass} meteor_cast={_meteorCastPass} meteor_cd={_meteorCooldownPass} meteor_hit={_meteorImpactPass} dash={_dashPass} equipment={equipmentPass}");
             }
         }
     }

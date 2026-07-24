@@ -74,6 +74,10 @@ public partial class PlayerSkillController3D : Node
 
     public float CooldownRemaining(SkillSlot slot) => _cooldowns[slot];
 
+    public int SupportCount(SkillSlot slot) => _supports[slot].Count;
+
+    public IReadOnlyList<SupportDefinition> Supports(SkillSlot slot) => _supports[slot];
+
     public bool TryCastForTest(SkillSlot slot) => TryCast(slot);
 
     private bool TryCast(SkillSlot slot)

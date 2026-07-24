@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/TestArena3D.cs" id="1_arena"]
 [ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="2_camera_rig"]
@@ -35,6 +35,17 @@ emission_energy_multiplier = 1.4
 [sub_resource type="BoxMesh" id="BoxMesh_border"]
 size = Vector3(0.12, 0.06, 16)
 material = SubResource("StandardMaterial3D_border")
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_obstacle"]
+size = Vector3(0.9, 1.6, 3.0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_obstacle"]
+albedo_color = Color(0.32, 0.22, 0.18, 1)
+roughness = 0.86
+
+[sub_resource type="BoxMesh" id="BoxMesh_obstacle"]
+size = Vector3(0.9, 1.6, 3.0)
+material = SubResource("StandardMaterial3D_obstacle")
 
 [node name="TestArena3D" type="Node3D"]
 script = ExtResource("1_arena")
@@ -74,6 +85,17 @@ mesh = SubResource("BoxMesh_ground")
 script = ExtResource("6_run_session")
 RunSeed = 5573589318791800903
 MapLevel = 1
+
+[node name="Obstacle" type="StaticBody3D" parent="."]
+position = Vector3(2, 0.8, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacle"]
+shape = SubResource("BoxShape3D_obstacle")
+
+[node name="Mesh" type="MeshInstance3D" parent="Obstacle"]
+mesh = SubResource("BoxMesh_obstacle")
 
 [node name="Player3D" parent="." instance=ExtResource("3_player")]
 
@@ -123,14 +145,14 @@ text = "WASD: XZ movement | Mouse: ground aim | LMB: Spread Shot | Q: Pulse | Sp
 offset_left = 24.0
 offset_top = 165.0
 offset_right = 410.0
-offset_bottom = 300.0
+offset_bottom = 330.0
 color = Color(0.02, 0.04, 0.08, 0.78)
 
 [node name="Status" type="Label" parent="HUD"]
 offset_left = 40.0
 offset_top = 178.0
 offset_right = 390.0
-offset_bottom = 290.0
+offset_bottom = 320.0
 theme_override_colors/font_color = Color(0.95, 0.9, 0.7, 1)
 theme_override_font_sizes/font_size = 14
 text = "Loading 3D combat..."
