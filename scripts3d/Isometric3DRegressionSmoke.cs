@@ -61,7 +61,7 @@ public partial class Isometric3DRegressionSmoke : Node
                 _player.GlobalPosition,
                 new DamageRequest(1, DamageType.Fire, "enemy_aoe_3d_smoke", CombatFaction.Enemy),
                 1.0);
-            enemyAoe.ApplyImpactForTest();
+            enemyAoe.ApplyImpactNow();
             _enemyAoePass = _player.CurrentHealth < playerHealthBeforeEnemyAoe
                 && _feral.CurrentHealth == feralHealthBeforeEnemyAoe;
             enemyAoe.QueueFree();

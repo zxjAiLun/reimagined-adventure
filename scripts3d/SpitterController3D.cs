@@ -103,6 +103,8 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
             case SpitterState3D.Windup:
                 Velocity = Vector3.Zero;
                 _stateRemaining -= frameDelta;
+                _activeTelegraph?.SetProgress(
+                    1.0f - _stateRemaining / Mathf.Max(0.01f, TelegraphSeconds));
                 if (_stateRemaining <= 0.0f)
                 {
                     BeginLaunch();
@@ -234,7 +236,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
 
         var telegraph = TelegraphScene.Instantiate<LineTelegraph3D>();
         GetParent().AddChild(telegraph);
-        telegraph.Activate(GlobalPosition + Vector3.Up * 0.08f, direction, length, duration);
+        telegraph.Activate(GlobalPosition, direction, length, duration);
         return telegraph;
     }
 

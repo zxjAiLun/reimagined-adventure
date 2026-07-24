@@ -11,8 +11,6 @@ public partial class CombatTelegraph3D : Node3D
     public float Duration { get; private set; }
     public Vector3 TelegraphWorldPosition => GlobalPosition;
 
-    private float _elapsed;
-
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Pausable;
@@ -24,7 +22,6 @@ public partial class CombatTelegraph3D : Node3D
     {
         GlobalPosition = worldPosition;
         Duration = Mathf.Max(0.01f, duration);
-        _elapsed = 0.0f;
         Progress = 0.0f;
         IsActive = true;
         Visible = true;
@@ -33,7 +30,7 @@ public partial class CombatTelegraph3D : Node3D
 
     public void Cancel()
     {
-        if (!IsActive && !GodotObject.IsInstanceValid(this))
+        if (!IsActive)
         {
             return;
         }
@@ -41,6 +38,21 @@ public partial class CombatTelegraph3D : Node3D
         IsActive = false;
         Visible = false;
         QueueFree();
+    }
+
+    /// <summary>
+    /// The owning attack state machine supplies progress from its physics
+    /// clock. The telegraph never advances or ends itself.
+    /// </summary>
+    public void SetProgress(float progress)
+    {
+        if (!IsActive)
+        {
+            return;
+        }
+
+        Progress = Mathf.Clamp(progress, 0.0f, 1.0f);
+        RefreshVisual();
     }
 
     public void Complete()
@@ -54,22 +66,6 @@ public partial class CombatTelegraph3D : Node3D
         IsActive = false;
         Visible = false;
         QueueFree();
-    }
-
-    public override void _Process(double delta)
-    {
-        if (!IsActive)
-        {
-            return;
-        }
-
-        _elapsed += (float)delta;
-        Progress = Mathf.Clamp(_elapsed / Duration, 0.0f, 1.0f);
-        RefreshVisual();
-        if (_elapsed >= Duration)
-        {
-            Complete();
-        }
     }
 
     protected virtual void RefreshVisual()

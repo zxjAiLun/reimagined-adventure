@@ -81,7 +81,7 @@ public partial class SkillAreaEffect3D : Node3D
         }
     }
 
-    public void ApplyImpactForTest()
+    public void ApplyImpactNow()
     {
         if (!_impactApplied)
         {

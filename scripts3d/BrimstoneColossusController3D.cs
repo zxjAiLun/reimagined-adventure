@@ -112,6 +112,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             case BrimstoneColossusState3D.PreparingSlam:
                 Velocity = Vector3.Zero;
                 _stateRemaining -= frameDelta;
+                _activeSlamTelegraph?.SetProgress(
+                    1.0f - _stateRemaining / Mathf.Max(0.01f, _slamPreparationSeconds));
                 if (_stateRemaining <= 0.0f)
                 {
                     BeginSlamImpact();
@@ -126,6 +128,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             case BrimstoneColossusState3D.PreparingSpear:
                 Velocity = Vector3.Zero;
                 _stateRemaining -= frameDelta;
+                _activeSpearTelegraph?.SetProgress(
+                    1.0f - _stateRemaining / Mathf.Max(0.01f, _spearPreparationSeconds));
                 if (_stateRemaining <= 0.0f)
                 {
                     BeginSpearLaunch();
@@ -243,7 +247,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
                 "magma_slam_3d",
                 CombatFaction.Enemy));
         effect.SetVisualVisible(false);
-        effect.ApplyImpactForTest();
+        effect.ApplyImpactNow();
         effect.QueueFree();
     }
 
@@ -302,7 +306,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
         var telegraph = LineTelegraphScene.Instantiate<LineTelegraph3D>();
         GetParent().AddChild(telegraph);
-        telegraph.Activate(GlobalPosition + Vector3.Up * 0.08f, direction, length, duration);
+        telegraph.Activate(GlobalPosition, direction, length, duration);
         return telegraph;
     }
 

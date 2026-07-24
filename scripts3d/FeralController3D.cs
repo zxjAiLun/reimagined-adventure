@@ -82,6 +82,8 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
             case FeralState3D.Windup:
                 Velocity = Vector3.Zero;
                 _stateRemaining -= frameDelta;
+                _activeTelegraph?.SetProgress(
+                    1.0f - _stateRemaining / Mathf.Max(0.01f, AttackWindupSeconds));
                 if (_stateRemaining <= 0.0f)
                 {
                     BeginImpact();
