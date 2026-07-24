@@ -62,7 +62,8 @@ jobs:
             "res://scenes3d/Brimstone3DRegressionSmoke.tscn",
             "res://scenes3d/RunLoop3DRegressionSmoke.tscn",
             "res://scenes3d/GameOver3DRegressionSmoke.tscn",
-            "res://scenes3d/GreyboxStress3DRegressionSmoke.tscn"
+            "res://scenes3d/GreyboxStress3DRegressionSmoke.tscn",
+            "res://scenes3d/SaveRecovery3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"

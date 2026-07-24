@@ -39,7 +39,7 @@ public partial class GreyboxStress3DRegressionSmoke : Node
             && building != null)
         {
             _complete = true;
-            GD.Print($"GREYBOX_3D_SPIKE_PASS enemies={enemyCount} navigation=true narrow_path=true height_cue=true occluder=true");
+            GD.Print($"GREYBOX_3D_SPIKE_PASS enemies={enemyCount} navigation_surface=true narrow_path=true height_cue=true occluder=true");
             GetTree().Quit();
             return;
         }

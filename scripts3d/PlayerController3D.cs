@@ -10,6 +10,9 @@ using Godot;
 /// </summary>
 public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 {
+    public const uint PlayerCollisionLayer = 2;
+    public const uint PlayerCollisionMask = 9;
+
     [Export] public float PickupRange { get; set; } = 2.4f;
     [Export] public PackedScene ProjectileScene { get; set; }
     [Export] public PackedScene AreaEffectScene { get; set; }
@@ -206,6 +209,13 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         {
             throw new ArgumentException("Invalid 3D player health value.", nameof(currentHealth));
         }
+
+        RestoreRuntimeAfterHealthRestore();
+    }
+
+    public void ApplyRestoredRuntimeState(int currentHealth)
+    {
+        ApplyRestoredHealth(currentHealth);
     }
 
     public bool RestoreInventory(IReadOnlyList<Item> items, Item equippedWeapon)
@@ -312,6 +322,22 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         SetPhysicsProcess(false);
         CollisionLayer = 0;
         CollisionMask = 0;
+    }
+
+    private void RestoreRuntimeAfterHealthRestore()
+    {
+        if (IsAlive)
+        {
+            SetPhysicsProcess(true);
+            CollisionLayer = PlayerCollisionLayer;
+            CollisionMask = PlayerCollisionMask;
+        }
+        else
+        {
+            SetPhysicsProcess(false);
+            CollisionLayer = 0;
+            CollisionMask = 0;
+        }
     }
 
     private void RecalculateEffectiveStats()

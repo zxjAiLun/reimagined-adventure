@@ -26,7 +26,8 @@ mouse ground aiming, four skills, Feral, Spitter, Brimstone Colossus, faction
 aware damage, drops, equipment, GameOver, MapComplete, reward choice, next-map
 transition, and minimal save/restore. `GreyboxStressArena3D.tscn` is the fixed
 20–40 enemy pressure map with a narrow path, slope cue, occluder-sized block,
-and runtime NavigationMesh.
+and a runtime NavigationMesh placeholder. Its smoke is intentionally a
+structure-and-pressure check; it does not yet claim obstacle pathfinding.
 
 ## Run the playable slice
 
@@ -69,8 +70,10 @@ Godot smoke scenes are named `Milestone4Smoke.tscn` through
 `Isometric3DSpike.tscn`, `Spitter3DRegressionSmoke.tscn`,
 `Brimstone3DRegressionSmoke.tscn`, `RunLoop3DRegressionSmoke.tscn`,
 `GameOver3DRegressionSmoke.tscn`, and
-`GreyboxStress3DRegressionSmoke.tscn`. The stabilization branch runs these
-alongside the legacy 2D smokes from `.github/workflows/ci.yml`.
+`GreyboxStress3DRegressionSmoke.tscn`, plus
+`SaveRecovery3DRegressionSmoke.tscn` for atomic rollback and post-death
+Playing-state restoration. The stabilization branch runs these alongside the
+legacy 2D smokes from `.github/workflows/ci.yml`.
 
 ## Migration boundaries
 

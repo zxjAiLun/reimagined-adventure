@@ -9,6 +9,12 @@ using Godot;
 /// </summary>
 public partial class SaveBoundaryNode3D : Node
 {
+    /// <summary>
+    /// Test-only fault injection used by the recovery smoke to prove that a
+    /// failed load rolls back mutations already applied to the 3D run.
+    /// </summary>
+    public bool InjectFailureAfterRewardForTest { get; set; }
+
     private readonly MinimalSaveService _service = new();
     private PlayerController3D _player;
     private GameFlowController3D _flow;
@@ -73,6 +79,7 @@ public partial class SaveBoundaryNode3D : Node
             return false;
         }
 
+        var previousState = CaptureCurrentState();
         try
         {
             if (!_player.RestoreInventory(state.InventoryItems, state.EquippedWeapon))
@@ -81,6 +88,11 @@ public partial class SaveBoundaryNode3D : Node
             }
 
             _player.SetRewardStats(state.RewardStats);
+            if (InjectFailureAfterRewardForTest)
+            {
+                throw new InvalidOperationException("injected 3D restore failure");
+            }
+
             if (_runSession != null && !_runSession.TryRestore(
                     state.RunSeed,
                     state.ItemSequence,
@@ -92,7 +104,7 @@ public partial class SaveBoundaryNode3D : Node
                 throw new InvalidOperationException("saved 3D run session is invalid");
             }
 
-            _player.ApplyRestoredHealth(state.PlayerCurrentHealth);
+            _player.ApplyRestoredRuntimeState(state.PlayerCurrentHealth);
             if (_flow != null && !_flow.RestoreState(ToGameFlowState(state.State)))
             {
                 throw new InvalidOperationException("saved 3D game flow is invalid");
@@ -103,12 +115,89 @@ public partial class SaveBoundaryNode3D : Node
         }
         catch (ArgumentException exception)
         {
-            error = $"saved 3D content could not be applied: {exception.Message}";
+            error = RollbackAfterFailure(previousState, exception.Message);
             return false;
         }
         catch (InvalidOperationException exception)
         {
-            error = $"saved 3D content could not be applied: {exception.Message}";
+            error = RollbackAfterFailure(previousState, exception.Message);
+            return false;
+        }
+    }
+
+    private MinimalRunState CaptureCurrentState()
+    {
+        var items = _player.Items.ToArray();
+        return new MinimalRunState
+        {
+            State = ToSaveState(_flow?.State ?? GameFlowState.Playing),
+            RunSeed = _runSession?.Session.RunSeed ?? RandomService.DefaultSeed,
+            ItemSequence = _runSession?.Session.ItemSequence ?? 0,
+            MapLevel = _runSession?.Session.MapLevel ?? 1,
+            LootRandomState = _runSession?.Session.LootRandom.State
+                ?? RandomService.DeriveSeed(RandomService.DefaultSeed, 1),
+            CraftingRandomState = _runSession?.Session.CraftingRandom.State
+                ?? RandomService.DeriveSeed(RandomService.DefaultSeed, 2),
+            EventRandomState = _runSession?.Session.EventRandom.State
+                ?? RandomService.DeriveSeed(RandomService.DefaultSeed, 3),
+            PlayerMaxHealth = _player.MaxHealth,
+            PlayerCurrentHealth = _player.CurrentHealth,
+            RewardStats = _player.RewardStats,
+            InventoryItemIds = items.Select(item => item.Id).ToArray(),
+            InventoryItems = items,
+            EquippedWeaponId = _player.EquippedWeapon?.Id,
+            EquippedWeapon = _player.EquippedWeapon,
+        };
+    }
+
+    private string RollbackAfterFailure(MinimalRunState previousState, string applyError)
+    {
+        if (!TryRollback(previousState, out var rollbackError))
+        {
+            return $"saved 3D content could not be applied: {applyError}; rollback failed: {rollbackError}";
+        }
+
+        return $"saved 3D content could not be applied: {applyError}";
+    }
+
+    private bool TryRollback(MinimalRunState state, out string error)
+    {
+        try
+        {
+            if (!_player.RestoreInventory(state.InventoryItems, state.EquippedWeapon))
+            {
+                throw new InvalidOperationException("could not restore inventory");
+            }
+
+            _player.SetRewardStats(state.RewardStats);
+            if (_runSession != null && !_runSession.TryRestore(
+                    state.RunSeed,
+                    state.ItemSequence,
+                    state.MapLevel,
+                    state.LootRandomState,
+                    state.CraftingRandomState,
+                    state.EventRandomState))
+            {
+                throw new InvalidOperationException("could not restore run session");
+            }
+
+            _player.ApplyRestoredRuntimeState(state.PlayerCurrentHealth);
+            if (_flow != null && !_flow.RestoreState(ToGameFlowState(state.State)))
+            {
+                throw new InvalidOperationException("could not restore game flow");
+            }
+
+            error = string.Empty;
+            return true;
+        }
+        catch (ArgumentException exception)
+        {
+            error = exception.Message;
+            return false;
+        }
+        catch (InvalidOperationException exception)
+        {
+            error = exception.Message;
             return false;
         }
     }
