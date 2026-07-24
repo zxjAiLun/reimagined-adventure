@@ -155,12 +155,24 @@ public partial class RunSessionNode : Node
         var save = GetTree().GetFirstNodeInGroup("save_boundaries") as SaveBoundaryNode;
         var save3d = _currentMap?.GetNodeOrNull<SaveBoundaryNode3D>("SaveBoundary3D")
             ?? GetTree().GetFirstNodeInGroup("save_boundaries_3d") as SaveBoundaryNode3D;
-        var loaded = save != null
-            ? save.TryLoadAndApplyLastRun(out _, out var error2)
-            : save3d != null && save3d.TryLoadAndApplyLastRun(out _, out error2);
+        string restoreError;
+        bool loaded;
+        if (save != null)
+        {
+            loaded = save.TryLoadAndApplyLastRun(out _, out restoreError);
+        }
+        else if (save3d != null)
+        {
+            loaded = save3d.TryLoadAndApplyLastRun(out _, out restoreError);
+        }
+        else
+        {
+            loaded = false;
+            restoreError = "no save boundary was found in the next map";
+        }
         if (!loaded)
         {
-            GD.PushError("Could not restore the next map run state.");
+            GD.PushError($"Could not restore next-map run state: {restoreError}");
         }
     }
 }
