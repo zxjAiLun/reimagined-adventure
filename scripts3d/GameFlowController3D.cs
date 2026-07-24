@@ -7,6 +7,9 @@ using Godot;
 /// </summary>
 public partial class GameFlowController3D : Node
 {
+    [Signal]
+    public delegate void StateChangedEventHandler(int state);
+
     [Export] public string AtlasMapId { get; set; } = "quiet-coast-3d";
 
     public GameFlowState State { get; private set; } = GameFlowState.Playing;
@@ -82,6 +85,7 @@ public partial class GameFlowController3D : Node
         }
 
         State = state;
+        EmitSignal(SignalName.StateChanged, (int)State);
         if (State == GameFlowState.Playing)
         {
             GetTree().Paused = false;
@@ -103,6 +107,7 @@ public partial class GameFlowController3D : Node
         }
 
         State = GameFlowState.Playing;
+        EmitSignal(SignalName.StateChanged, (int)State);
         GetTree().Paused = false;
         RefreshOverlay();
         return true;
@@ -116,6 +121,7 @@ public partial class GameFlowController3D : Node
         }
 
         State = GameFlowState.GameOver;
+        EmitSignal(SignalName.StateChanged, (int)State);
         FreezeGameplay();
         RefreshOverlay();
     }
@@ -128,6 +134,7 @@ public partial class GameFlowController3D : Node
         }
 
         State = GameFlowState.MapComplete;
+        EmitSignal(SignalName.StateChanged, (int)State);
         _mapRewards?.BeginChoice();
         FreezeGameplay();
         RefreshOverlay();

@@ -75,8 +75,9 @@ Godot smoke scenes are named `Milestone4Smoke.tscn` through
 `GameOver3DRegressionSmoke.tscn`, and
 `GreyboxStress3DRegressionSmoke.tscn`, plus
 `SaveRecovery3DRegressionSmoke.tscn` for atomic rollback and post-death
-Playing-state restoration. CI runs these alongside the legacy 2D smokes from
-`.github/workflows/ci.yml`.
+Playing-state restoration, plus `CombatHud3DRegressionSmoke.tscn` for the
+signal-driven combat HUD contract. CI runs these alongside the legacy 2D
+smokes from `.github/workflows/ci.yml`.
 
 ## Migration boundaries
 

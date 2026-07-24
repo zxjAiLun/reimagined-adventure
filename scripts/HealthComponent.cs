@@ -11,6 +11,9 @@ public partial class HealthComponent : Node
     [Signal]
     public delegate void DiedEventHandler();
 
+    [Signal]
+    public delegate void HealthChangedEventHandler(int currentHealth, int maxHealth);
+
     [Export] public int MaxHealth { get; set; } = 100;
     [Export] public int Armor { get; set; }
     [Export] public double IncomingDamageMultiplier { get; set; } = 1.0;
@@ -45,6 +48,10 @@ public partial class HealthComponent : Node
         {
             ResetHealth();
         }
+        else
+        {
+            EmitHealthChanged();
+        }
     }
 
     public void SetMaxHealthPreservingCurrent(int maxHealth)
@@ -57,6 +64,7 @@ public partial class HealthComponent : Node
         var currentHealth = CurrentHealth;
         MaxHealth = maxHealth;
         CurrentHealth = Mathf.Min(currentHealth, maxHealth);
+        EmitHealthChanged();
     }
 
     public void SetDefensiveStats(Stats stats)
@@ -70,6 +78,7 @@ public partial class HealthComponent : Node
     {
         CurrentHealth = Mathf.Max(1, MaxHealth);
         _deathEmitted = false;
+        EmitHealthChanged();
     }
 
     public bool TryRestoreCurrentHealth(int currentHealth)
@@ -81,6 +90,7 @@ public partial class HealthComponent : Node
 
         CurrentHealth = currentHealth;
         _deathEmitted = !IsAlive;
+        EmitHealthChanged();
         return true;
     }
 
@@ -100,6 +110,7 @@ public partial class HealthComponent : Node
 
         var appliedDamage = Math.Min(CurrentHealth, mitigatedDamage);
         CurrentHealth -= appliedDamage;
+        EmitHealthChanged();
         var killed = !IsAlive;
         if (killed && !_deathEmitted)
         {
@@ -108,6 +119,11 @@ public partial class HealthComponent : Node
         }
 
         return new DamageResult(appliedDamage, killed);
+    }
+
+    private void EmitHealthChanged()
+    {
+        EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
     }
 
     private void RebuildStatsFromExports()

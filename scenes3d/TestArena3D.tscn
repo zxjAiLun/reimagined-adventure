@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="2_camera_rig"]
 [ext_resource type="PackedScene" path="res://scenes3d/Player3D.tscn" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes3d/Feral3D.tscn" id="4_feral"]
-[ext_resource type="Script" path="res://scripts3d/Isometric3DHud.cs" id="5_hud"]
+[ext_resource type="PackedScene" path="res://scenes3d/CombatHud3D.tscn" id="5_hud"]
 [ext_resource type="Script" path="res://scripts/RunSessionNode.cs" id="6_run_session"]
 [ext_resource type="PackedScene" path="res://scenes3d/Spitter3D.tscn" id="7_spitter"]
 [ext_resource type="PackedScene" path="res://scenes3d/BrimstoneColossus3D.tscn" id="8_boss"]
@@ -140,52 +140,4 @@ position = Vector3(0, 0.05, 8)
 rotation_degrees = Vector3(0, 90, 0)
 mesh = SubResource("BoxMesh_border")
 
-[node name="HUD" type="CanvasLayer" parent="."]
-script = ExtResource("5_hud")
-
-[node name="Title" type="Label" parent="HUD"]
-offset_left = 24.0
-offset_top = 18.0
-offset_right = 940.0
-offset_bottom = 48.0
-theme_override_colors/font_color = Color(0.72, 0.88, 1, 1)
-theme_override_font_sizes/font_size = 20
-text = "3D ISOMETRIC SPIKE"
-
-[node name="Instructions" type="Label" parent="HUD"]
-offset_left = 24.0
-offset_top = 54.0
-offset_right = 940.0
-offset_bottom = 145.0
-theme_override_colors/font_color = Color(0.78, 0.84, 0.94, 1)
-theme_override_font_sizes/font_size = 14
-text = "WASD: XZ movement | Mouse: ground aim | LMB: Spread Shot | Q: Pulse | Space: Dash\nF: Pick up weapon | E: Equip newest weapon"
-
-[node name="StatusPanel" type="ColorRect" parent="HUD"]
-offset_left = 24.0
-offset_top = 165.0
-offset_right = 410.0
-offset_bottom = 330.0
-color = Color(0.02, 0.04, 0.08, 0.78)
-
-[node name="Status" type="Label" parent="HUD"]
-offset_left = 40.0
-offset_top = 178.0
-offset_right = 390.0
-offset_bottom = 320.0
-theme_override_colors/font_color = Color(0.95, 0.9, 0.7, 1)
-theme_override_font_sizes/font_size = 14
-text = "Loading 3D combat..."
-
-[node name="ResultOverlay" type="Label" parent="HUD"]
-visible = false
-offset_left = 530.0
-offset_top = 250.0
-offset_right = 1080.0
-offset_bottom = 490.0
-theme_override_colors/font_color = Color(1, 0.82, 0.38, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 22
-text = ""
+[node name="HUD" parent="." instance=ExtResource("5_hud")]

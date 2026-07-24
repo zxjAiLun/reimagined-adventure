@@ -10,6 +10,12 @@ using Godot;
 /// </summary>
 public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 {
+    [Signal]
+    public delegate void StatsChangedEventHandler();
+
+    [Signal]
+    public delegate void EquipmentChangedEventHandler();
+
     public const uint PlayerCollisionLayer = 2;
     public const uint PlayerCollisionMask = 9;
 
@@ -196,6 +202,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         stats.Validate();
         _rewardStats = stats;
         RecalculateEffectiveStats();
+        EmitSignal(SignalName.StatsChanged);
     }
 
     public bool CanRestoreCurrentHealth(int currentHealth)
@@ -250,6 +257,8 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         }
 
         RecalculateEffectiveStats();
+        EmitSignal(SignalName.EquipmentChanged);
+        EmitSignal(SignalName.StatsChanged);
         return true;
     }
 
@@ -297,6 +306,8 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
             }
 
             RecalculateEffectiveStats();
+            EmitSignal(SignalName.EquipmentChanged);
+            EmitSignal(SignalName.StatsChanged);
             return true;
         }
 

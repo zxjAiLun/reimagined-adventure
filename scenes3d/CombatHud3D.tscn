@@ -1,0 +1,183 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/CombatHudController3D.cs" id="1_hud"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.02, 0.04, 0.08, 0.86)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.16, 0.34, 0.52, 0.9)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp"]
+bg_color = Color(0.12, 0.58, 0.3, 0.95)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="Title" type="Label" parent="."]
+offset_left = 24.0
+offset_top = 18.0
+offset_right = 940.0
+offset_bottom = 48.0
+theme_override_colors/font_color = Color(0.72, 0.88, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "3D COMBAT RUNTIME"
+
+[node name="Instructions" type="Label" parent="."]
+offset_left = 24.0
+offset_top = 54.0
+offset_right = 940.0
+offset_bottom = 145.0
+theme_override_colors/font_color = Color(0.78, 0.84, 0.94, 1)
+theme_override_font_sizes/font_size = 14
+text = "WASD: XZ movement | Mouse: ground aim | LMB: Spread Shot | Q: Pulse | Space: Dash\nF: Pick up weapon | E: Equip newest weapon"
+
+[node name="PlayerPanel" type="Panel" parent="."]
+offset_left = 24.0
+offset_top = 155.0
+offset_right = 430.0
+offset_bottom = 370.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="PlayerHeader" type="Label" parent="PlayerPanel"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 360.0
+offset_bottom = 36.0
+theme_override_colors/font_color = Color(0.95, 0.9, 0.7, 1)
+theme_override_font_sizes/font_size = 16
+text = "PLAYER"
+
+[node name="PlayerHpBar" type="ProgressBar" parent="PlayerPanel"]
+offset_left = 16.0
+offset_top = 48.0
+offset_right = 382.0
+offset_bottom = 72.0
+show_percentage = false
+theme_override_styles/fill = SubResource("StyleBoxFlat_hp")
+
+[node name="PlayerHpValue" type="Label" parent="PlayerPanel"]
+offset_left = 16.0
+offset_top = 76.0
+offset_right = 190.0
+offset_bottom = 100.0
+theme_override_colors/font_color = Color(0.84, 1, 0.88, 1)
+text = "HP 0/0"
+
+[node name="MapLevel" type="Label" parent="PlayerPanel"]
+offset_left = 205.0
+offset_top = 76.0
+offset_right = 382.0
+offset_bottom = 100.0
+horizontal_alignment = 2
+text = "Map Level: 0"
+
+[node name="Equipment" type="Label" parent="PlayerPanel"]
+offset_left = 16.0
+offset_top = 116.0
+offset_right = 382.0
+offset_bottom = 140.0
+text = "Weapon: none"
+
+[node name="SpreadDamage" type="Label" parent="PlayerPanel"]
+offset_left = 16.0
+offset_top = 150.0
+offset_right = 382.0
+offset_bottom = 174.0
+text = "Spread Shot damage: 0"
+
+[node name="FlowState" type="Label" parent="PlayerPanel"]
+offset_left = 205.0
+offset_top = 150.0
+offset_right = 382.0
+offset_bottom = 174.0
+horizontal_alignment = 2
+text = "State: Playing"
+
+[node name="SkillPanel" type="Panel" parent="."]
+offset_left = 24.0
+offset_top = 390.0
+offset_right = 430.0
+offset_bottom = 530.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Primary" type="Label" parent="SkillPanel"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 382.0
+offset_bottom = 36.0
+text = "LMB Spread Shot CD 0.00"
+
+[node name="Secondary" type="Label" parent="SkillPanel"]
+offset_left = 16.0
+offset_top = 40.0
+offset_right = 382.0
+offset_bottom = 64.0
+text = "RMB Meteor CD 0.00"
+
+[node name="Utility" type="Label" parent="SkillPanel"]
+offset_left = 16.0
+offset_top = 68.0
+offset_right = 382.0
+offset_bottom = 92.0
+text = "Q Pulse CD 0.00"
+
+[node name="Movement" type="Label" parent="SkillPanel"]
+offset_left = 16.0
+offset_top = 96.0
+offset_right = 382.0
+offset_bottom = 120.0
+text = "Space Dash CD 0.00"
+
+[node name="BossPanel" type="Panel" parent="."]
+offset_left = 760.0
+offset_top = 24.0
+offset_right = 1128.0
+offset_bottom = 145.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="BossTitle" type="Label" parent="BossPanel"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 340.0
+offset_bottom = 36.0
+theme_override_colors/font_color = Color(1, 0.62, 0.35, 1)
+text = "BRIMSTONE COLOSSUS"
+
+[node name="BossHpBar" type="ProgressBar" parent="BossPanel"]
+offset_left = 16.0
+offset_top = 48.0
+offset_right = 352.0
+offset_bottom = 72.0
+show_percentage = false
+theme_override_styles/fill = SubResource("StyleBoxFlat_hp")
+
+[node name="BossHpValue" type="Label" parent="BossPanel"]
+offset_left = 16.0
+offset_top = 80.0
+offset_right = 340.0
+offset_bottom = 104.0
+text = "Boss HP 0/0"
+
+[node name="ResultOverlay" type="Label" parent="."]
+visible = false
+offset_left = 530.0
+offset_top = 250.0
+offset_right = 1080.0
+offset_bottom = 490.0
+theme_override_colors/font_color = Color(1, 0.82, 0.38, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 22
+text = ""

@@ -8,6 +8,9 @@ using Godot;
 /// </summary>
 public partial class RunSessionNode : Node
 {
+    [Signal]
+    public delegate void MapLevelChangedEventHandler(int mapLevel);
+
     [Export] public long RunSeed { get; set; } = (long)RandomService.DefaultSeed;
     [Export] public int MapLevel { get; set; } = 1;
     [Export] public PackedScene MapScene { get; set; }
@@ -65,6 +68,7 @@ public partial class RunSessionNode : Node
         Session.Restore(runSeed, itemSequence, mapLevel, lootRandomState, craftingRandomState, eventRandomState);
         RunSeed = (long)runSeed;
         MapLevel = mapLevel;
+        EmitSignal(SignalName.MapLevelChanged, Session.MapLevel);
         return true;
     }
 
@@ -109,6 +113,8 @@ public partial class RunSessionNode : Node
             }
             return false;
         }
+
+        EmitSignal(SignalName.MapLevelChanged, Session.MapLevel);
 
         _restoreNextMapState = true;
         var previousMap = _currentMap;

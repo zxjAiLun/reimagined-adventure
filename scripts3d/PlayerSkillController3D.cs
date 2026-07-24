@@ -9,6 +9,9 @@ using Godot;
 /// </summary>
 public partial class PlayerSkillController3D : Node
 {
+    [Signal]
+    public delegate void CooldownsChangedEventHandler();
+
     [Export] public PackedScene AreaEffectScene { get; set; }
     [Export] public SkillBarResource SkillBarResource { get; set; }
 
@@ -40,9 +43,17 @@ public partial class PlayerSkillController3D : Node
     public override void _Process(double delta)
     {
         var frameDelta = (float)delta;
+        var changed = false;
         foreach (var slot in Enum.GetValues<SkillSlot>())
         {
-            _cooldowns[slot] = Mathf.Max(0.0f, _cooldowns[slot] - frameDelta);
+            var previous = _cooldowns[slot];
+            _cooldowns[slot] = Mathf.Max(0.0f, previous - frameDelta);
+            changed |= !Mathf.IsEqualApprox(previous, _cooldowns[slot]);
+        }
+
+        if (changed)
+        {
+            EmitSignal(SignalName.CooldownsChanged);
         }
 
         if (Input.IsActionPressed("skill_spread_shot"))
@@ -112,6 +123,7 @@ public partial class PlayerSkillController3D : Node
             definition,
             _player.EffectiveStats,
             supports);
+        EmitSignal(SignalName.CooldownsChanged);
         return true;
     }
 
