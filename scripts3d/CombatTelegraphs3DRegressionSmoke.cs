@@ -20,6 +20,8 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
     private int _spitterWindupProjectileCount;
     private int _spitterWindupShotCount;
     private Vector3 _spitterWindupDirection;
+    private Vector3 _spitterTelegraphStart;
+    private Vector3 _spitterTelegraphEnd;
     private int _pausedFeralImpactCount;
     private int _pausedFeralHealth;
     private float _pausedFeralProgress;
@@ -31,6 +33,8 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
     private float _slamTelegraphRadius;
     private int _spearLaunchCount;
     private Vector3 _spearTelegraphDirection;
+    private Vector3 _spearTelegraphStart;
+    private Vector3 _spearTelegraphEnd;
     private bool _movedSpitterTarget;
     private bool _movedSpearTarget;
 
@@ -155,6 +159,7 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
         if (_feral.ImpactCount == _feralWindupImpactCount + 1)
         {
             if (_player.CurrentHealth >= _feralWindupHealth
+                || _feral.ActiveTelegraph != null
                 || _feral.SuccessfulContactAttackCount < 1)
             {
                 Fail("Feral Impact did not apply exactly one contact hit");
@@ -169,6 +174,12 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
             || _feral.ImpactCount != _feralWindupImpactCount)
         {
             Fail("Feral caused damage or counted an impact during Windup");
+            return;
+        }
+
+        if (_feral.State == FeralState3D.Windup && _feral.ActiveTelegraph == null)
+        {
+            Fail("Feral Windup lost its telegraph before Impact");
             return;
         }
 
@@ -218,6 +229,20 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
             _spitterWindupProjectileCount = GetEnemyProjectileCount();
             _spitterWindupShotCount = _spitter.ProjectileShotCount;
             _spitterWindupDirection = _spitter.ActiveTelegraph.LockedDirection;
+            _spitterTelegraphStart = _spitter.ActiveTelegraph.StartPosition;
+            _spitterTelegraphEnd = _spitter.ActiveTelegraph.EndPosition;
+            if (_spitterTelegraphStart.DistanceTo(
+                    _spitterTelegraphEnd
+                    - _spitterWindupDirection * _spitter.ActiveTelegraph.Length) > 0.001f
+                || !IsPointOnLineSegmentXZ(
+                    _spitter.LockedTargetPosition,
+                    _spitterTelegraphStart,
+                    _spitterTelegraphEnd))
+            {
+                Fail("Spitter telegraph geometry does not cover the locked target");
+                return;
+            }
+
             NextStage();
             return;
         }
@@ -235,10 +260,14 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
 
         if (_spitter.State == SpitterState3D.Windup)
         {
-            if (GetEnemyProjectileCount() != _spitterWindupProjectileCount
+            if (_spitter.ActiveTelegraph == null
+                || !_spitter.ActiveTelegraph.IsActive
+                || _spitter.ActiveTelegraph.StartPosition.DistanceTo(_spitterTelegraphStart) > 0.001f
+                || _spitter.ActiveTelegraph.EndPosition.DistanceTo(_spitterTelegraphEnd) > 0.001f
+                || GetEnemyProjectileCount() != _spitterWindupProjectileCount
                 || _spitter.ProjectileShotCount != _spitterWindupShotCount)
             {
-                Fail("Spitter generated a projectile before Launch");
+                Fail("Spitter Windup lost its telegraph geometry or generated a projectile");
                 return;
             }
 
@@ -391,6 +420,7 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
         if (_boss.MagmaSlamImpactCount == _slamWindupImpactCount + 1)
         {
             if (_player.CurrentHealth >= _slamWindupHealth
+                || _boss.ActiveSlamTelegraph != null
                 || _boss.LastSlamImpactCenter.DistanceTo(_slamTelegraphCenter) > 0.001f
                 || Mathf.Abs(_boss.LastSlamImpactRadius - _slamTelegraphRadius) > 0.001f
                 || Mathf.Abs(_boss.LastSlamImpactRadius - _boss.SlamRadius) > 0.001f)
@@ -405,7 +435,9 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
 
         if (_boss.State == BrimstoneColossusState3D.PreparingSlam)
         {
-            if (_player.CurrentHealth != _slamWindupHealth)
+            if (_player.CurrentHealth != _slamWindupHealth
+                || _boss.ActiveSlamTelegraph == null
+                || !_boss.ActiveSlamTelegraph.IsActive)
             {
                 Fail("Magma Slam damaged the player during Windup");
             }
@@ -442,6 +474,8 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
 
             _spearLaunchCount = _boss.FlameSpearLaunchCount;
             _spearTelegraphDirection = _boss.ActiveSpearTelegraph.LockedDirection;
+            _spearTelegraphStart = _boss.ActiveSpearTelegraph.StartPosition;
+            _spearTelegraphEnd = _boss.ActiveSpearTelegraph.EndPosition;
             if (!_movedSpearTarget)
             {
                 _player.GlobalPosition = _boss.GlobalPosition + new Vector3(-3.0f, 0.0f, 2.0f);
@@ -467,6 +501,23 @@ public partial class CombatTelegraphs3DRegressionSmoke : Node
         }
 
         FailIfTimedOut("Boss did not reach Flame Spear Launch");
+    }
+
+    private static bool IsPointOnLineSegmentXZ(Vector3 point, Vector3 start, Vector3 end)
+    {
+        var point2 = new Vector2(point.X, point.Z);
+        var start2 = new Vector2(start.X, start.Z);
+        var end2 = new Vector2(end.X, end.Z);
+        var segment = end2 - start2;
+        var lengthSquared = segment.LengthSquared();
+        if (lengthSquared <= 0.0001f)
+        {
+            return point2.DistanceTo(start2) <= 0.05f;
+        }
+
+        var t = Mathf.Clamp((point2 - start2).Dot(segment) / lengthSquared, 0.0f, 1.0f);
+        var closest = start2 + segment * t;
+        return point2.DistanceTo(closest) <= 0.05f;
     }
 
     private void NextStage()
