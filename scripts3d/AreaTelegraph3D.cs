@@ -17,7 +17,7 @@ public partial class AreaTelegraph3D : CombatTelegraph3D
     public void Activate(float radius, Vector3 worldPosition, float duration)
     {
         Radius = Mathf.Max(0.01f, radius);
-        base.Activate(new Vector3(worldPosition.X, 0.05f, worldPosition.Z), duration);
+        base.Activate(new Vector3(worldPosition.X, 0.04f, worldPosition.Z), duration);
     }
 
     protected override void RefreshVisual()

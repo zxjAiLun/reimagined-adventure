@@ -11,8 +11,11 @@ public partial class Brimstone3DRegressionSmoke : Node
 
     public override void _Ready()
     {
+        ProcessMode = ProcessModeEnum.Always;
         _boss = GetNode<BrimstoneColossusController3D>("Arena3D/BrimstoneColossus3D");
         _player = GetNode<PlayerController3D>("Arena3D/Player3D");
+        GetNode<FeralController3D>("Arena3D/Feral3D").SetPhysicsProcess(false);
+        GetNode<SpitterController3D>("Arena3D/Spitter3D").SetPhysicsProcess(false);
     }
 
     public override void _Process(double delta)

@@ -223,7 +223,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
         _slamImpactApplied = true;
         MagmaSlamImpactCount++;
-        LastSlamImpactCenter = GlobalPosition;
+        LastSlamImpactCenter = new Vector3(GlobalPosition.X, 0.04f, GlobalPosition.Z);
         LastSlamImpactRadius = _slamRadius;
         if (AreaEffectScene == null || GetParent() == null)
         {
