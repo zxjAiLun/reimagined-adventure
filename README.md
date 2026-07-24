@@ -16,15 +16,17 @@ Godot or GodotSharp.
 
 ## 3D isometric spike
 
-The `spike/3d-isometric-runtime` branch contains an isolated 3D experiment;
-the stable 2D run loop remains unchanged. Open `scenes3d/TestArena3D.tscn` for
-the playable preview or run `scenes3d/Isometric3DSpike.tscn` for the automated
-ground-aim, Pulse, Dash, drop, pickup, and equipment-damage smoke.
+The `spike/3d-isometric-runtime` branch contains the isolated 3D migration
+slice; the stable 2D run loop remains unchanged. Open
+`scenes3d/TestArena3D.tscn` for the playable preview, or open
+`scenes3d/RunShell3D.tscn` for the run-owned map shell.
 
-The preview uses a fixed tilted Camera3D, WASD movement on the XZ plane, mouse
-ground aiming, one Feral enemy, and the minimal 3D equipment loop. Spitter,
-Brimstone Colossus, Atlas, save data, and legacy UI are intentionally outside
-this spike.
+The 3D slice now has a fixed tilted Camera3D, WASD movement on the XZ plane,
+mouse ground aiming, four skills, Feral, Spitter, Brimstone Colossus, faction
+aware damage, drops, equipment, GameOver, MapComplete, reward choice, next-map
+transition, and minimal save/restore. `GreyboxStressArena3D.tscn` is the fixed
+20–40 enemy pressure map with a narrow path, slope cue, occluder-sized block,
+and runtime NavigationMesh.
 
 ## Run the playable slice
 
@@ -63,12 +65,12 @@ The Domain suite is split by system (`CombatMathTests`, `LootGeneratorTests`,
 `SaveValidationTests`) instead of one monolithic test file.
 
 Godot smoke scenes are named `Milestone4Smoke.tscn` through
-`Milestone20ContentRuntimeSmoke.tscn`, with the isolated 3D smoke at
-`scenes3d/Isometric3DSpike.tscn`. They cover enemy behavior, equipment,
-flow states, map events, supports, passive allocation, content save/restore,
-map modifiers, Atlas progression, Stash, and Crafting. The stabilization
-branch also runs the main scene, combat smoke, save smoke, and content smoke
-from `.github/workflows/ci.yml`.
+`Milestone20ContentRuntimeSmoke.tscn`. The 3D contract smokes are
+`Isometric3DSpike.tscn`, `Spitter3DRegressionSmoke.tscn`,
+`Brimstone3DRegressionSmoke.tscn`, `RunLoop3DRegressionSmoke.tscn`,
+`GameOver3DRegressionSmoke.tscn`, and
+`GreyboxStress3DRegressionSmoke.tscn`. The stabilization branch runs these
+alongside the legacy 2D smokes from `.github/workflows/ci.yml`.
 
 ## Migration boundaries
 
