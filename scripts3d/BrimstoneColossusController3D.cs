@@ -7,15 +7,16 @@ public enum BrimstoneColossusState3D
     Idle,
     Chasing,
     PreparingSlam,
+    SlamImpact,
     Recovering,
     PreparingSpear,
+    SpearLaunch,
     Dead,
 }
 
 /// <summary>
-/// 3D presentation adapter for the Domain Brimstone definition. The state
-/// machine and attack names mirror the stable 2D behavior while delivery uses
-/// 3D telegraphs and the faction-aware projectile/area adapters.
+/// 3D presentation adapter for the Domain Brimstone definition. Telegraphs
+/// are presentation-only; damage is applied once by the attack impact state.
 /// </summary>
 public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTarget
 {
@@ -23,6 +24,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     [Export] public float Radius { get; set; } = 1.2f;
     [Export] public PackedScene ProjectileScene { get; set; }
     [Export] public PackedScene AreaEffectScene { get; set; }
+    [Export] public PackedScene AreaTelegraphScene { get; set; }
+    [Export] public PackedScene LineTelegraphScene { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
 
     public CombatFaction Faction => CombatFaction.Enemy;
@@ -31,13 +34,26 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public bool IsAlive => _health?.IsAlive ?? false;
     public BrimstoneColossusState3D State { get; private set; } = BrimstoneColossusState3D.Idle;
     public int MagmaSlamCount { get; private set; }
+    public int MagmaSlamImpactCount { get; private set; }
     public int FlameSpearCount { get; private set; }
+    public int FlameSpearLaunchCount { get; private set; }
+    public float SlamRadius => _slamRadius;
+    public Vector3 LastSlamTelegraphCenter { get; private set; }
+    public float LastSlamTelegraphRadius { get; private set; }
+    public Vector3 LastSlamImpactCenter { get; private set; }
+    public float LastSlamImpactRadius { get; private set; }
+    public Vector3 LockedSpearDirection { get; private set; } = Vector3.Forward;
+    public Vector3 LastSpearLaunchDirection { get; private set; } = Vector3.Zero;
+    public float SpearTelegraphLength { get; private set; }
+    public AreaTelegraph3D ActiveSlamTelegraph => _activeSlamTelegraph;
+    public LineTelegraph3D ActiveSpearTelegraph => _activeSpearTelegraph;
 
     private HealthComponent _health;
     private PlayerController3D _player;
     private RunSessionNode _runSession;
     private Label3D _healthLabel;
-    private MeshInstance3D _telegraph;
+    private AreaTelegraph3D _activeSlamTelegraph;
+    private LineTelegraph3D _activeSpearTelegraph;
     private float _moveSpeed;
     private float _slamDamage;
     private float _slamPreparationSeconds;
@@ -49,6 +65,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     private float _recoverySeconds;
     private float _stateRemaining;
     private bool _nextAttackIsSlam = true;
+    private bool _slamImpactApplied;
+    private bool _spearLaunchPerformed;
     private bool _deathHandled;
 
     public override void _Ready()
@@ -59,7 +77,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _health = GetNode<HealthComponent>("HealthComponent");
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
-        _telegraph = GetNodeOrNull<MeshInstance3D>("Telegraph");
         _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         ApplyDefinition(DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus());
         FindPlayer();
@@ -80,6 +97,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
         if (_player == null || !GodotObject.IsInstanceValid(_player) || !_player.IsAlive)
         {
+            CancelTelegraphs();
             Velocity = Vector3.Zero;
             return;
         }
@@ -92,20 +110,32 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
                 TryChooseAttack();
                 break;
             case BrimstoneColossusState3D.PreparingSlam:
+                Velocity = Vector3.Zero;
+                _stateRemaining -= frameDelta;
+                if (_stateRemaining <= 0.0f)
+                {
+                    BeginSlamImpact();
+                }
+
+                break;
+            case BrimstoneColossusState3D.SlamImpact:
+                Velocity = Vector3.Zero;
+                State = BrimstoneColossusState3D.Recovering;
+                _stateRemaining = Mathf.Max(0.01f, _recoverySeconds);
+                break;
             case BrimstoneColossusState3D.PreparingSpear:
                 Velocity = Vector3.Zero;
                 _stateRemaining -= frameDelta;
                 if (_stateRemaining <= 0.0f)
                 {
-                    if (State == BrimstoneColossusState3D.PreparingSpear)
-                    {
-                        FireFlameSpear();
-                    }
-
-                    State = BrimstoneColossusState3D.Recovering;
-                    _stateRemaining = _recoverySeconds;
+                    BeginSpearLaunch();
                 }
 
+                break;
+            case BrimstoneColossusState3D.SpearLaunch:
+                Velocity = Vector3.Zero;
+                State = BrimstoneColossusState3D.Recovering;
+                _stateRemaining = Mathf.Max(0.01f, _recoverySeconds);
                 break;
             case BrimstoneColossusState3D.Recovering:
                 Velocity = Vector3.Zero;
@@ -160,20 +190,42 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         }
 
         State = BrimstoneColossusState3D.Chasing;
-        if (toPlayer.LengthSquared() > 0.001f)
-        {
-            Velocity = toPlayer.Normalized() * _moveSpeed;
-            MoveAndSlide();
-        }
+        Velocity = toPlayer.LengthSquared() > 0.001f
+            ? toPlayer.Normalized() * _moveSpeed
+            : Vector3.Zero;
+        MoveAndSlide();
     }
 
     private void BeginMagmaSlam()
     {
         State = BrimstoneColossusState3D.PreparingSlam;
         MagmaSlamCount++;
+        _slamImpactApplied = false;
         _stateRemaining = Mathf.Max(0.05f, _slamPreparationSeconds);
         _nextAttackIsSlam = false;
-        if (AreaEffectScene == null)
+        LastSlamTelegraphCenter = GlobalPosition;
+        LastSlamTelegraphRadius = _slamRadius;
+        _activeSlamTelegraph = CreateAreaTelegraph(
+            _slamRadius,
+            GlobalPosition,
+            _slamPreparationSeconds);
+    }
+
+    private void BeginSlamImpact()
+    {
+        State = BrimstoneColossusState3D.SlamImpact;
+        _activeSlamTelegraph?.Complete();
+        _activeSlamTelegraph = null;
+        if (_slamImpactApplied)
+        {
+            return;
+        }
+
+        _slamImpactApplied = true;
+        MagmaSlamImpactCount++;
+        LastSlamImpactCenter = GlobalPosition;
+        LastSlamImpactRadius = _slamRadius;
+        if (AreaEffectScene == null || GetParent() == null)
         {
             return;
         }
@@ -183,48 +235,106 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         effect.ConfigureHazard(
             GlobalPosition,
             _slamRadius,
-            _slamPreparationSeconds,
-            0.30,
+            0.0,
+            0.18,
             new DamageRequest(
                 (int)_slamDamage,
                 DamageType.Fire,
                 "magma_slam_3d",
                 CombatFaction.Enemy));
+        effect.SetVisualVisible(false);
+        effect.ApplyImpactForTest();
+        effect.QueueFree();
     }
 
     private void BeginFlameSpear()
     {
         State = BrimstoneColossusState3D.PreparingSpear;
         FlameSpearCount++;
+        _spearLaunchPerformed = false;
         _stateRemaining = Mathf.Max(0.05f, _spearPreparationSeconds);
         _nextAttackIsSlam = true;
+        var direction = _player.GlobalPosition - GlobalPosition;
+        direction.Y = 0.0f;
+        LockedSpearDirection = direction.LengthSquared() > 0.001f
+            ? direction.Normalized()
+            : Vector3.Forward;
+        SpearTelegraphLength = Mathf.Max(3.0f, direction.Length() + 1.0f);
+        _activeSpearTelegraph = CreateLineTelegraph(
+            LockedSpearDirection,
+            SpearTelegraphLength,
+            _spearPreparationSeconds);
+    }
+
+    private void BeginSpearLaunch()
+    {
+        State = BrimstoneColossusState3D.SpearLaunch;
+        _activeSpearTelegraph?.Complete();
+        _activeSpearTelegraph = null;
+        if (!_spearLaunchPerformed)
+        {
+            _spearLaunchPerformed = true;
+            FireFlameSpear();
+        }
+
+        _stateRemaining = 0.0f;
+    }
+
+    private AreaTelegraph3D CreateAreaTelegraph(float radius, Vector3 position, float duration)
+    {
+        if (AreaTelegraphScene == null || GetParent() == null)
+        {
+            return null;
+        }
+
+        var telegraph = AreaTelegraphScene.Instantiate<AreaTelegraph3D>();
+        GetParent().AddChild(telegraph);
+        telegraph.Activate(radius, position, duration);
+        return telegraph;
+    }
+
+    private LineTelegraph3D CreateLineTelegraph(Vector3 direction, float length, float duration)
+    {
+        if (LineTelegraphScene == null || GetParent() == null)
+        {
+            return null;
+        }
+
+        var telegraph = LineTelegraphScene.Instantiate<LineTelegraph3D>();
+        GetParent().AddChild(telegraph);
+        telegraph.Activate(GlobalPosition + Vector3.Up * 0.08f, direction, length, duration);
+        return telegraph;
     }
 
     private void FireFlameSpear()
     {
-        if (_player == null || !GodotObject.IsInstanceValid(_player)
-            || ProjectileScene == null || !_player.IsAlive)
-        {
-            return;
-        }
-
-        var direction = _player.GlobalPosition - GlobalPosition;
-        direction.Y = 0.0f;
-        if (direction.LengthSquared() <= 0.001f)
+        if (ProjectileScene == null || !_player.IsAlive || GetParent() == null)
         {
             return;
         }
 
         var projectile = ProjectileScene.Instantiate<BasicProjectile3D>();
         GetParent().AddChild(projectile);
-        projectile.GlobalPosition = GlobalPosition + direction.Normalized() * (Radius + 0.2f) + Vector3.Up * 0.45f;
+        projectile.GlobalPosition = GlobalPosition
+            + LockedSpearDirection * (Radius + 0.2f)
+            + Vector3.Up * 0.45f;
         projectile.Launch(
-            direction,
+            LockedSpearDirection,
             new DamageRequest(
                 (int)_spearDamage,
                 DamageType.Fire,
                 "flame_spear_3d",
                 CombatFaction.Enemy));
+        LastSpearLaunchDirection = projectile.LaunchDirection;
+        FlameSpearLaunchCount++;
+    }
+
+    private void CancelTelegraphs()
+    {
+        _activeSlamTelegraph?.Cancel();
+        _activeSlamTelegraph = null;
+        _activeSpearTelegraph?.Cancel();
+        _activeSpearTelegraph = null;
     }
 
     private void OnDied()
@@ -235,6 +345,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         }
 
         _deathHandled = true;
+        CancelTelegraphs();
         State = BrimstoneColossusState3D.Dead;
         Velocity = Vector3.Zero;
         CollisionLayer = 0;
@@ -270,32 +381,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         {
             _healthLabel.Text = $"BRIMSTONE COLOSSUS {CurrentHealth}/{MaxHealth}\n{State}";
         }
-
-        if (_telegraph == null)
-        {
-            return;
-        }
-
-        var visible = State == BrimstoneColossusState3D.PreparingSpear
-            && _player != null
-            && _player.IsAlive;
-        _telegraph.Visible = visible;
-        if (!visible)
-        {
-            return;
-        }
-
-        var direction = _player.GlobalPosition - GlobalPosition;
-        direction.Y = 0.0f;
-        var distance = direction.Length();
-        if (distance <= 0.001f)
-        {
-            return;
-        }
-
-        _telegraph.GlobalPosition = GlobalPosition + Vector3.Up * 0.7f + direction * 0.5f;
-        _telegraph.Scale = new Vector3(1.0f, 1.0f, distance);
-        _telegraph.LookAt(GlobalPosition + Vector3.Up * 0.7f + direction, Vector3.Up);
     }
 
     private void ApplyDefinition(BossDefinition definition)

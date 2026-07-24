@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/BrimstoneColossusController3D.cs" id="1_boss"]
 [ext_resource type="Resource" path="res://resources/BrimstoneColossus.tres" id="2_definition"]
@@ -6,6 +6,8 @@
 [ext_resource type="PackedScene" path="res://scenes3d/EnemyProjectile3D.tscn" id="4_projectile"]
 [ext_resource type="PackedScene" path="res://scenes3d/EnemyAreaEffect3D.tscn" id="5_area"]
 [ext_resource type="PackedScene" path="res://scenes3d/ItemDrop3D.tscn" id="6_drop"]
+[ext_resource type="PackedScene" path="res://scenes3d/AreaTelegraph3D.tscn" id="7_area_telegraph"]
+[ext_resource type="PackedScene" path="res://scenes3d/LineTelegraph3D.tscn" id="8_line_telegraph"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
 radius = 1.15
@@ -44,6 +46,8 @@ DefinitionResource = ExtResource("2_definition")
 ProjectileScene = ExtResource("4_projectile")
 AreaEffectScene = ExtResource("5_area")
 ItemDropScene = ExtResource("6_drop")
+AreaTelegraphScene = ExtResource("7_area_telegraph")
+LineTelegraphScene = ExtResource("8_line_telegraph")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 position = Vector3(0, 1.2, 0)
