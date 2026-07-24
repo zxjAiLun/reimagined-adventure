@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/TestArena3D.cs" id="1_arena"]
 [ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="2_camera_rig"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes3d/Feral3D.tscn" id="4_feral"]
 [ext_resource type="Script" path="res://scripts3d/Isometric3DHud.cs" id="5_hud"]
 [ext_resource type="Script" path="res://scripts/RunSessionNode.cs" id="6_run_session"]
+[ext_resource type="PackedScene" path="res://scenes3d/Spitter3D.tscn" id="7_spitter"]
 
 [sub_resource type="Environment" id="Environment_arena"]
 background_mode = 1
@@ -101,6 +102,9 @@ mesh = SubResource("BoxMesh_obstacle")
 
 [node name="Feral3D" parent="." instance=ExtResource("4_feral")]
 position = Vector3(4, 0, 0)
+
+[node name="Spitter3D" parent="." instance=ExtResource("7_spitter")]
+position = Vector3(-4, 0, -3)
 
 [node name="BorderWest" type="MeshInstance3D" parent="."]
 position = Vector3(-12, 0.05, 0)
