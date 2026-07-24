@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Arpg.Domain;
 using Godot;
 
@@ -14,6 +15,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     [Export] public PackedScene AreaEffectScene { get; set; }
 
     public Stats EffectiveStats { get; private set; } = Stats.Neutral;
+    public Stats RewardStats => _rewardStats;
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
     public int MaxHealth => _health?.MaxHealth ?? 0;
     public bool IsAlive => _health?.IsAlive ?? false;
@@ -25,6 +27,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     public int ItemCount => _items.Count;
     public string EquippedWeaponName => _equipment.ItemInSlot(EquipmentSlot.Weapon)?.Name ?? "none";
     public IReadOnlyList<Item> Items => _items;
+    public Item EquippedWeapon => _equipment.ItemInSlot(EquipmentSlot.Weapon);
 
     private readonly List<Item> _items = new();
     private readonly Equipment _equipment = new();
@@ -33,6 +36,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     private PlayerMotor3D _motor;
     private PlayerSkillController3D _skills;
     private Stats _equipmentStats = Stats.Neutral;
+    private Stats _rewardStats = Stats.Neutral;
     private int _baseMaxHealth;
 
     public override void _Ready()
@@ -183,6 +187,70 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         return true;
     }
 
+    public void SetRewardStats(Stats stats)
+    {
+        ArgumentNullException.ThrowIfNull(stats);
+        stats.Validate();
+        _rewardStats = stats;
+        RecalculateEffectiveStats();
+    }
+
+    public bool CanRestoreCurrentHealth(int currentHealth)
+    {
+        return _health != null && currentHealth >= 0 && currentHealth <= MaxHealth;
+    }
+
+    public void ApplyRestoredHealth(int currentHealth)
+    {
+        if (!CanRestoreCurrentHealth(currentHealth) || !_health.TryRestoreCurrentHealth(currentHealth))
+        {
+            throw new ArgumentException("Invalid 3D player health value.", nameof(currentHealth));
+        }
+    }
+
+    public bool RestoreInventory(IReadOnlyList<Item> items, Item equippedWeapon)
+    {
+        if (items == null || items.Count > 8)
+        {
+            return false;
+        }
+
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in items)
+        {
+            if (item == null || !ids.Add(item.Id))
+            {
+                return false;
+            }
+
+            try
+            {
+                item.Validate();
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+        }
+
+        if (equippedWeapon != null
+            && (ids.Contains(equippedWeapon.Id) || !_equipment.CanEquip(equippedWeapon, 1)))
+        {
+            return false;
+        }
+
+        _items.Clear();
+        _items.AddRange(items);
+        _equipment.Reset();
+        if (equippedWeapon != null)
+        {
+            _equipment.Equip(equippedWeapon, 1);
+        }
+
+        RecalculateEffectiveStats();
+        return true;
+    }
+
     public bool TryPickupNearest(float? rangeOverride = null)
     {
         var range = rangeOverride ?? PickupRange * EffectiveStats.PickupRangeMultiplier;
@@ -249,7 +317,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     private void RecalculateEffectiveStats()
     {
         _equipmentStats = _equipment.CombinedStats();
-        EffectiveStats = _equipmentStats;
+        EffectiveStats = Stats.Combine(_equipmentStats, _rewardStats);
         if (_health == null || _baseMaxHealth <= 0)
         {
             return;

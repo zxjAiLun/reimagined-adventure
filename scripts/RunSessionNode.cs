@@ -81,20 +81,40 @@ public partial class RunSessionNode : Node
         }
 
         var flow = GetTree().GetFirstNodeInGroup("game_flows") as GameFlowController;
+        var flow3d = GetTree().GetFirstNodeInGroup("game_flows_3d") as GameFlowController3D;
         var save = GetTree().GetFirstNodeInGroup("save_boundaries") as SaveBoundaryNode;
-        if (flow == null || flow.State != GameFlowState.MapComplete || !flow.PrepareNextMap())
+        var save3d = _currentMap?.GetNodeOrNull<SaveBoundaryNode3D>("SaveBoundary3D")
+            ?? GetTree().GetFirstNodeInGroup("save_boundaries_3d") as SaveBoundaryNode3D;
+        var canAdvance = flow != null
+            ? flow.State == GameFlowState.MapComplete && flow.PrepareNextMap()
+            : flow3d != null
+                && flow3d.State == GameFlowState.MapComplete
+                && flow3d.PrepareNextMap();
+        if (!canAdvance)
         {
             return false;
         }
 
-        if (!Session.TryAdvanceMap(() => save != null && save.TrySaveCurrentRun(out _)))
+        if (!Session.TryAdvanceMap(() => save != null
+                ? save.TrySaveCurrentRun(out _)
+                : save3d != null && save3d.TrySaveCurrentRun(out _)))
         {
-            flow.RestoreState(GameFlowState.MapComplete);
+            if (flow != null)
+            {
+                flow.RestoreState(GameFlowState.MapComplete);
+            }
+            else
+            {
+                flow3d?.RestoreState(GameFlowState.MapComplete);
+            }
             return false;
         }
 
         _restoreNextMapState = true;
-        _currentMap.QueueFree();
+        var previousMap = _currentMap;
+        _currentMap = null;
+        previousMap.ProcessMode = Node.ProcessModeEnum.Disabled;
+        previousMap.QueueFree();
         CallDeferred(nameof(InstantiateMap));
         return true;
     }
@@ -111,6 +131,10 @@ public partial class RunSessionNode : Node
         {
             arena.MapLevel = Session.MapLevel;
         }
+        if (_currentMap is TestArena3D arena3d)
+        {
+            arena3d.MapLevel = Session.MapLevel;
+        }
 
         AddChild(_currentMap);
         if (_restoreNextMapState)
@@ -123,9 +147,14 @@ public partial class RunSessionNode : Node
     private void ApplySavedStateToMap()
     {
         var save = GetTree().GetFirstNodeInGroup("save_boundaries") as SaveBoundaryNode;
-        if (save != null && !save.TryLoadAndApplyLastRun(out _, out var error))
+        var save3d = _currentMap?.GetNodeOrNull<SaveBoundaryNode3D>("SaveBoundary3D")
+            ?? GetTree().GetFirstNodeInGroup("save_boundaries_3d") as SaveBoundaryNode3D;
+        var loaded = save != null
+            ? save.TryLoadAndApplyLastRun(out _, out var error2)
+            : save3d != null && save3d.TryLoadAndApplyLastRun(out _, out error2);
+        if (!loaded)
         {
-            GD.PushError($"Could not restore the next map run state: {error}");
+            GD.PushError("Could not restore the next map run state.");
         }
     }
 }

@@ -2,6 +2,8 @@ using Godot;
 
 public partial class TestArena3D : Node3D
 {
+    public int MapLevel { get; set; } = 1;
+
     public override void _Ready()
     {
         AddToGroup("arena_3d");

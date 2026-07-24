@@ -53,8 +53,12 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         _attackCooldownRemaining = Mathf.Max(
             0.0f,
             _attackCooldownRemaining - (float)delta);
-        _player ??= GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
-        if (_player == null || !_player.IsAlive)
+        if (_player == null || !GodotObject.IsInstanceValid(_player))
+        {
+            _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
+        }
+
+        if (_player == null || !GodotObject.IsInstanceValid(_player) || !_player.IsAlive)
         {
             Velocity = Vector3.Zero;
             State = FeralState3D.Chasing;

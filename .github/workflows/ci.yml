@@ -59,7 +59,9 @@ jobs:
             "res://scenes/StabilizationRegressionSmoke.tscn",
             "res://scenes3d/Isometric3DSpike.tscn",
             "res://scenes3d/Spitter3DRegressionSmoke.tscn",
-            "res://scenes3d/Brimstone3DRegressionSmoke.tscn"
+            "res://scenes3d/Brimstone3DRegressionSmoke.tscn",
+            "res://scenes3d/RunLoop3DRegressionSmoke.tscn",
+            "res://scenes3d/GameOver3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"

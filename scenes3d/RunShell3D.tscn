@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/RunSessionNode.cs" id="1_run_session"]
+[ext_resource type="PackedScene" path="res://scenes3d/TestArena3D.tscn" id="2_map"]
+
+[node name="RunShell3D" type="Node"]
+script = ExtResource("1_run_session")
+RunSeed = 5573589318791800903
+MapLevel = 1
+MapScene = ExtResource("2_map")

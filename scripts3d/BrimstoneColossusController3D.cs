@@ -73,8 +73,12 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             return;
         }
 
-        _player ??= GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
-        if (_player == null || !_player.IsAlive)
+        if (_player == null || !GodotObject.IsInstanceValid(_player))
+        {
+            _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
+        }
+
+        if (_player == null || !GodotObject.IsInstanceValid(_player) || !_player.IsAlive)
         {
             Velocity = Vector3.Zero;
             return;
@@ -198,7 +202,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
     private void FireFlameSpear()
     {
-        if (_player == null || ProjectileScene == null || !_player.IsAlive)
+        if (_player == null || !GodotObject.IsInstanceValid(_player)
+            || ProjectileScene == null || !_player.IsAlive)
         {
             return;
         }
