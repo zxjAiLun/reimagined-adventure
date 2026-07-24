@@ -173,13 +173,15 @@ public partial class SaveBoundaryNode : Node
         };
     }
 
-    private void TryRollback(MinimalRunState previousState, PassiveTreeNode passiveTree, AtlasNode atlas)
+    internal void TryRollback(MinimalRunState previousState, PassiveTreeNode passiveTree, AtlasNode atlas)
     {
         GetTree().Paused = false;
         if (_inventory.TryPrepareRestoreState(previousState, out var plan))
         {
             _inventory.ApplyRestorePlan(plan);
         }
+
+        _player.SetRewardStats(previousState.RewardStats);
 
         passiveTree?.TryRestore(previousState.PassiveAllocatedIndices);
         if (atlas != null)

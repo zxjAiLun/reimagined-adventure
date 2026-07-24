@@ -55,7 +55,8 @@ jobs:
             "res://scenes/Milestone19FullSaveSmoke.tscn",
             "res://scenes/Milestone20ContentRuntimeSmoke.tscn",
             "res://scenes/StabilizationRunLoopSmoke.tscn",
-            "res://scenes/RunLoopTransitionSmoke.tscn"
+            "res://scenes/RunLoopTransitionSmoke.tscn",
+            "res://scenes/StabilizationRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"

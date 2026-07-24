@@ -48,6 +48,29 @@ public sealed class RunSession : IItemIdSource
         MapLevel = mapLevel;
     }
 
+    public bool TryAdvanceMap(Func<bool> save)
+    {
+        ArgumentNullException.ThrowIfNull(save);
+
+        var previousLevel = MapLevel;
+        SetMapLevel(previousLevel + 1);
+        try
+        {
+            if (save())
+            {
+                return true;
+            }
+        }
+        catch
+        {
+            SetMapLevel(previousLevel);
+            throw;
+        }
+
+        SetMapLevel(previousLevel);
+        return false;
+    }
+
     public void Restore(ulong runSeed, int itemSequence, int mapLevel, ulong lootRandomState, ulong craftingRandomState, ulong eventRandomState)
     {
         if (itemSequence < 0)

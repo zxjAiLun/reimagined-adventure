@@ -72,6 +72,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
         }
 
         _health.TryRestoreCurrentHealth(currentHealth);
+        SetPhysicsProcess(IsAlive);
         return true;
     }
 
@@ -87,6 +88,7 @@ public partial class PlayerController : CharacterBody2D, IDamageable
             throw new InvalidOperationException("Validated player health could not be applied.");
         }
 
+        SetPhysicsProcess(IsAlive);
         QueueRedraw();
     }
 

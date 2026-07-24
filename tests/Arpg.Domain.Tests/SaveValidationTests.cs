@@ -40,12 +40,18 @@ public sealed class SaveValidationTests
     [Fact]
     public void MinimalRunStateRoundTripsThroughValidatedSnapshot()
     {
+        var rewardStats = new Stats
+        {
+            DamageMultiplier = 1.25,
+            MaxHp = 12,
+        };
         var state = new MinimalRunState
         {
             State = SaveRunState.MapComplete,
             MapLevel = 3,
             PlayerMaxHealth = 120,
             PlayerCurrentHealth = 95,
+            RewardStats = rewardStats,
             ManaCharges = 2,
             InventoryItemIds = ["drop_0001", "drop_0002"],
             EquippedWeaponId = "drop_0001",
@@ -57,6 +63,7 @@ public sealed class SaveValidationTests
         Assert.Equal(state.MapLevel, restored.MapLevel);
         Assert.Equal(state.InventoryItemIds, restored.InventoryItemIds);
         Assert.Equal(state.EquippedWeaponId, restored.EquippedWeaponId);
+        Assert.True(rewardStats.EquivalentTo(restored.RewardStats));
     }
 
     [Fact]

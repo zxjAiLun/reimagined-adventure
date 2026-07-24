@@ -87,8 +87,7 @@ public partial class RunSessionNode : Node
             return false;
         }
 
-        Session.SetMapLevel(Session.MapLevel + 1);
-        if (save == null || !save.TrySaveCurrentRun(out _))
+        if (!Session.TryAdvanceMap(() => save != null && save.TrySaveCurrentRun(out _)))
         {
             flow.RestoreState(GameFlowState.MapComplete);
             return false;

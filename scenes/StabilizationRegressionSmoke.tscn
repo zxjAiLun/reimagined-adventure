@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/StabilizationRegressionSmoke.cs" id="1_smoke"]
+[ext_resource type="PackedScene" path="res://scenes/TestArena.tscn" id="2_arena"]
+
+[node name="StabilizationRegressionSmoke" type="Node"]
+script = ExtResource("1_smoke")
+
+[node name="TestArena" parent="." instance=ExtResource("2_arena")]
