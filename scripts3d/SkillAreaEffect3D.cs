@@ -76,8 +76,9 @@ public partial class SkillAreaEffect3D : Node3D
         foreach (var node in GetTree().GetNodesInGroup("damageables_3d"))
         {
             if (node is Node3D damageableNode
-                && node is IDamageable target
+                && node is ICombatTarget target
                 && target.IsAlive
+                && CombatTargeting.CanHit(_damageRequest, target)
                 && HorizontalDistanceSquared(damageableNode.GlobalPosition, GlobalPosition) <= radiusSquared)
             {
                 target.ApplyDamage(_damageRequest);

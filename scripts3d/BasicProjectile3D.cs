@@ -43,7 +43,14 @@ public partial class BasicProjectile3D : Area3D
         }
 
         var frameDelta = (float)delta;
-        GlobalPosition += _velocity * frameDelta;
+        var previousPosition = GlobalPosition;
+        var nextPosition = previousPosition + _velocity * frameDelta;
+        if (TrySweepForHit(previousPosition, nextPosition))
+        {
+            return;
+        }
+
+        GlobalPosition = nextPosition;
         _remainingLifetime -= frameDelta;
         if (_remainingLifetime <= 0.0f)
         {
@@ -53,9 +60,44 @@ public partial class BasicProjectile3D : Area3D
 
     private void OnBodyEntered(Node3D body)
     {
-        if (_spent || body is not IDamageable target || !target.IsAlive)
+        TryHit(body);
+    }
+
+    private bool TrySweepForHit(Vector3 previousPosition, Vector3 nextPosition)
+    {
+        var world = GetWorld3D();
+        if (world == null)
         {
-            return;
+            return false;
+        }
+
+        var query = PhysicsRayQueryParameters3D.Create(
+            previousPosition,
+            nextPosition,
+            CollisionMask);
+        query.CollideWithBodies = true;
+        query.CollideWithAreas = false;
+        var result = world.DirectSpaceState.IntersectRay(query);
+        if (result.Count == 0
+            || !result.TryGetValue("collider", out var collider)
+            || collider.AsGodotObject() is not Node3D body)
+        {
+            return false;
+        }
+
+        return TryHit(body);
+    }
+
+    private bool TryHit(Node3D body)
+    {
+        if (_spent || body is not ICombatTarget target || !target.IsAlive)
+        {
+            return false;
+        }
+
+        if (!CombatTargeting.CanHit(DamageRequest, target))
+        {
+            return false;
         }
 
         _spent = true;
@@ -63,5 +105,6 @@ public partial class BasicProjectile3D : Area3D
         SetPhysicsProcess(false);
         target.ApplyDamage(DamageRequest);
         QueueFree();
+        return true;
     }
 }

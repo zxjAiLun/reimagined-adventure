@@ -9,7 +9,7 @@ public enum FeralState3D
     Dead,
 }
 
-public partial class FeralController3D : CharacterBody3D, IDamageable
+public partial class FeralController3D : CharacterBody3D, ICombatTarget
 {
     [Export] public float MoveSpeed { get; set; } = 2.4f;
     [Export] public float AttackRange { get; set; } = 1.25f;
@@ -20,6 +20,7 @@ public partial class FeralController3D : CharacterBody3D, IDamageable
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
     public int MaxHealth => _health?.MaxHealth ?? 0;
     public bool IsAlive => _health?.IsAlive ?? false;
+    public CombatFaction Faction => CombatFaction.Enemy;
     public FeralState3D State { get; private set; } = FeralState3D.Chasing;
     public int ContactAttackCount { get; private set; }
 
@@ -28,7 +29,7 @@ public partial class FeralController3D : CharacterBody3D, IDamageable
     private Label3D _healthLabel;
     private float _attackCooldownRemaining;
     private bool _deathHandled;
-    private readonly LootGenerator _lootGenerator = new(0x464552414CUL);
+    private RunSessionNode _runSession;
 
     public override void _Ready()
     {
@@ -37,6 +38,7 @@ public partial class FeralController3D : CharacterBody3D, IDamageable
         _health = GetNode<HealthComponent>("HealthComponent");
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
+        _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         FindPlayer();
         RefreshVisuals();
     }
@@ -109,7 +111,8 @@ public partial class FeralController3D : CharacterBody3D, IDamageable
         _player.ApplyDamage(new DamageRequest(
             ContactDamage,
             DamageType.Physical,
-            "feral_contact_3d"));
+            "feral_contact_3d",
+            CombatFaction.Enemy));
         ContactAttackCount++;
         _attackCooldownRemaining = Mathf.Max(0.05f, AttackCooldown);
     }
@@ -138,10 +141,17 @@ public partial class FeralController3D : CharacterBody3D, IDamageable
             return;
         }
 
+        _runSession ??= GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        if (_runSession == null)
+        {
+            GD.PushError("Feral3D cannot drop loot without a RunSessionNode.");
+            return;
+        }
+
         var drop = ItemDropScene.Instantiate<ItemDrop3D>();
         GetParent().AddChild(drop);
         drop.GlobalPosition = GlobalPosition;
-        drop.Configure(_lootGenerator.GenerateWeaponDrop(1));
+        drop.Configure(_runSession.GenerateWeaponDrop(_runSession.CurrentMapLevel));
     }
 
     private void RefreshVisuals()

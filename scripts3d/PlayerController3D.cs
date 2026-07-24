@@ -7,7 +7,7 @@ using Godot;
 /// First 3D player adapter. It intentionally owns only spatial runtime work;
 /// damage, skills, loot and equipment rules stay in Arpg.Domain.
 /// </summary>
-public partial class PlayerController3D : CharacterBody3D, IDamageable
+public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 {
     [Export] public float MoveSpeed { get; set; } = 5.0f;
     [Export] public Vector2 MovementBounds { get; set; } = new(11.0f, 7.0f);
@@ -19,6 +19,7 @@ public partial class PlayerController3D : CharacterBody3D, IDamageable
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
     public int MaxHealth => _health?.MaxHealth ?? 0;
     public bool IsAlive => _health?.IsAlive ?? false;
+    public CombatFaction Faction => CombatFaction.Player;
     public Vector3 AimDirection { get; private set; } = Vector3.Forward;
     public int SpreadShotDamage => SkillSupportMath.Damage(
         SkillLibrary.SpreadShot(),
@@ -86,7 +87,7 @@ public partial class PlayerController3D : CharacterBody3D, IDamageable
 
         if (Input.IsActionJustPressed("skill_dash"))
         {
-            PerformDash(SkillLibrary.Dash().DashDistance * 0.025f);
+            PerformDash(SpatialScale3D.Distance(SkillLibrary.Dash().DashDistance));
         }
 
         if (Input.IsActionJustPressed("pickup_item"))
@@ -146,7 +147,11 @@ public partial class PlayerController3D : CharacterBody3D, IDamageable
             projectile.GlobalPosition = GlobalPosition + direction * 0.9f + Vector3.Up * 0.65f;
             projectile.Launch(
                 direction,
-                new DamageRequest(damage, skill.DamageType, skill.Id));
+                new DamageRequest(
+                    damage,
+                    skill.DamageType,
+                    skill.Id,
+                    CombatFaction.Player));
         }
 
         _spreadCooldown = (float)SkillSupportMath.Cooldown(skill, EffectiveStats);
@@ -169,8 +174,9 @@ public partial class PlayerController3D : CharacterBody3D, IDamageable
             new DamageRequest(
                 SkillSupportMath.Damage(skill, EffectiveStats),
                 skill.DamageType,
-                skill.Id),
-            Mathf.Max(1.5f, (float)skill.Radius * 0.03f));
+                skill.Id,
+                CombatFaction.Player),
+            Mathf.Max(1.5f, SpatialScale3D.Distance(skill.Radius)));
         _pulseCooldown = (float)SkillSupportMath.Cooldown(skill, EffectiveStats);
         return true;
     }

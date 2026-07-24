@@ -14,8 +14,11 @@ public partial class Isometric3DRegressionSmoke : Node
     private int _stage;
     private float _timeout;
     private int _damageBeforeEquipment;
+    private int _pulsePlayerHealthBefore;
     private bool _groundTargetPass;
-    private bool _pulsePass;
+    private bool _pulseFeralPass;
+    private bool _pulsePlayerFilterPass;
+    private bool _enemyAoePass;
     private bool _dashPass;
 
     public override void _Ready()
@@ -37,7 +40,22 @@ public partial class Isometric3DRegressionSmoke : Node
 
         if (_stage == 1 && _feral.CurrentHealth < _feral.MaxHealth)
         {
-            _pulsePass = true;
+            _pulseFeralPass = true;
+            _pulsePlayerFilterPass = _player.CurrentHealth == _pulsePlayerHealthBefore;
+
+            var playerHealthBeforeEnemyAoe = _player.CurrentHealth;
+            var feralHealthBeforeEnemyAoe = _feral.CurrentHealth;
+            var enemyAoe = _player.AreaEffectScene.Instantiate<SkillAreaEffect3D>();
+            GetNode<Node3D>("Arena3D").AddChild(enemyAoe);
+            enemyAoe.Configure(
+                SkillLibrary.Pulse(),
+                _player.GlobalPosition,
+                new DamageRequest(1, DamageType.Fire, "enemy_aoe_3d_smoke", CombatFaction.Enemy),
+                1.0);
+            enemyAoe.ApplyImpactForTest();
+            _enemyAoePass = _player.CurrentHealth < playerHealthBeforeEnemyAoe
+                && _feral.CurrentHealth == feralHealthBeforeEnemyAoe;
+            enemyAoe.QueueFree();
             _feral.ApplyDamage(new DamageRequest(9999, DamageType.Physical, "3d_smoke_finish"));
             _stage = 2;
         }
@@ -59,15 +77,20 @@ public partial class Isometric3DRegressionSmoke : Node
             var equipped = _player.TryEquipNewestWeapon();
             var damageAfterEquipment = _player.SpreadShotDamage;
             var equipmentPass = equipped && damageAfterEquipment > _damageBeforeEquipment;
-            var pass = _groundTargetPass && _pulsePass && _dashPass && equipmentPass;
+            var pass = _groundTargetPass
+                && _pulseFeralPass
+                && _pulsePlayerFilterPass
+                && _enemyAoePass
+                && _dashPass
+                && equipmentPass;
             if (pass)
             {
-                GD.Print("ISOMETRIC_3D_SPIKE_PASS ground_target=true pulse=true dash=true equipment_damage=true");
+                GD.Print("ISOMETRIC_3D_SPIKE_PASS ground_target=true pulse=true faction_filter=true enemy_aoe=true dash=true equipment_damage=true");
                 GetTree().Quit(0);
             }
             else
             {
-                Fail($"ground={_groundTargetPass} pulse={_pulsePass} dash={_dashPass} equipment={equipmentPass}");
+                Fail($"ground={_groundTargetPass} pulse_feral={_pulseFeralPass} pulse_player_filter={_pulsePlayerFilterPass} enemy_aoe={_enemyAoePass} dash={_dashPass} equipment={equipmentPass}");
             }
         }
     }
@@ -84,6 +107,7 @@ public partial class Isometric3DRegressionSmoke : Node
 
         _player.SetAimDirectionForTest(Vector3.Right);
         _damageBeforeEquipment = _player.SpreadShotDamage;
+        _pulsePlayerHealthBefore = _player.CurrentHealth;
         var pulseCast = _player.CastPulse();
         var start = _player.GlobalPosition;
         _player.PerformDash(0.8f);
