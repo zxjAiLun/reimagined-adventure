@@ -203,6 +203,22 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         return _health != null && currentHealth >= 0 && currentHealth <= MaxHealth;
     }
 
+    public bool TryCalculateMaxHealthForRestore(
+        IReadOnlyList<Item> items,
+        Item equippedWeapon,
+        Stats rewardStats,
+        out int maxHealth)
+    {
+        maxHealth = 0;
+        if (!TryBuildRestoreStats(items, equippedWeapon, rewardStats, out var restoreStats))
+        {
+            return false;
+        }
+
+        maxHealth = Mathf.Max(1, _baseMaxHealth + restoreStats.MaxHp);
+        return true;
+    }
+
     public void ApplyRestoredHealth(int currentHealth)
     {
         if (!CanRestoreCurrentHealth(currentHealth) || !_health.TryRestoreCurrentHealth(currentHealth))
@@ -220,31 +236,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
     public bool RestoreInventory(IReadOnlyList<Item> items, Item equippedWeapon)
     {
-        if (items == null || items.Count > 8)
-        {
-            return false;
-        }
-
-        var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in items)
-        {
-            if (item == null || !ids.Add(item.Id))
-            {
-                return false;
-            }
-
-            try
-            {
-                item.Validate();
-            }
-            catch (ArgumentException)
-            {
-                return false;
-            }
-        }
-
-        if (equippedWeapon != null
-            && (ids.Contains(equippedWeapon.Id) || !_equipment.CanEquip(equippedWeapon, 1)))
+        if (!TryBuildRestoreStats(items, equippedWeapon, _rewardStats, out _))
         {
             return false;
         }
@@ -352,6 +344,58 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         _health.SetMaxHealthPreservingCurrent(
             Mathf.Max(1, _baseMaxHealth + EffectiveStats.MaxHp));
         _health.SetDefensiveStats(EffectiveStats);
+    }
+
+    private static bool TryBuildRestoreStats(
+        IReadOnlyList<Item> items,
+        Item equippedWeapon,
+        Stats rewardStats,
+        out Stats restoreStats)
+    {
+        restoreStats = null;
+        if (items == null || items.Count > 8 || rewardStats == null)
+        {
+            return false;
+        }
+
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in items)
+        {
+            if (item == null || !ids.Add(item.Id))
+            {
+                return false;
+            }
+
+            try
+            {
+                item.Validate();
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+        }
+
+        var restoreEquipment = new Equipment();
+        if (equippedWeapon != null)
+        {
+            if (ids.Contains(equippedWeapon.Id) || !restoreEquipment.CanEquip(equippedWeapon, 1))
+            {
+                return false;
+            }
+
+            restoreEquipment.Equip(equippedWeapon, 1);
+        }
+
+        try
+        {
+            restoreStats = Stats.Combine(restoreEquipment.CombinedStats(), rewardStats);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private static float HorizontalDistanceSquared(Vector3 first, Vector3 second)

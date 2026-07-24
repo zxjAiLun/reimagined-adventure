@@ -12,7 +12,7 @@ config_version=5
 
 config/name="reimagined adventure"
 run/main_scene="res://scenes3d/RunShell3D.tscn"
-config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
 [display]

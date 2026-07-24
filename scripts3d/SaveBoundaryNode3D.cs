@@ -71,7 +71,14 @@ public partial class SaveBoundaryNode3D : Node
         if (_player == null
             || state.InventoryItems.Count == 0 && state.InventoryItemIds.Count > 0
             || !state.InventoryItems.All(item => item != null)
-            || !_player.CanRestoreCurrentHealth(state.PlayerCurrentHealth)
+            || !_player.TryCalculateMaxHealthForRestore(
+                state.InventoryItems,
+                state.EquippedWeapon,
+                state.RewardStats,
+                out var targetMaxHealth)
+            || state.PlayerMaxHealth != targetMaxHealth
+            || state.PlayerCurrentHealth < 0
+            || state.PlayerCurrentHealth > targetMaxHealth
             || _runSession != null && !_runSession.CanRestore(
                 state.RunSeed, state.ItemSequence, state.MapLevel))
         {

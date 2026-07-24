@@ -14,10 +14,11 @@ The Godot project is the root project. `reimagined adventure.csproj` references
 `src/Arpg.Domain/Arpg.Domain.csproj`; the Domain project does not reference
 Godot or GodotSharp.
 
-## 3D isometric spike
+## 3D product runtime
 
-The `spike/3d-isometric-runtime` branch contains the isolated 3D migration
-slice; the stable 2D run loop remains unchanged. Open
+`migration/3d-mainline` is the active product branch. The 2D runtime under
+`scenes/` is retained only as a legacy behavioral reference. New product
+features target `scenes3d/` and `scripts3d/`. Open
 `scenes3d/TestArena3D.tscn` for the playable preview, or open
 `scenes3d/RunShell3D.tscn` for the run-owned map shell.
 
@@ -74,8 +75,8 @@ Godot smoke scenes are named `Milestone4Smoke.tscn` through
 `GameOver3DRegressionSmoke.tscn`, and
 `GreyboxStress3DRegressionSmoke.tscn`, plus
 `SaveRecovery3DRegressionSmoke.tscn` for atomic rollback and post-death
-Playing-state restoration. The stabilization branch runs these alongside the
-legacy 2D smokes from `.github/workflows/ci.yml`.
+Playing-state restoration. CI runs these alongside the legacy 2D smokes from
+`.github/workflows/ci.yml`.
 
 ## Migration boundaries
 
@@ -85,7 +86,6 @@ root project. Deferred large systems such as procedural maps, encounter
 composition, the full Boss catalogue, and advanced exceptions are outside the
 first vertical slice.
 
-The `pre-stabilization` tag marks the last baseline before run-loop work.
-Development after that point is on `stabilization/run-loop-v1`; no new
-Milestone 21+ content is being added until this run-loop is stable and CI is
-green.
+The `isometric-3d-parity-v1` tag marks the completed 3D parity stabilization
+boundary. Further work is organized as reviewed product stages; the next
+stage is not started until the current stage is accepted.
