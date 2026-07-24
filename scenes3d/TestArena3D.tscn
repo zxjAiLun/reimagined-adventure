@@ -1,0 +1,130 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/TestArena3D.cs" id="1_arena"]
+[ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="2_camera_rig"]
+[ext_resource type="PackedScene" path="res://scenes3d/Player3D.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes3d/Feral3D.tscn" id="4_feral"]
+[ext_resource type="Script" path="res://scripts3d/Isometric3DHud.cs" id="5_hud"]
+
+[sub_resource type="Environment" id="Environment_arena"]
+background_mode = 1
+background_color = Color(0.025, 0.04, 0.075, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.28, 0.38, 0.58, 1)
+ambient_light_energy = 0.8
+tonemap_mode = 2
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(24, 0.2, 16)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+albedo_color = Color(0.075, 0.12, 0.18, 1)
+roughness = 0.92
+
+[sub_resource type="BoxMesh" id="BoxMesh_ground"]
+size = Vector3(24, 0.2, 16)
+material = SubResource("StandardMaterial3D_ground")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_border"]
+albedo_color = Color(0.12, 0.45, 0.66, 1)
+emission_enabled = true
+emission = Color(0.02, 0.12, 0.28, 1)
+emission_energy_multiplier = 1.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_border"]
+size = Vector3(0.12, 0.06, 16)
+material = SubResource("StandardMaterial3D_border")
+
+[node name="TestArena3D" type="Node3D"]
+script = ExtResource("1_arena")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_arena")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-55, -25, 0)
+light_color = Color(0.72, 0.84, 1, 1)
+light_energy = 1.5
+shadow_enabled = true
+
+[node name="CameraRig" type="Node3D" parent="."]
+position = Vector3(0, 14, 14)
+script = ExtResource("2_camera_rig")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+rotation_degrees = Vector3(-45, 0, 0)
+fov = 55.0
+current = true
+groups = ["arena_cameras"]
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+position = Vector3(0, -0.1, 0)
+shape = SubResource("BoxShape3D_ground")
+
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+position = Vector3(0, -0.1, 0)
+mesh = SubResource("BoxMesh_ground")
+
+[node name="Player3D" parent="." instance=ExtResource("3_player")]
+
+[node name="Feral3D" parent="." instance=ExtResource("4_feral")]
+position = Vector3(4, 0, 0)
+
+[node name="BorderWest" type="MeshInstance3D" parent="."]
+position = Vector3(-12, 0.05, 0)
+mesh = SubResource("BoxMesh_border")
+
+[node name="BorderEast" type="MeshInstance3D" parent="."]
+position = Vector3(12, 0.05, 0)
+mesh = SubResource("BoxMesh_border")
+
+[node name="BorderNorth" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.05, -8)
+rotation_degrees = Vector3(0, 90, 0)
+mesh = SubResource("BoxMesh_border")
+
+[node name="BorderSouth" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.05, 8)
+rotation_degrees = Vector3(0, 90, 0)
+mesh = SubResource("BoxMesh_border")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
+
+[node name="Title" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 18.0
+offset_right = 940.0
+offset_bottom = 48.0
+theme_override_colors/font_color = Color(0.72, 0.88, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "3D ISOMETRIC SPIKE"
+
+[node name="Instructions" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 54.0
+offset_right = 940.0
+offset_bottom = 145.0
+theme_override_colors/font_color = Color(0.78, 0.84, 0.94, 1)
+theme_override_font_sizes/font_size = 14
+text = "WASD: XZ movement | Mouse: ground aim | LMB: Spread Shot | Q: Pulse | Space: Dash\nF: Pick up weapon | E: Equip newest weapon"
+
+[node name="StatusPanel" type="ColorRect" parent="HUD"]
+offset_left = 24.0
+offset_top = 165.0
+offset_right = 410.0
+offset_bottom = 300.0
+color = Color(0.02, 0.04, 0.08, 0.78)
+
+[node name="Status" type="Label" parent="HUD"]
+offset_left = 40.0
+offset_top = 178.0
+offset_right = 390.0
+offset_bottom = 290.0
+theme_override_colors/font_color = Color(0.95, 0.9, 0.7, 1)
+theme_override_font_sizes/font_size = 14
+text = "Loading 3D combat..."

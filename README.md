@@ -7,12 +7,24 @@ code depends on it.
 ## Toolchain
 
 - Godot 4.7.1 .NET x86_64
-- Compatibility renderer
+- Forward+ renderer for desktop
 - .NET SDK 10.0.302 (`global.json`)
 
 The Godot project is the root project. `reimagined adventure.csproj` references
 `src/Arpg.Domain/Arpg.Domain.csproj`; the Domain project does not reference
 Godot or GodotSharp.
+
+## 3D isometric spike
+
+The `spike/3d-isometric-runtime` branch contains an isolated 3D experiment;
+the stable 2D run loop remains unchanged. Open `scenes3d/TestArena3D.tscn` for
+the playable preview or run `scenes3d/Isometric3DSpike.tscn` for the automated
+ground-aim, Pulse, Dash, drop, pickup, and equipment-damage smoke.
+
+The preview uses a fixed tilted Camera3D, WASD movement on the XZ plane, mouse
+ground aiming, one Feral enemy, and the minimal 3D equipment loop. Spitter,
+Brimstone Colossus, Atlas, save data, and legacy UI are intentionally outside
+this spike.
 
 ## Run the playable slice
 
@@ -51,7 +63,8 @@ The Domain suite is split by system (`CombatMathTests`, `LootGeneratorTests`,
 `SaveValidationTests`) instead of one monolithic test file.
 
 Godot smoke scenes are named `Milestone4Smoke.tscn` through
-`Milestone20ContentRuntimeSmoke.tscn`. They cover enemy behavior, equipment,
+`Milestone20ContentRuntimeSmoke.tscn`, with the isolated 3D smoke at
+`scenes3d/Isometric3DSpike.tscn`. They cover enemy behavior, equipment,
 flow states, map events, supports, passive allocation, content save/restore,
 map modifiers, Atlas progression, Stash, and Crafting. The stabilization
 branch also runs the main scene, combat smoke, save smoke, and content smoke

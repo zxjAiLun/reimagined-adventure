@@ -1,0 +1,43 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/FeralController3D.cs" id="1_feral"]
+[ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
+[ext_resource type="PackedScene" path="res://scenes3d/ItemDrop3D.tscn" id="3_drop"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_feral"]
+radius = 0.55
+height = 1.2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_feral"]
+albedo_color = Color(0.86, 0.22, 0.16, 1)
+roughness = 0.78
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_feral"]
+material = SubResource("StandardMaterial3D_feral")
+radius = 0.55
+height = 1.2
+
+[node name="Feral3D" type="CharacterBody3D"]
+collision_layer = 8
+collision_mask = 3
+script = ExtResource("1_feral")
+ItemDropScene = ExtResource("3_drop")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.6, 0)
+shape = SubResource("CapsuleShape3D_feral")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.6, 0)
+mesh = SubResource("CapsuleMesh_feral")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("2_health")
+MaxHealth = 40
+
+[node name="HealthLabel" type="Label3D" parent="."]
+position = Vector3(0, 1.7, 0)
+text = "FERAL 3D 40/40"
+font_size = 28
+outline_size = 7
+modulate = Color(1, 0.82, 0.72, 1)
