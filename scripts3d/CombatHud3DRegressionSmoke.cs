@@ -30,8 +30,15 @@ public partial class CombatHud3DRegressionSmoke : Node
         var flow = arena?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
         var rewards = arena?.GetNodeOrNull<MapRewardNode3D>("MapRewards3D");
         var boss = arena?.GetNodeOrNull<BrimstoneColossusController3D>("BrimstoneColossus3D");
+        var flowLabel = hud?.GetNodeOrNull<Label>("PlayerPanel/FlowState");
+        var primaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Primary");
+        var secondaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Secondary");
+        var utilityLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Utility");
+        var movementLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Movement");
         if (run == null || arena == null || hud == null || player == null || skills == null
-            || flow == null || rewards == null || boss == null)
+            || flow == null || rewards == null || boss == null || flowLabel == null
+            || primaryLabel == null || secondaryLabel == null || utilityLabel == null
+            || movementLabel == null)
         {
             if (_elapsed > 10.0)
             {
@@ -48,10 +55,11 @@ public partial class CombatHud3DRegressionSmoke : Node
                     || hud.MapLevel != 1
                     || !hud.BossPanelVisible
                     || hud.BossCurrentHealth != boss.CurrentHealth
-                    || hud.SkillName(SkillSlot.Primary) != "Spread Shot"
-                    || hud.SkillName(SkillSlot.Secondary) != "Meteor"
-                    || hud.SkillName(SkillSlot.Utility) != "Pulse"
-                    || hud.SkillName(SkillSlot.Movement) != "Dash")
+                    || flowLabel.Text != "State: Playing"
+                    || !primaryLabel.Text.Contains("Spread Shot")
+                    || !secondaryLabel.Text.Contains("Meteor")
+                    || !utilityLabel.Text.Contains("Pulse")
+                    || !movementLabel.Text.Contains("Dash"))
                 {
                     Fail("initial HUD data is incorrect");
                     return;
@@ -107,6 +115,11 @@ public partial class CombatHud3DRegressionSmoke : Node
             case 3:
                 if (hud.CooldownRemaining(SkillSlot.Primary) <= 0.0f
                     || hud.CooldownRemaining(SkillSlot.Primary) != skills.CooldownRemaining(SkillSlot.Primary)
+                    || primaryLabel.Text.Contains("CD 0.00")
+                    || !primaryLabel.Text.Contains("Spread Shot")
+                    || !secondaryLabel.Text.Contains("Meteor")
+                    || !utilityLabel.Text.Contains("Pulse")
+                    || !movementLabel.Text.Contains("Dash")
                     || !hud.BossPanelVisible
                     || hud.BossHealthBarValue != boss.CurrentHealth
                     || hud.BossHealthBarMax != boss.MaxHealth)
@@ -124,7 +137,7 @@ public partial class CombatHud3DRegressionSmoke : Node
                 return;
 
             case 4:
-                if (boss.IsAlive || hud.BossPanelVisible)
+                if (boss.IsAlive || hud.BossPanelVisible || flowLabel.Text != "State: MapComplete")
                 {
                     if (_elapsed > 15.0)
                     {

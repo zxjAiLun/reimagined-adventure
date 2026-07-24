@@ -113,7 +113,7 @@ public partial class CombatHudController3D : CanvasLayer
         _bossPanel = GetNodeOrNull<Control>("BossPanel");
         _bossHealthBar = GetNodeOrNull<ProgressBar>("BossPanel/BossHpBar");
         _bossHealthValue = GetNodeOrNull<Label>("BossPanel/BossHpValue");
-        _flowStateLabel = GetNodeOrNull<Label>("FlowState");
+        _flowStateLabel = GetNodeOrNull<Label>("PlayerPanel/FlowState");
     }
 
     private void BindRuntimeNodes()
