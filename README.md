@@ -31,9 +31,11 @@ structure-and-pressure check; it does not yet claim obstacle pathfinding.
 
 ## Run the playable slice
 
-Open the repository with Godot 4.7.1 .NET and run the main scene. It loads
-`scenes/RunShell.tscn`, which owns the run session and transitions between map
-instances; `scenes/TestArena.tscn` remains useful as a single-map sandbox.
+Open the repository with Godot 4.7.1 .NET and run the main scene. On
+`migration/3d-mainline` it loads `scenes3d/RunShell3D.tscn`, which owns the 3D
+run session and transitions between map instances. The 2D runtime under
+`scenes/` is retained as a legacy/reference implementation; its Domain rules
+and key regression smokes remain part of CI.
 
 | Input | Action |
 | --- | --- |
