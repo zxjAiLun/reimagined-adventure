@@ -1,10 +1,13 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/SpitterController3D.cs" id="1_spitter"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
 [ext_resource type="PackedScene" path="res://scenes3d/EnemyProjectile3D.tscn" id="3_projectile"]
 [ext_resource type="PackedScene" path="res://scenes3d/ItemDrop3D.tscn" id="4_drop"]
 [ext_resource type="PackedScene" path="res://scenes3d/LineTelegraph3D.tscn" id="5_telegraph"]
+[ext_resource type="Script" path="res://scripts3d/DamageFeedbackSource3D.cs" id="6_damage_source"]
+[ext_resource type="Script" path="res://scripts3d/HitFlash3D.cs" id="7_hit_flash"]
+[ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="8_death_feedback"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_spitter"]
 radius = 0.45
@@ -41,6 +44,18 @@ mesh = SubResource("CapsuleMesh_spitter")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")
 MaxHealth = 24
+
+[node name="DamageFeedbackSource3D" type="Node3D" parent="."]
+position = Vector3(0, 1.35, 0)
+script = ExtResource("6_damage_source")
+
+[node name="HitFlash3D" type="Node" parent="."]
+script = ExtResource("7_hit_flash")
+MeshPath = NodePath("../Mesh")
+
+[node name="DeathFeedback3D" type="Node" parent="."]
+script = ExtResource("8_death_feedback")
+MeshPath = NodePath("../Mesh")
 
 [node name="HealthLabel" type="Label3D" parent="."]
 position = Vector3(0, 1.45, 0)

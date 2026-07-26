@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/BrimstoneColossusController3D.cs" id="1_boss"]
 [ext_resource type="Resource" path="res://resources/BrimstoneColossus.tres" id="2_definition"]
@@ -8,6 +8,9 @@
 [ext_resource type="PackedScene" path="res://scenes3d/ItemDrop3D.tscn" id="6_drop"]
 [ext_resource type="PackedScene" path="res://scenes3d/AreaTelegraph3D.tscn" id="7_area_telegraph"]
 [ext_resource type="PackedScene" path="res://scenes3d/LineTelegraph3D.tscn" id="8_line_telegraph"]
+[ext_resource type="Script" path="res://scripts3d/DamageFeedbackSource3D.cs" id="9_damage_source"]
+[ext_resource type="Script" path="res://scripts3d/HitFlash3D.cs" id="10_hit_flash"]
+[ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="11_death_feedback"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
 radius = 1.15
@@ -48,6 +51,18 @@ mesh = SubResource("CapsuleMesh_boss")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("3_health")
 MaxHealth = 160
+
+[node name="DamageFeedbackSource3D" type="Node3D" parent="."]
+position = Vector3(0, 2.75, 0)
+script = ExtResource("9_damage_source")
+
+[node name="HitFlash3D" type="Node" parent="."]
+script = ExtResource("10_hit_flash")
+MeshPath = NodePath("../Mesh")
+
+[node name="DeathFeedback3D" type="Node" parent="."]
+script = ExtResource("11_death_feedback")
+MeshPath = NodePath("../Mesh")
 
 [node name="HealthLabel" type="Label3D" parent="."]
 position = Vector3(0, 2.7, 0)

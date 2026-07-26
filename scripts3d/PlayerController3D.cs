@@ -41,6 +41,9 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     private readonly List<Item> _items = new();
     private readonly Equipment _equipment = new();
     private HealthComponent _health;
+    private DamageFeedbackSource3D _damageFeedback;
+    private HitFlash3D _hitFlash;
+    private DeathFeedback3D _deathFeedback;
     private MouseGroundTargeting3D _targeting;
     private PlayerMotor3D _motor;
     private PlayerSkillController3D _skills;
@@ -54,6 +57,9 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         AddToGroup("damageables_3d");
 
         _health = GetNode<HealthComponent>("HealthComponent");
+        _damageFeedback = GetNodeOrNull<DamageFeedbackSource3D>("DamageFeedbackSource3D");
+        _hitFlash = GetNodeOrNull<HitFlash3D>("HitFlash3D");
+        _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
         _targeting = GetNode<MouseGroundTargeting3D>("MouseGroundTargeting3D");
         _motor = GetNodeOrNull<PlayerMotor3D>("PlayerMotor3D");
         _skills = GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
@@ -91,7 +97,14 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
             return new DamageResult(0, false);
         }
 
-        return _health.ApplyDamage(request);
+        var result = _health.ApplyDamage(request);
+        if (result.DamageApplied > 0)
+        {
+            _damageFeedback?.Publish(result);
+            _hitFlash?.Trigger();
+        }
+
+        return result;
     }
 
     public void SetAimDirectionForTest(Vector3 direction)
@@ -325,6 +338,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         SetPhysicsProcess(false);
         CollisionLayer = 0;
         CollisionMask = 0;
+        _deathFeedback?.Play();
     }
 
     private void RestoreRuntimeAfterHealthRestore()

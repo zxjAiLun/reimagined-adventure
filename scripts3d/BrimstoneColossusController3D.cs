@@ -49,6 +49,9 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public LineTelegraph3D ActiveSpearTelegraph => _activeSpearTelegraph;
 
     private HealthComponent _health;
+    private DamageFeedbackSource3D _damageFeedback;
+    private HitFlash3D _hitFlash;
+    private DeathFeedback3D _deathFeedback;
     private PlayerController3D _player;
     private RunSessionNode _runSession;
     private Label3D _healthLabel;
@@ -75,6 +78,9 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         AddToGroup("enemies_3d");
         AddToGroup("bosses_3d");
         _health = GetNode<HealthComponent>("HealthComponent");
+        _damageFeedback = GetNodeOrNull<DamageFeedbackSource3D>("DamageFeedbackSource3D");
+        _hitFlash = GetNodeOrNull<HitFlash3D>("HitFlash3D");
+        _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
@@ -167,6 +173,12 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         }
 
         var result = _health.ApplyDamage(request);
+        if (result.DamageApplied > 0)
+        {
+            _damageFeedback?.Publish(result);
+            _hitFlash?.Trigger();
+        }
+
         RefreshVisuals();
         return result;
     }
@@ -355,6 +367,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         CollisionLayer = 0;
         CollisionMask = 0;
         SetPhysicsProcess(false);
+        _deathFeedback?.Play();
         SpawnDrop();
         RefreshVisuals();
     }

@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/TestArena3D.cs" id="1_arena"]
 [ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="2_camera_rig"]
@@ -11,6 +11,8 @@
 [ext_resource type="Script" path="res://scripts3d/GameFlowController3D.cs" id="9_flow"]
 [ext_resource type="Script" path="res://scripts3d/MapRewardNode3D.cs" id="10_rewards"]
 [ext_resource type="Script" path="res://scripts3d/SaveBoundaryNode3D.cs" id="11_save"]
+[ext_resource type="PackedScene" path="res://scenes3d/DamageNumber3D.tscn" id="12_damage_number"]
+[ext_resource type="Script" path="res://scripts3d/DamageNumberSpawner3D.cs" id="13_damage_spawner"]
 
 [sub_resource type="Environment" id="Environment_arena"]
 background_mode = 1
@@ -141,3 +143,7 @@ rotation_degrees = Vector3(0, 90, 0)
 mesh = SubResource("BoxMesh_border")
 
 [node name="HUD" parent="." instance=ExtResource("5_hud")]
+
+[node name="DamageNumberSpawner3D" type="Node3D" parent="."]
+script = ExtResource("13_damage_spawner")
+DamageNumberScene = ExtResource("12_damage_number")

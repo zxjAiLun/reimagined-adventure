@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/PlayerController3D.cs" id="1_player"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
@@ -9,6 +9,9 @@
 [ext_resource type="Script" path="res://scripts3d/PlayerAim3D.cs" id="7_aim"]
 [ext_resource type="Script" path="res://scripts3d/PlayerSkillController3D.cs" id="8_skills"]
 [ext_resource type="Resource" path="res://resources/SupportedSkillBar.tres" id="9_skill_bar"]
+[ext_resource type="Script" path="res://scripts3d/DamageFeedbackSource3D.cs" id="10_damage_source"]
+[ext_resource type="Script" path="res://scripts3d/HitFlash3D.cs" id="11_hit_flash"]
+[ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="12_death_feedback"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.55
@@ -45,6 +48,18 @@ mesh = SubResource("CapsuleMesh_player")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")
 MaxHealth = 100
+
+[node name="DamageFeedbackSource3D" type="Node3D" parent="."]
+position = Vector3(0, 1.55, 0)
+script = ExtResource("10_damage_source")
+
+[node name="HitFlash3D" type="Node" parent="."]
+script = ExtResource("11_hit_flash")
+MeshPath = NodePath("../Mesh")
+
+[node name="DeathFeedback3D" type="Node" parent="."]
+script = ExtResource("12_death_feedback")
+MeshPath = NodePath("../Mesh")
 
 [node name="MouseGroundTargeting3D" type="Node" parent="."]
 script = ExtResource("3_targeting")
