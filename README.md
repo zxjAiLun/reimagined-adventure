@@ -27,8 +27,15 @@ mouse ground aiming, four skills, Feral, Spitter, Brimstone Colossus, faction
 aware damage, drops, equipment, GameOver, MapComplete, reward choice, next-map
 transition, and minimal save/restore. `GreyboxStressArena3D.tscn` is the fixed
 20–40 enemy pressure map with a narrow path, slope cue, occluder-sized block,
-and a runtime NavigationMesh placeholder. Its smoke is intentionally a
-structure-and-pressure check; it does not yet claim obstacle pathfinding.
+and a runtime NavigationMesh placeholder. Its smoke remains intentionally a
+structure-and-pressure check; it does not claim obstacle pathfinding.
+The dedicated `NavigationFoundationArena3D` is the Stage 3A planar navigation
+fixture. It uses a repository-baked `NavigationMesh` resource generated from
+the arena floor and static obstacle geometry, with a non-zero agent radius.
+`NavigationFoundation3DRegressionSmoke` verifies a turning path around the
+obstacle, Feral chasing, pause/resume, the unchanged Windup/Impact contract,
+and a dynamically instantiated Feral. Navigation is currently planar XZ:
+actors do not jump, traverse multilevel terrain, or trigger runtime rebakes.
 Combat hits now also publish authoritative DamageResult feedback: positive hits
 create world-space damage numbers, trigger isolated-material hit flashes, and
 run immediate collision/physics cleanup plus a short death scale presentation.
@@ -83,8 +90,10 @@ signal-driven combat HUD contract, and
 `CombatTelegraphs3DRegressionSmoke.tscn` for enemy windup, impact, locked
 direction, and pause safety, and `CombatHitFeedback3DRegressionSmoke.tscn` for
 damage numbers, zero-damage filtering, multi-projectile hits, pause freezing,
-hit flash, death cleanup, loot, and Boss Map Complete. CI runs these alongside
-the legacy 2D smokes from `.github/workflows/ci.yml`.
+hit flash, death cleanup, loot, and Boss Map Complete, and
+`NavigationFoundation3DRegressionSmoke.tscn` for baked planar obstacle routing,
+pause safety, Feral Windup, and dynamic Feral registration. CI runs these
+alongside the legacy 2D smokes from `.github/workflows/ci.yml`.
 
 ## Migration boundaries
 

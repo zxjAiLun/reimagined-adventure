@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/NavigationFoundation3DRegressionSmoke.cs" id="1_smoke"]
+[ext_resource type="PackedScene" path="res://scenes3d/Feral3D.tscn" id="2_feral"]
+[ext_resource type="PackedScene" path="res://scenes3d/NavigationFoundationArena3D.tscn" id="3_arena"]
+
+[node name="NavigationFoundation3DRegressionSmoke" type="Node"]
+script = ExtResource("1_smoke")
+FeralScene = ExtResource("2_feral")
+
+[node name="Arena3D" parent="." instance=ExtResource("3_arena")]
