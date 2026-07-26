@@ -18,6 +18,7 @@ public partial class CombatHitFeedback3DRegressionSmoke : Node
     private DamageNumberSpawner3D _numbers;
     private HitFlash3D _feralFlash;
     private DeathFeedback3D _feralDeath;
+    private FeralController3D _dynamicFeral;
     private int _stage;
     private double _stageElapsed;
     private double _totalElapsed;
@@ -87,6 +88,12 @@ public partial class CombatHitFeedback3DRegressionSmoke : Node
                 VerifyDeathFeedback();
                 break;
             case 8:
+                StartDynamicFeralTest();
+                break;
+            case 9:
+                VerifyDynamicFeralFeedback();
+                break;
+            case 10:
                 VerifyBossMapComplete();
                 break;
         }
@@ -289,6 +296,59 @@ public partial class CombatHitFeedback3DRegressionSmoke : Node
         _stageElapsed = 0.0;
     }
 
+    private void StartDynamicFeralTest()
+    {
+        var feralScene = GD.Load<PackedScene>("res://scenes3d/Feral3D.tscn");
+        if (feralScene == null)
+        {
+            Fail("could not load dynamic Feral scene");
+            return;
+        }
+
+        _dynamicFeral = feralScene.Instantiate<FeralController3D>();
+        _arena.AddChild(_dynamicFeral);
+        _dynamicFeral.GlobalPosition = new Vector3(5.0f, 0.0f, 0.0f);
+        _stage = 9;
+        _stageElapsed = 0.0;
+    }
+
+    private void VerifyDynamicFeralFeedback()
+    {
+        if (_dynamicFeral == null || !GodotObject.IsInstanceValid(_dynamicFeral))
+        {
+            Fail("dynamic Feral did not enter the arena");
+            return;
+        }
+
+        if (_stageElapsed < 0.1)
+        {
+            return;
+        }
+
+        _dynamicFeral.SetPhysicsProcess(false);
+        var countBefore = _numbers.SpawnedCount;
+        var result = _dynamicFeral.ApplyDamage(new DamageRequest(
+            5,
+            DamageType.Physical,
+            "combat_hit_feedback_dynamic_feral",
+            CombatFaction.Player));
+        if (result.DamageApplied != 5
+            || _numbers.SpawnedCount != countBefore + 1
+            || _numbers.LastSpawnedText != "5")
+        {
+            if (_stageElapsed > 1.5)
+            {
+                Fail($"dynamic Feral did not publish damage feedback result={result.DamageApplied} count={_numbers.SpawnedCount}/{countBefore + 1} text={_numbers.LastSpawnedText}");
+            }
+
+            return;
+        }
+
+        _dynamicFeral.QueueFree();
+        _stage = 10;
+        _stageElapsed = 0.0;
+    }
+
     private void VerifyBossMapComplete()
     {
         _boss.ApplyDamage(new DamageRequest(
@@ -302,7 +362,7 @@ public partial class CombatHitFeedback3DRegressionSmoke : Node
             return;
         }
 
-        GD.Print("COMBAT_HIT_FEEDBACK_3D_PASS damage_number=true zero_damage=true spread_numbers=2 pause_freeze=true hit_flash=true death_cleanup=true loot=true boss_map_complete=true");
+        GD.Print("COMBAT_HIT_FEEDBACK_3D_PASS damage_number=true zero_damage=true spread_numbers=2 pause_freeze=true hit_flash=true death_cleanup=true loot=true dynamic_source=true boss_map_complete=true");
         GetTree().Quit(0);
     }
 

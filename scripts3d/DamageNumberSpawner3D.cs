@@ -39,6 +39,32 @@ public partial class DamageNumberSpawner3D : Node3D
         _sources.Clear();
     }
 
+    public void Register(DamageFeedbackSource3D source)
+    {
+        if (source == null || !GodotObject.IsInstanceValid(source) || !source.IsInsideTree())
+        {
+            return;
+        }
+
+        if (_sources.Add(source))
+        {
+            source.DamageTaken += OnDamageTaken;
+        }
+    }
+
+    public void Unregister(DamageFeedbackSource3D source)
+    {
+        if (source == null || !_sources.Remove(source))
+        {
+            return;
+        }
+
+        if (GodotObject.IsInstanceValid(source))
+        {
+            source.DamageTaken -= OnDamageTaken;
+        }
+    }
+
     private void BindMapSources()
     {
         if (!IsInsideTree())
@@ -50,16 +76,8 @@ public partial class DamageNumberSpawner3D : Node3D
         {
             if (node is DamageFeedbackSource3D source)
             {
-                BindSource(source);
+                Register(source);
             }
-        }
-    }
-
-    private void BindSource(DamageFeedbackSource3D source)
-    {
-        if (_sources.Add(source))
-        {
-            source.DamageTaken += OnDamageTaken;
         }
     }
 

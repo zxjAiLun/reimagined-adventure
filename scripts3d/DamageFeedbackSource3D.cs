@@ -14,6 +14,23 @@ public partial class DamageFeedbackSource3D : Node3D
     public override void _Ready()
     {
         AddToGroup("damage_feedback_sources_3d");
+        CallDeferred(nameof(RegisterWithSpawners));
+    }
+
+    public override void _ExitTree()
+    {
+        if (GetTree() == null)
+        {
+            return;
+        }
+
+        foreach (var node in GetTree().GetNodesInGroup("damage_number_spawners_3d"))
+        {
+            if (node is DamageNumberSpawner3D spawner)
+            {
+                spawner.Unregister(this);
+            }
+        }
     }
 
     public void Publish(DamageResult result)
@@ -24,5 +41,21 @@ public partial class DamageFeedbackSource3D : Node3D
         }
 
         DamageTaken?.Invoke(result, GlobalPosition);
+    }
+
+    private void RegisterWithSpawners()
+    {
+        if (!IsInsideTree())
+        {
+            return;
+        }
+
+        foreach (var node in GetTree().GetNodesInGroup("damage_number_spawners_3d"))
+        {
+            if (node is DamageNumberSpawner3D spawner)
+            {
+                spawner.Register(this);
+            }
+        }
     }
 }
