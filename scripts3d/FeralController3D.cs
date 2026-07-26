@@ -32,6 +32,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     public int SuccessfulContactAttackCount { get; private set; }
     public Vector3 LockedTargetPosition { get; private set; }
     public AreaTelegraph3D ActiveTelegraph => _activeTelegraph;
+    public EnemyNavigation3D Navigation => _navigation;
 
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
@@ -44,6 +45,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     private float _stateRemaining;
     private bool _deathHandled;
     private RunSessionNode _runSession;
+    private EnemyNavigation3D _navigation;
 
     public override void _Ready()
     {
@@ -55,6 +57,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
+        _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         FindPlayer();
         RefreshVisuals();
@@ -78,6 +81,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         {
             CancelAttack();
             Velocity = Vector3.Zero;
+            _navigation?.Stop();
             State = FeralState3D.Chasing;
             RefreshVisuals();
             return;
@@ -112,7 +116,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
 
                 break;
             case FeralState3D.Chasing:
-                ChaseOrBeginAttack();
+                ChaseOrBeginAttack(frameDelta);
                 break;
             case FeralState3D.Dead:
                 break;
@@ -141,7 +145,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         return result;
     }
 
-    private void ChaseOrBeginAttack()
+    private void ChaseOrBeginAttack(float frameDelta)
     {
         var toPlayer = _player.GlobalPosition - GlobalPosition;
         toPlayer.Y = 0.0f;
@@ -157,10 +161,24 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
             return;
         }
 
-        Velocity = toPlayer.LengthSquared() > 0.001f
-            ? toPlayer.Normalized() * MoveSpeed
+        if (_navigation == null)
+        {
+            Velocity = Vector3.Zero;
+            return;
+        }
+
+        var previousPosition = GlobalPosition;
+        _navigation.SetTarget(_player.GlobalPosition);
+        var direction = _navigation.GetDesiredDirection(GlobalPosition, frameDelta);
+        Velocity = direction.LengthSquared() > 0.001f
+            ? direction * MoveSpeed
             : Vector3.Zero;
-        MoveAndSlide();
+        if (direction.LengthSquared() > 0.001f)
+        {
+            MoveAndSlide();
+        }
+
+        _navigation.NotifyMovement(previousPosition, GlobalPosition, frameDelta);
     }
 
     private void FindPlayer()
