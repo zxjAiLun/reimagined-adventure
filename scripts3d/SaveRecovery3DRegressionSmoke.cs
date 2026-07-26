@@ -5,8 +5,14 @@ using Godot;
 public partial class SaveRecovery3DRegressionSmoke : Node
 {
     private double _elapsed;
+    private double _postRestoreElapsed;
     private int _stage;
     private bool _complete;
+    private float _postRestoreWaitSeconds;
+    private Vector3 _expectedPlayerScale;
+    private MeshInstance3D _playerMesh;
+    private DeathFeedback3D _playerDeathFeedback;
+    private HitFlash3D _playerHitFlash;
 
     public override void _Ready() => ProcessMode = ProcessModeEnum.Always;
 
@@ -167,6 +173,33 @@ public partial class SaveRecovery3DRegressionSmoke : Node
                     return;
                 }
 
+                _playerMesh = player.GetNode<MeshInstance3D>("Mesh");
+                _playerDeathFeedback = player.GetNode<DeathFeedback3D>("DeathFeedback3D");
+                _playerHitFlash = player.GetNode<HitFlash3D>("HitFlash3D");
+                _expectedPlayerScale = _playerDeathFeedback.RestingScale;
+                _postRestoreWaitSeconds = _playerDeathFeedback.DurationSeconds + 0.25f;
+                _postRestoreElapsed = 0.0;
+                _stage = 5;
+                return;
+
+            case 5:
+                _postRestoreElapsed += delta;
+                if (_postRestoreElapsed < _postRestoreWaitSeconds)
+                {
+                    return;
+                }
+
+                var feedbackResetPass = _playerMesh.Visible
+                    && player.Scale.DistanceTo(_expectedPlayerScale) <= 0.001f
+                    && !_playerDeathFeedback.IsActive
+                    && !_playerDeathFeedback.IsComplete
+                    && !_playerHitFlash.IsActive;
+                if (!feedbackResetPass)
+                {
+                    Fail($"restored player feedback was not reset visible={_playerMesh.Visible} scale={player.Scale} expected={_expectedPlayerScale} death_active={_playerDeathFeedback.IsActive} death_complete={_playerDeathFeedback.IsComplete} flash_active={_playerHitFlash.IsActive}");
+                    return;
+                }
+
                 player.SetAimDirectionForTest(Vector3.Right);
                 var positionBeforeDash = player.GlobalPosition;
                 var dashPass = player.PerformDash(0.8)
@@ -187,7 +220,7 @@ public partial class SaveRecovery3DRegressionSmoke : Node
                 }
 
                 _complete = true;
-                GD.Print("SAVE_RECOVERY_3D_SPIKE_PASS atomic_rollback=true reward_max_hp=true equipment_max_hp=true playing_runtime=true movement=true cast=true damage=true collision_restored=true");
+                GD.Print("SAVE_RECOVERY_3D_SPIKE_PASS atomic_rollback=true reward_max_hp=true equipment_max_hp=true playing_runtime=true movement=true cast=true damage=true collision_restored=true feedback_reset=true");
                 GetTree().Quit();
                 return;
         }

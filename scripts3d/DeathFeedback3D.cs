@@ -15,10 +15,11 @@ public partial class DeathFeedback3D : Node
     public bool IsActive { get; private set; }
     public bool IsComplete { get; private set; }
     public float Progress { get; private set; }
+    public Vector3 RestingScale => _restingScale;
 
     private Node3D _owner;
     private MeshInstance3D _mesh;
-    private Vector3 _initialScale = Vector3.One;
+    private Vector3 _restingScale = Vector3.One;
     private float _elapsedSeconds;
 
     public override void _Ready()
@@ -26,6 +27,7 @@ public partial class DeathFeedback3D : Node
         ProcessMode = ProcessModeEnum.Pausable;
         _owner = GetParent() as Node3D;
         _mesh = GetNodeOrNull<MeshInstance3D>(MeshPath);
+        _restingScale = _owner?.Scale ?? Vector3.One;
     }
 
     public void Play()
@@ -40,7 +42,28 @@ public partial class DeathFeedback3D : Node
         IsComplete = false;
         Progress = 0.0f;
         _elapsedSeconds = 0.0f;
-        _initialScale = _owner.Scale;
+        _owner.Scale = _restingScale;
+        if (_mesh != null)
+        {
+            _mesh.Visible = true;
+        }
+    }
+
+    public void ResetPresentation()
+    {
+        IsActive = false;
+        IsComplete = false;
+        Progress = 0.0f;
+        _elapsedSeconds = 0.0f;
+        if (_owner != null)
+        {
+            _owner.Scale = _restingScale;
+        }
+
+        if (_mesh != null)
+        {
+            _mesh.Visible = true;
+        }
     }
 
     public override void _Process(double delta)
@@ -56,7 +79,7 @@ public partial class DeathFeedback3D : Node
             0.0f,
             1.0f);
         var scaleMultiplier = Mathf.Lerp(1.0f, EndScaleMultiplier, Progress);
-        _owner.Scale = _initialScale * scaleMultiplier;
+        _owner.Scale = _restingScale * scaleMultiplier;
         if (Progress >= 1.0f)
         {
             IsActive = false;

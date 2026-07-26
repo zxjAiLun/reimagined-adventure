@@ -46,6 +46,12 @@ public partial class HitFlash3D : Node
         ApplyIntensity(1.0f);
     }
 
+    public void ResetPresentation()
+    {
+        _remainingSeconds = 0.0f;
+        ApplyIntensity(0.0f);
+    }
+
     public override void _Process(double delta)
     {
         if (!IsActive)

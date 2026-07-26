@@ -345,6 +345,8 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     {
         if (IsAlive)
         {
+            _deathFeedback?.ResetPresentation();
+            _hitFlash?.ResetPresentation();
             SetPhysicsProcess(true);
             CollisionLayer = PlayerCollisionLayer;
             CollisionMask = PlayerCollisionMask;
