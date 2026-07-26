@@ -29,6 +29,9 @@ transition, and minimal save/restore. `GreyboxStressArena3D.tscn` is the fixed
 20–40 enemy pressure map with a narrow path, slope cue, occluder-sized block,
 and a runtime NavigationMesh placeholder. Its smoke is intentionally a
 structure-and-pressure check; it does not yet claim obstacle pathfinding.
+Combat hits now also publish authoritative DamageResult feedback: positive hits
+create world-space damage numbers, trigger isolated-material hit flashes, and
+run immediate collision/physics cleanup plus a short death scale presentation.
 
 ## Run the playable slice
 
@@ -78,8 +81,10 @@ Godot smoke scenes are named `Milestone4Smoke.tscn` through
 Playing-state restoration, plus `CombatHud3DRegressionSmoke.tscn` for the
 signal-driven combat HUD contract, and
 `CombatTelegraphs3DRegressionSmoke.tscn` for enemy windup, impact, locked
-direction, and pause safety. CI runs these alongside the legacy 2D smokes
-from `.github/workflows/ci.yml`.
+direction, and pause safety, and `CombatHitFeedback3DRegressionSmoke.tscn` for
+damage numbers, zero-damage filtering, multi-projectile hits, pause freezing,
+hit flash, death cleanup, loot, and Boss Map Complete. CI runs these alongside
+the legacy 2D smokes from `.github/workflows/ci.yml`.
 
 ## Migration boundaries
 
