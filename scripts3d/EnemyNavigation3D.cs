@@ -28,6 +28,8 @@ public partial class EnemyNavigation3D : Node
     public int StuckDetectionCount { get; private set; }
     public int PathPointCount { get; private set; }
     public float PathLength { get; private set; }
+    public int SteeringPathIndex { get; private set; } = -1;
+    public Vector3 SteeringTargetPosition { get; private set; }
 
     private NavigationAgent3D _agent;
     private bool _hasTarget;
@@ -92,6 +94,8 @@ public partial class EnemyNavigation3D : Node
         PathPointCount = 0;
         PathLength = 0.0f;
         HasTurnPoint = false;
+        SteeringPathIndex = -1;
+        SteeringTargetPosition = Vector3.Zero;
 
         IsNavigationReady = _agent != null && HasSynchronizedNavigationMap();
         if (!IsNavigationReady || !_hasTarget)
@@ -101,11 +105,17 @@ public partial class EnemyNavigation3D : Node
 
         // NavigationAgent3D requires this to be called from the physics loop.
         // Advance NavigationAgent3D's internal path cursor from the physics
-        // loop, but derive planar steering from the full path below. The
-        // cursor can briefly return a near-zero XZ start point while the
-        // agent is correcting its vertical navigation offset.
+        // loop. Planar lookahead is only a guarded fallback for a near-zero
+        // or backwards XZ cursor result; it starts at the Agent's current
+        // path index and never scans consumed path points.
         var nextPathPosition = _agent.GetNextPathPosition();
         var path = _agent.GetCurrentNavigationPath();
+        var currentPathIndex = path.Length == 0
+            ? 0
+            : Mathf.Clamp(
+                _agent.GetCurrentNavigationPathIndex(),
+                0,
+                path.Length - 1);
         PathPointCount = path.Length;
         HasPath = PathPointCount > 0;
         for (var index = 1; index < path.Length; index++)
@@ -131,15 +141,34 @@ public partial class EnemyNavigation3D : Node
         IsTargetReachable = HasPath && _agent.IsTargetReachable();
         var direction = nextPathPosition - currentPosition;
         direction.Y = 0.0f;
+        SteeringPathIndex = currentPathIndex;
+        SteeringTargetPosition = new Vector3(
+            nextPathPosition.X,
+            0.0f,
+            nextPathPosition.Z);
         if (UsePlanarPathLookahead)
         {
-            var lookaheadDirection = FindFirstHorizontalPathDirection(
-                path,
-                currentPosition,
-                Mathf.Max(0.5f, _agent.PathDesiredDistance));
-            if (lookaheadDirection.LengthSquared() > 0.001f)
+            if (!_agent.IsNavigationFinished()
+                && TryFindHorizontalPathLookahead(
+                    path,
+                    currentPathIndex,
+                    currentPosition,
+                    Mathf.Max(0.5f, _agent.PathDesiredDistance),
+                    out var lookaheadIndex,
+                    out var lookaheadPosition))
             {
-                direction = lookaheadDirection;
+                var lookaheadDirection = lookaheadPosition - currentPosition;
+                lookaheadDirection.Y = 0.0f;
+                if (direction.LengthSquared() <= 0.001f
+                    || direction.Dot(lookaheadDirection) <= 0.0f)
+                {
+                    direction = lookaheadDirection;
+                    SteeringPathIndex = lookaheadIndex;
+                    SteeringTargetPosition = new Vector3(
+                        lookaheadPosition.X,
+                        0.0f,
+                        lookaheadPosition.Z);
+                }
             }
         }
 
@@ -208,21 +237,28 @@ public partial class EnemyNavigation3D : Node
         _progressDistance = 0.0f;
     }
 
-    private static Vector3 FindFirstHorizontalPathDirection(
+    private static bool TryFindHorizontalPathLookahead(
         Vector3[] path,
+        int startIndex,
         Vector3 currentPosition,
-        float minimumDistance)
+        float minimumDistance,
+        out int pathIndex,
+        out Vector3 pathPosition)
     {
-        foreach (var pathPoint in path)
+        pathIndex = -1;
+        pathPosition = Vector3.Zero;
+        for (var index = startIndex; index < path.Length; index++)
         {
-            var candidate = pathPoint - currentPosition;
+            var candidate = path[index] - currentPosition;
             candidate.Y = 0.0f;
             if (candidate.LengthSquared() > minimumDistance * minimumDistance)
             {
-                return candidate;
+                pathIndex = index;
+                pathPosition = path[index];
+                return true;
             }
         }
 
-        return Vector3.Zero;
+        return false;
     }
 }

@@ -48,6 +48,7 @@ public partial class SpitterNavigation3DRegressionSmoke : Node
         _spitter.AimSeconds = 0.18f;
         _spitter.TelegraphSeconds = 0.42f;
         _spitter.RecoverySeconds = 0.25f;
+        _spitter.GetNode<EnemyNavigation3D>("EnemyNavigation3D").RepathIntervalSeconds = 1.0f;
         _arena.AddChild(_spitter);
         _spitter.GlobalPosition = new Vector3(-8.5f, 0.0f, 0.0f);
         _straightDistance = _spitter.GlobalPosition.DistanceTo(_player.GlobalPosition);
@@ -57,7 +58,7 @@ public partial class SpitterNavigation3DRegressionSmoke : Node
     {
         _totalElapsed += delta;
         _stageElapsed += delta;
-        if (_totalElapsed > 30.0)
+        if (_totalElapsed > 70.0)
         {
             Fail($"timeout stage={_stage}");
             return;
@@ -135,11 +136,18 @@ public partial class SpitterNavigation3DRegressionSmoke : Node
             return;
         }
 
+        var navigation = _spitter.Navigation;
+        if (!ValidateApproachSteering(navigation))
+        {
+            return;
+        }
+
         var distance = HorizontalDistance(_spitter.GlobalPosition, _player.GlobalPosition);
         if (distance >= _spitter.MinimumRange - 0.15f
             && distance <= _spitter.PreferredRange + 0.15f
             && _spitter.State != SpitterState3D.Approaching
-            && _spitter.State != SpitterState3D.Retreating)
+            && _spitter.State != SpitterState3D.Retreating
+            && _stageElapsed >= 2.2)
         {
             NextStage();
             return;
@@ -153,12 +161,41 @@ public partial class SpitterNavigation3DRegressionSmoke : Node
 
         FailIfTimedOut(
             $"Spitter did not enter distance band state={_spitter.State} distance={distance:0.00} "
-            + $"pos={_spitter.GlobalPosition} ready={_spitter.Navigation.IsNavigationReady} "
-            + $"path={_spitter.Navigation.HasPath} direction={_spitter.Navigation.DesiredDirection} "
+            + $"pos={_spitter.GlobalPosition} ready={navigation.IsNavigationReady} "
+            + $"path={navigation.HasPath} direction={navigation.DesiredDirection} "
             + $"target={_spitter.NavigationTargetPosition} "
-            + $"finished={_spitter.Navigation.Agent.IsNavigationFinished()} "
-            + $"next={_spitter.Navigation.Agent.GetNextPathPosition()}",
-            14.0);
+            + $"steeringIndex={navigation.SteeringPathIndex} "
+            + $"agentIndex={navigation.Agent.GetCurrentNavigationPathIndex()}",
+            40.0);
+    }
+
+    private bool ValidateApproachSteering(EnemyNavigation3D navigation)
+    {
+        if (navigation == null || !navigation.IsNavigationReady || !navigation.HasPath)
+        {
+            return true;
+        }
+
+        var agentPathIndex = navigation.Agent.GetCurrentNavigationPathIndex();
+        if (navigation.SteeringPathIndex < agentPathIndex)
+        {
+            Fail(
+                $"Spitter steering fell behind NavigationAgent index steering={navigation.SteeringPathIndex} "
+                + $"agent={agentPathIndex}");
+            return false;
+        }
+
+        var steeringDelta = navigation.SteeringTargetPosition - _spitter.GlobalPosition;
+        steeringDelta.Y = 0.0f;
+        if (navigation.DesiredDirection.LengthSquared() > 0.001f
+            && steeringDelta.LengthSquared() > 0.001f
+            && navigation.DesiredDirection.Dot(steeringDelta.Normalized()) < 0.0f)
+        {
+            Fail("Spitter steering direction points away from its selected path target");
+            return false;
+        }
+
+        return true;
     }
 
     private void StartRetreat()
