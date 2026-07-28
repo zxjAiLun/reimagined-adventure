@@ -33,6 +33,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     public Vector3 LockedTargetPosition { get; private set; }
     public AreaTelegraph3D ActiveTelegraph => _activeTelegraph;
     public EnemyNavigation3D Navigation => _navigation;
+    public bool NavigationMovementSuppressed { get; set; }
 
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
@@ -173,7 +174,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         Velocity = direction.LengthSquared() > 0.001f
             ? direction * MoveSpeed
             : Vector3.Zero;
-        if (direction.LengthSquared() > 0.001f)
+        if (direction.LengthSquared() > 0.001f && !NavigationMovementSuppressed)
         {
             MoveAndSlide();
         }

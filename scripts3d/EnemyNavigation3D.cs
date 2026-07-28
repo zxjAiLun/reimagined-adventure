@@ -21,6 +21,7 @@ public partial class EnemyNavigation3D : Node
     public bool IsStuck { get; private set; }
     public bool HasTurnPoint { get; private set; }
     public int RepathCount { get; private set; }
+    public int StuckDetectionCount { get; private set; }
     public int PathPointCount { get; private set; }
     public float PathLength { get; private set; }
 
@@ -52,18 +53,28 @@ public partial class EnemyNavigation3D : Node
         targetPosition.Y = 0.0f;
         var targetMoved = !_hasTarget || HorizontalDistance(TargetPosition, targetPosition)
             > Mathf.Max(0.01f, TargetMoveThreshold);
-        if (!_hasTarget || targetMoved || _targetRefreshRemaining <= 0.0f || IsStuck)
+        var timedRepath = _targetRefreshRemaining <= 0.0f;
+        var stuckRepath = IsStuck;
+        if (!_hasTarget || targetMoved || timedRepath || stuckRepath)
         {
             TargetPosition = targetPosition;
             _hasTarget = true;
             _targetRefreshRemaining = Mathf.Max(0.05f, RepathIntervalSeconds);
-            IsStuck = false;
-            _stuckElapsed = 0.0f;
-            _progressDistance = 0.0f;
             RepathCount++;
             if (_agent != null)
             {
                 _agent.TargetPosition = TargetPosition;
+            }
+
+            if (targetMoved)
+            {
+                ResetProgressTracking();
+            }
+
+            if (stuckRepath)
+            {
+                IsStuck = false;
+                ResetProgressTracking();
             }
         }
     }
@@ -141,10 +152,13 @@ public partial class EnemyNavigation3D : Node
         }
         else if (_stuckElapsed >= Mathf.Max(0.1f, StuckDurationSeconds))
         {
-            IsStuck = true;
+            if (!IsStuck)
+            {
+                IsStuck = true;
+                StuckDetectionCount++;
+            }
+
             _targetRefreshRemaining = 0.0f;
-            _stuckElapsed = 0.0f;
-            _progressDistance = 0.0f;
         }
     }
 
@@ -166,5 +180,11 @@ public partial class EnemyNavigation3D : Node
         first.Y = 0.0f;
         second.Y = 0.0f;
         return first.DistanceTo(second);
+    }
+
+    private void ResetProgressTracking()
+    {
+        _stuckElapsed = 0.0f;
+        _progressDistance = 0.0f;
     }
 }
