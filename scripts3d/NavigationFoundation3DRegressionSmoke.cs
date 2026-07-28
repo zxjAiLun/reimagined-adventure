@@ -21,6 +21,9 @@ public partial class NavigationFoundation3DRegressionSmoke : Node
     private int _pausedRepathCount;
     private int _windupHealth;
     private int _windupImpactCount;
+    private int _stuckDetectionCount;
+    private int _stuckRepathCount;
+    private bool _stuckObserved;
     private float _straightDistance;
 
     public override void _Ready()
@@ -60,18 +63,24 @@ public partial class NavigationFoundation3DRegressionSmoke : Node
                 ObservePausedChase();
                 break;
             case 3:
-                ObserveFeralRouteAndWindup();
+                StartStuckRecovery();
                 break;
             case 4:
-                ObserveFeralImpact();
+                ObserveStuckRecovery();
                 break;
             case 5:
-                StartDynamicFeral();
+                ObserveFeralRouteAndWindup();
                 break;
             case 6:
-                ObserveDynamicFeral();
+                ObserveFeralImpact();
                 break;
             case 7:
+                StartDynamicFeral();
+                break;
+            case 8:
+                ObserveDynamicFeral();
+                break;
+            case 9:
                 FinishSuccess();
                 break;
         }
@@ -120,6 +129,52 @@ public partial class NavigationFoundation3DRegressionSmoke : Node
         }
 
         NextStage();
+    }
+
+    private void StartStuckRecovery()
+    {
+        if (_feral.State != FeralState3D.Chasing
+            || _feral.Navigation == null
+            || !_feral.Navigation.IsNavigationReady
+            || !_feral.Navigation.HasPath)
+        {
+            Fail("Feral did not retain a valid navigation path before stuck test");
+            return;
+        }
+
+        _feral.NavigationMovementSuppressed = true;
+        _stuckDetectionCount = _feral.Navigation.StuckDetectionCount;
+        _stuckObserved = false;
+        NextStage();
+    }
+
+    private void ObserveStuckRecovery()
+    {
+        var navigation = _feral.Navigation;
+        if (navigation == null)
+        {
+            Fail("Feral navigation adapter disappeared during stuck test");
+            return;
+        }
+
+        if (!_stuckObserved && navigation.StuckDetectionCount > _stuckDetectionCount)
+        {
+            _stuckObserved = true;
+            _stuckRepathCount = navigation.RepathCount;
+        }
+
+        var repathed = _stuckObserved && navigation.RepathCount > _stuckRepathCount;
+        if (_stuckObserved && repathed && !navigation.IsStuck)
+        {
+            _feral.NavigationMovementSuppressed = false;
+            NextStage();
+            return;
+        }
+
+        FailIfTimedOut(
+            $"Feral stuck recovery did not trigger detected={_stuckObserved} repathed={repathed} "
+            + $"isStuck={navigation.IsStuck} stuckCount={navigation.StuckDetectionCount} "
+            + $"repathCount={navigation.RepathCount}");
     }
 
     private void ObservePausedChase()
@@ -171,7 +226,10 @@ public partial class NavigationFoundation3DRegressionSmoke : Node
 
         if (_feral.Navigation.IsStuck)
         {
-            Fail("Feral became permanently stuck while routing to the player");
+            Fail("Feral became permanently stuck while routing to the player "
+                + $"pos={_feral.GlobalPosition} desired={_feral.Navigation.DesiredDirection} "
+                + $"repath={_feral.Navigation.RepathCount} stuckCount={_feral.Navigation.StuckDetectionCount} "
+                + $"stageElapsed={_stageElapsed:0.00}");
             return;
         }
 
