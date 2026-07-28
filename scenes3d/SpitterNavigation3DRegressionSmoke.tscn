@@ -1,0 +1,11 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/SpitterNavigation3DRegressionSmoke.cs" id="1_smoke"]
+[ext_resource type="PackedScene" path="res://scenes3d/Spitter3D.tscn" id="2_spitter"]
+[ext_resource type="PackedScene" path="res://scenes3d/NavigationFoundationArena3D.tscn" id="3_arena"]
+
+[node name="SpitterNavigation3DRegressionSmoke" type="Node"]
+script = ExtResource("1_smoke")
+SpitterScene = ExtResource("2_spitter")
+
+[node name="Arena3D" parent="." instance=ExtResource("3_arena")]

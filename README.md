@@ -34,8 +34,11 @@ fixture. It uses a repository-baked `NavigationMesh` resource generated from
 the arena floor and static obstacle geometry, with a non-zero agent radius.
 `NavigationFoundation3DRegressionSmoke` verifies a turning path around the
 obstacle, Feral chasing, pause/resume, the unchanged Windup/Impact contract,
-and a dynamically instantiated Feral. Navigation is currently planar XZ:
-actors do not jump, traverse multilevel terrain, or trigger runtime rebakes.
+and a dynamically instantiated Feral. Stage 3B also routes Spitter
+approach/retreat through the same adapter, keeping it inside a preferred
+distance band while preserving its locked Aim/Windup telegraph direction.
+Navigation is currently planar XZ: actors do not jump, traverse multilevel
+terrain, or trigger runtime rebakes.
 Combat hits now also publish authoritative DamageResult feedback: positive hits
 create world-space damage numbers, trigger isolated-material hit flashes, and
 run immediate collision/physics cleanup plus a short death scale presentation.
@@ -93,7 +96,8 @@ damage numbers, zero-damage filtering, multi-projectile hits, pause freezing,
 hit flash, death cleanup, loot, and Boss Map Complete, and
 `NavigationFoundation3DRegressionSmoke.tscn` for baked planar obstacle routing,
 pause safety, Feral Windup, and dynamic Feral registration. CI runs these
-alongside the legacy 2D smokes from `.github/workflows/ci.yml`.
+alongside `SpitterNavigation3DRegressionSmoke.tscn` and the legacy 2D smokes
+from `.github/workflows/ci.yml`.
 
 ## Migration boundaries
 
