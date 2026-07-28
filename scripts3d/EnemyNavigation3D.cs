@@ -11,6 +11,10 @@ public partial class EnemyNavigation3D : Node
     [Export] public float RepathIntervalSeconds { get; set; } = 0.25f;
     [Export] public float StuckDurationSeconds { get; set; } = 1.25f;
     [Export] public float MinimumProgressDistance { get; set; } = 0.12f;
+    [Export] public float AgentPathDesiredDistance { get; set; } = 0.35f;
+    [Export] public float AgentTargetDesiredDistance { get; set; } = 1.1f;
+    [Export] public float AgentPathMaxDistance { get; set; } = 5.0f;
+    [Export] public bool UsePlanarPathLookahead { get; set; }
 
     public NavigationAgent3D Agent => _agent;
     public Vector3 TargetPosition { get; private set; }
@@ -42,9 +46,9 @@ public partial class EnemyNavigation3D : Node
             return;
         }
 
-        _agent.PathDesiredDistance = 0.35f;
-        _agent.TargetDesiredDistance = 1.1f;
-        _agent.PathMaxDistance = 5.0f;
+        _agent.PathDesiredDistance = Mathf.Max(0.05f, AgentPathDesiredDistance);
+        _agent.TargetDesiredDistance = Mathf.Max(0.05f, AgentTargetDesiredDistance);
+        _agent.PathMaxDistance = Mathf.Max(0.5f, AgentPathMaxDistance);
         _agent.AvoidanceEnabled = false;
     }
 
@@ -96,6 +100,10 @@ public partial class EnemyNavigation3D : Node
         }
 
         // NavigationAgent3D requires this to be called from the physics loop.
+        // Advance NavigationAgent3D's internal path cursor from the physics
+        // loop, but derive planar steering from the full path below. The
+        // cursor can briefly return a near-zero XZ start point while the
+        // agent is correcting its vertical navigation offset.
         var nextPathPosition = _agent.GetNextPathPosition();
         var path = _agent.GetCurrentNavigationPath();
         PathPointCount = path.Length;
@@ -123,6 +131,18 @@ public partial class EnemyNavigation3D : Node
         IsTargetReachable = HasPath && _agent.IsTargetReachable();
         var direction = nextPathPosition - currentPosition;
         direction.Y = 0.0f;
+        if (UsePlanarPathLookahead)
+        {
+            var lookaheadDirection = FindFirstHorizontalPathDirection(
+                path,
+                currentPosition,
+                Mathf.Max(0.5f, _agent.PathDesiredDistance));
+            if (lookaheadDirection.LengthSquared() > 0.001f)
+            {
+                direction = lookaheadDirection;
+            }
+        }
+
         if (direction.LengthSquared() > 0.001f && !_agent.IsNavigationFinished())
         {
             DesiredDirection = direction.Normalized();
@@ -186,5 +206,23 @@ public partial class EnemyNavigation3D : Node
     {
         _stuckElapsed = 0.0f;
         _progressDistance = 0.0f;
+    }
+
+    private static Vector3 FindFirstHorizontalPathDirection(
+        Vector3[] path,
+        Vector3 currentPosition,
+        float minimumDistance)
+    {
+        foreach (var pathPoint in path)
+        {
+            var candidate = pathPoint - currentPosition;
+            candidate.Y = 0.0f;
+            if (candidate.LengthSquared() > minimumDistance * minimumDistance)
+            {
+                return candidate;
+            }
+        }
+
+        return Vector3.Zero;
     }
 }

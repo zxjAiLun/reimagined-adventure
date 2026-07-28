@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/SpitterController3D.cs" id="1_spitter"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts3d/DamageFeedbackSource3D.cs" id="6_damage_source"]
 [ext_resource type="Script" path="res://scripts3d/HitFlash3D.cs" id="7_hit_flash"]
 [ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="8_death_feedback"]
+[ext_resource type="Script" path="res://scripts3d/EnemyNavigation3D.cs" id="9_enemy_navigation"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_spitter"]
 radius = 0.45
@@ -32,6 +33,21 @@ script = ExtResource("1_spitter")
 ProjectileScene = ExtResource("3_projectile")
 ItemDropScene = ExtResource("4_drop")
 TelegraphScene = ExtResource("5_telegraph")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.25
+target_desired_distance = 1.1
+path_max_distance = 5.0
+radius = 0.45
+height = 1.0
+avoidance_enabled = false
+
+[node name="EnemyNavigation3D" type="Node" parent="."]
+script = ExtResource("9_enemy_navigation")
+AgentPathDesiredDistance = 0.25
+AgentTargetDesiredDistance = 1.1
+AgentPathMaxDistance = 5.0
+UsePlanarPathLookahead = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 position = Vector3(0, 0.5, 0)

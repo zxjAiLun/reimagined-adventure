@@ -43,6 +43,8 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
     public Vector3 LockedDirection { get; private set; } = Vector3.Forward;
     public Vector3 LastLaunchDirection { get; private set; } = Vector3.Zero;
     public LineTelegraph3D ActiveTelegraph => _activeTelegraph;
+    public EnemyNavigation3D Navigation => _navigation;
+    public Vector3 NavigationTargetPosition => _navigation?.TargetPosition ?? Vector3.Zero;
 
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
@@ -56,6 +58,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
     private float _stateRemaining;
     private bool _deathHandled;
     private bool _launchPerformed;
+    private EnemyNavigation3D _navigation;
 
     public override void _Ready()
     {
@@ -68,6 +71,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
+        _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         FindPlayer();
         RefreshVisuals();
@@ -91,6 +95,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         {
             CancelAttack();
             Velocity = Vector3.Zero;
+            _navigation?.Stop();
             RefreshVisuals();
             return;
         }
@@ -99,6 +104,12 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         {
             case SpitterState3D.Aim:
                 Velocity = Vector3.Zero;
+                if (!IsWithinDistanceBand())
+                {
+                    State = SpitterState3D.HoldingRange;
+                    break;
+                }
+
                 _stateRemaining -= frameDelta;
                 if (_stateRemaining <= 0.0f)
                 {
@@ -135,7 +146,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
             case SpitterState3D.Approaching:
             case SpitterState3D.HoldingRange:
             case SpitterState3D.Retreating:
-                MoveOrBeginAim();
+                MoveOrBeginAim(frameDelta);
                 break;
             case SpitterState3D.Dead:
                 break;
@@ -169,7 +180,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
     }
 
-    private void MoveOrBeginAim()
+    private void MoveOrBeginAim(float frameDelta)
     {
         var toPlayer = _player.GlobalPosition - GlobalPosition;
         toPlayer.Y = 0.0f;
@@ -177,18 +188,12 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         if (distance < MinimumRange)
         {
             State = SpitterState3D.Retreating;
-            Velocity = distance > 0.001f
-                ? -toPlayer.Normalized() * MoveSpeed
-                : Vector3.Back;
-            MoveAndSlide();
+            MoveWithNavigation(GetRetreatTarget(), frameDelta);
         }
         else if (distance > PreferredRange)
         {
             State = SpitterState3D.Approaching;
-            Velocity = toPlayer.LengthSquared() > 0.001f
-                ? toPlayer.Normalized() * MoveSpeed
-                : Vector3.Zero;
-            MoveAndSlide();
+            MoveWithNavigation(_player.GlobalPosition, frameDelta);
         }
         else
         {
@@ -199,6 +204,47 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
                 BeginAim();
             }
         }
+    }
+
+    private bool IsWithinDistanceBand()
+    {
+        var toPlayer = _player.GlobalPosition - GlobalPosition;
+        toPlayer.Y = 0.0f;
+        var distance = toPlayer.Length();
+        return distance >= MinimumRange && distance <= PreferredRange;
+    }
+
+    private Vector3 GetRetreatTarget()
+    {
+        var toPlayer = _player.GlobalPosition - GlobalPosition;
+        toPlayer.Y = 0.0f;
+        var away = toPlayer.LengthSquared() > 0.001f
+            ? -toPlayer.Normalized()
+            : Vector3.Back;
+        var desiredDistance = Mathf.Max(PreferredRange, MinimumRange + 0.5f);
+        return _player.GlobalPosition + away * desiredDistance;
+    }
+
+    private void MoveWithNavigation(Vector3 targetPosition, float frameDelta)
+    {
+        if (_navigation == null)
+        {
+            Velocity = Vector3.Zero;
+            return;
+        }
+
+        var previousPosition = GlobalPosition;
+        _navigation.SetTarget(targetPosition);
+        var direction = _navigation.GetDesiredDirection(GlobalPosition, frameDelta);
+        Velocity = direction.LengthSquared() > 0.001f
+            ? direction * MoveSpeed
+            : Vector3.Zero;
+        if (direction.LengthSquared() > 0.001f)
+        {
+            MoveAndSlide();
+        }
+
+        _navigation.NotifyMovement(previousPosition, GlobalPosition, frameDelta);
     }
 
     private void BeginAim()
