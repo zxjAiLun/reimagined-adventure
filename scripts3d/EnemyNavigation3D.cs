@@ -31,6 +31,15 @@ public partial class EnemyNavigation3D : Node
     public int SteeringPathIndex { get; private set; } = -1;
     public Vector3 SteeringTargetPosition { get; private set; }
 
+    /// <summary>
+    /// Requests the next normal navigation refresh without fabricating a new
+    /// target and without resetting stuck-progress tracking.
+    /// </summary>
+    public void RequestRepath()
+    {
+        _targetRefreshRemaining = 0.0f;
+    }
+
     private NavigationAgent3D _agent;
     private bool _hasTarget;
     private float _targetRefreshRemaining;

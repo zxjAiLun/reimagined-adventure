@@ -1,0 +1,148 @@
+[gd_scene load_steps=21 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/CrowdNavigationStressArena3D.cs" id="1_arena"]
+[ext_resource type="PackedScene" path="res://scenes3d/Player3D.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes3d/Feral3D.tscn" id="3_feral"]
+[ext_resource type="PackedScene" path="res://scenes3d/Spitter3D.tscn" id="4_spitter"]
+[ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="5_camera_rig"]
+[ext_resource type="Script" path="res://scripts/RunSessionNode.cs" id="6_run_session"]
+[ext_resource type="Script" path="res://scripts3d/GameFlowController3D.cs" id="7_flow"]
+[ext_resource type="NavigationMesh" path="res://resources/CrowdNavigationStress.tres" id="8_navigation_mesh"]
+[ext_resource type="Script" path="res://scripts3d/EnemyCrowdCoordinator3D.cs" id="9_coordinator"]
+
+[sub_resource type="Environment" id="Environment_crowd"]
+background_mode = 1
+background_color = Color(0.025, 0.045, 0.07, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.42, 0.5, 0.62, 1)
+ambient_light_energy = 0.95
+
+[sub_resource type="BoxShape3D" id="BoxShape_ground"]
+size = Vector3(30, 0.2, 22)
+
+[sub_resource type="StandardMaterial3D" id="Material_ground"]
+albedo_color = Color(0.10, 0.15, 0.21, 1)
+roughness = 0.92
+
+[sub_resource type="BoxMesh" id="Mesh_ground"]
+size = Vector3(30, 0.2, 22)
+material = SubResource("Material_ground")
+
+[sub_resource type="BoxShape3D" id="BoxShape_obstacle_a"]
+size = Vector3(2.4, 2, 8.4)
+
+[sub_resource type="StandardMaterial3D" id="Material_obstacle_a"]
+albedo_color = Color(0.68, 0.24, 0.16, 1)
+roughness = 0.78
+
+[sub_resource type="BoxMesh" id="Mesh_obstacle_a"]
+size = Vector3(2.4, 2, 8.4)
+material = SubResource("Material_obstacle_a")
+
+[sub_resource type="BoxShape3D" id="BoxShape_obstacle_b"]
+size = Vector3(4.6, 2, 2.4)
+
+[sub_resource type="StandardMaterial3D" id="Material_obstacle_b"]
+albedo_color = Color(0.68, 0.42, 0.14, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="Mesh_obstacle_b"]
+size = Vector3(4.6, 2, 2.4)
+material = SubResource("Material_obstacle_b")
+
+[sub_resource type="StandardMaterial3D" id="Material_choke"]
+albedo_color = Color(0.28, 0.62, 0.34, 0.42)
+transparency = 1
+
+[sub_resource type="BoxMesh" id="Mesh_choke"]
+size = Vector3(0.08, 0.03, 5.0)
+material = SubResource("Material_choke")
+
+[node name="CrowdNavigationStressArena3D" type="Node3D"]
+script = ExtResource("1_arena")
+FeralScene = ExtResource("3_feral")
+SpitterScene = ExtResource("4_spitter")
+FeralCount = 16
+SpitterCount = 8
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_crowd")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-55, -25, 0)
+light_color = Color(0.78, 0.9, 1, 1)
+light_energy = 1.7
+shadow_enabled = true
+
+[node name="CameraRig" type="Node3D" parent="."]
+position = Vector3(0, 19, 17)
+script = ExtResource("5_camera_rig")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+rotation_degrees = Vector3(-48, 0, 0)
+fov = 55.0
+current = true
+groups = ["arena_cameras"]
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+position = Vector3(0, -0.1, 0)
+shape = SubResource("BoxShape_ground")
+
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+position = Vector3(0, -0.1, 0)
+mesh = SubResource("Mesh_ground")
+
+[node name="StaticObstacleA" type="StaticBody3D" parent="."]
+position = Vector3(0, 1, 0)
+collision_layer = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticObstacleA"]
+shape = SubResource("BoxShape_obstacle_a")
+
+[node name="Mesh" type="MeshInstance3D" parent="StaticObstacleA"]
+mesh = SubResource("Mesh_obstacle_a")
+
+[node name="StaticObstacleB" type="StaticBody3D" parent="."]
+position = Vector3(3.5, 1, -5.5)
+collision_layer = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticObstacleB"]
+shape = SubResource("BoxShape_obstacle_b")
+
+[node name="Mesh" type="MeshInstance3D" parent="StaticObstacleB"]
+mesh = SubResource("Mesh_obstacle_b")
+
+[node name="ChokeCheckpoint" type="MeshInstance3D" parent="."]
+position = Vector3(2.3, 0.03, 0)
+mesh = SubResource("Mesh_choke")
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_mesh = ExtResource("8_navigation_mesh")
+
+[node name="EnemyCrowdCoordinator3D" type="Node" parent="."]
+script = ExtResource("9_coordinator")
+
+[node name="RunSession" type="Node" parent="."]
+script = ExtResource("6_run_session")
+RunSeed = 5573589318791800903
+MapLevel = 1
+
+[node name="Player3D" parent="." instance=ExtResource("2_player")]
+position = Vector3(11, 0, 0)
+
+[node name="GameFlow3D" type="Node" parent="."]
+script = ExtResource("7_flow")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Status" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 1100.0
+offset_bottom = 100.0
+theme_override_colors/font_color = Color(0.82, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "CROWD NAVIGATION STRESS | 24 AGENTS | PLANAR XZ"

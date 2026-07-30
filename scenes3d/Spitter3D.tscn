@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/SpitterController3D.cs" id="1_spitter"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts3d/HitFlash3D.cs" id="7_hit_flash"]
 [ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="8_death_feedback"]
 [ext_resource type="Script" path="res://scripts3d/EnemyNavigation3D.cs" id="9_enemy_navigation"]
+[ext_resource type="Script" path="res://scripts3d/EnemyCrowdAgent3D.cs" id="10_crowd_agent"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_spitter"]
 radius = 0.45
@@ -48,6 +49,15 @@ AgentPathDesiredDistance = 0.25
 AgentTargetDesiredDistance = 1.1
 AgentPathMaxDistance = 5.0
 UsePlanarPathLookahead = true
+
+[node name="EnemyCrowdAgent3D" type="Node" parent="."]
+script = ExtResource("10_crowd_agent")
+BodyRadius = 0.45
+PersonalSpace = 0.1
+SeparationWeight = 0.85
+MaxSeparationSpeedRatio = 0.6
+CongestionSeconds = 0.8
+MinimumProgressDistance = 0.08
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 position = Vector3(0, 0.5, 0)

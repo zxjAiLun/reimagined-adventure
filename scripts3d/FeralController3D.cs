@@ -33,6 +33,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     public Vector3 LockedTargetPosition { get; private set; }
     public AreaTelegraph3D ActiveTelegraph => _activeTelegraph;
     public EnemyNavigation3D Navigation => _navigation;
+    public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
     public bool NavigationMovementSuppressed { get; set; }
 
     private HealthComponent _health;
@@ -47,6 +48,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     private bool _deathHandled;
     private RunSessionNode _runSession;
     private EnemyNavigation3D _navigation;
+    private EnemyCrowdAgent3D _crowdAgent;
 
     public override void _Ready()
     {
@@ -59,6 +61,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
+        _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
         _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         FindPlayer();
         RefreshVisuals();
@@ -171,15 +174,23 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         var previousPosition = GlobalPosition;
         _navigation.SetTarget(_player.GlobalPosition);
         var direction = _navigation.GetDesiredDirection(GlobalPosition, frameDelta);
-        Velocity = direction.LengthSquared() > 0.001f
+        var navigationVelocity = direction.LengthSquared() > 0.001f
             ? direction * MoveSpeed
             : Vector3.Zero;
+        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, MoveSpeed)
+            ?? navigationVelocity;
         if (direction.LengthSquared() > 0.001f && !NavigationMovementSuppressed)
         {
             MoveAndSlide();
         }
 
         _navigation.NotifyMovement(previousPosition, GlobalPosition, frameDelta);
+        _crowdAgent?.NotifyMovement(
+            _navigation,
+            direction,
+            previousPosition,
+            GlobalPosition,
+            frameDelta);
     }
 
     private void FindPlayer()
@@ -255,6 +266,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         _activeTelegraph?.Cancel();
         _activeTelegraph = null;
         State = FeralState3D.Dead;
+        _crowdAgent?.SetActive(false);
         Velocity = Vector3.Zero;
         CollisionLayer = 0;
         CollisionMask = 0;

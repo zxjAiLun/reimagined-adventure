@@ -39,6 +39,13 @@ approach/retreat through the same adapter, keeping it inside a preferred
 distance band while preserving its locked Aim/Windup telegraph direction.
 Navigation is currently planar XZ: actors do not jump, traverse multilevel
 terrain, or trigger runtime rebakes.
+Stage 3C adds a separate `CrowdNavigationStressArena3D.tscn` with a saved
+offline navigation resource, 24-agent default pressure (16 Feral and 8
+Spitter), deterministic symmetric separation, congestion recovery, and
+registration cleanup when dynamically spawned enemies leave the tree. Its
+`CrowdNavigation3DRegressionSmoke` expands the same arena to 40 agents and
+keeps the pair pass bounded at `n(n-1)/2`; the legacy `GreyboxStressArena3D`
+is unchanged.
 Combat hits now also publish authoritative DamageResult feedback: positive hits
 create world-space damage numbers, trigger isolated-material hit flashes, and
 run immediate collision/physics cleanup plus a short death scale presentation.
@@ -96,8 +103,10 @@ damage numbers, zero-damage filtering, multi-projectile hits, pause freezing,
 hit flash, death cleanup, loot, and Boss Map Complete, and
 `NavigationFoundation3DRegressionSmoke.tscn` for baked planar obstacle routing,
 pause safety, Feral Windup, and dynamic Feral registration. CI runs these
-alongside `SpitterNavigation3DRegressionSmoke.tscn` and the legacy 2D smokes
-from `.github/workflows/ci.yml`.
+alongside `SpitterNavigation3DRegressionSmoke.tscn`,
+`CrowdNavigation3DRegressionSmoke.tscn` for 24/40-agent separation,
+congestion, pause, and unregister contracts, and the legacy 2D smokes from
+`.github/workflows/ci.yml`.
 
 ## Migration boundaries
 
