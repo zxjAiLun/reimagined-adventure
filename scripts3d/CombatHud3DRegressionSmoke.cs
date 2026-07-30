@@ -42,7 +42,7 @@ public partial class CombatHud3DRegressionSmoke : Node
         {
             if (_elapsed > 10.0)
             {
-                Fail("HUD runtime nodes did not become ready");
+                Fail($"HUD runtime nodes did not become ready run={run != null} arena={arena != null} hud={hud != null} player={player != null} skills={skills != null} flow={flow != null} rewards={rewards != null} boss={boss != null} flow_label={flowLabel != null} primary={primaryLabel != null} secondary={secondaryLabel != null} utility={utilityLabel != null} movement={movementLabel != null}");
             }
 
             return;
