@@ -30,6 +30,9 @@ public partial class EnemyCrowdAgent3D : Node
     public int CrowdId { get; private set; }
     public bool IsActive => _active;
     public Vector3 WorldPosition => GetParent<Node3D>()?.GlobalPosition ?? Vector3.Zero;
+    public EnemyCrowdCoordinator3D Coordinator => _coordinator;
+    public bool IsRegisteredWith(EnemyCrowdCoordinator3D coordinator) =>
+        ReferenceEquals(_coordinator, coordinator);
     public int NeighborCount => _neighborCount;
     public float CrowdPressure => _pairPressure;
     public Vector3 SeparationVelocity => _pairCorrection;
@@ -42,6 +45,10 @@ public partial class EnemyCrowdAgent3D : Node
     {
         ProcessMode = ProcessModeEnum.Pausable;
         TryRegisterWithCoordinator();
+        if (_coordinator == null)
+        {
+            CallDeferred(nameof(TryRegisterWithCoordinator));
+        }
     }
 
     public override void _ExitTree()
@@ -60,6 +67,7 @@ public partial class EnemyCrowdAgent3D : Node
         _active = active;
         if (!active)
         {
+            CancelPendingRecovery();
             _coordinator?.Unregister(this);
             _pairCorrection = Vector3.Zero;
             _pairPressure = 0.0f;
@@ -123,6 +131,7 @@ public partial class EnemyCrowdAgent3D : Node
             || _neighborCount < 2
             || _pairPressure < CongestionPressureThreshold)
         {
+            CancelPendingRecovery();
             _congestionElapsed = 0.0f;
             _progressDistance = 0.0f;
             IsCongested = false;
@@ -135,6 +144,7 @@ public partial class EnemyCrowdAgent3D : Node
 
         if (_progressDistance >= MinimumProgressDistance)
         {
+            CancelPendingRecovery();
             _congestionElapsed = 0.0f;
             _progressDistance = 0.0f;
             IsCongested = false;
@@ -204,9 +214,33 @@ public partial class EnemyCrowdAgent3D : Node
             return;
         }
 
-        var coordinator = GetTree().GetFirstNodeInGroup("enemy_crowd_coordinators_3d")
-            as EnemyCrowdCoordinator3D;
+        var coordinator = FindMapCoordinator();
         coordinator?.Register(this);
+    }
+
+    private EnemyCrowdCoordinator3D FindMapCoordinator()
+    {
+        Node current = GetParent();
+        while (current != null)
+        {
+            var coordinator = current.GetNodeOrNull<EnemyCrowdCoordinator3D>(
+                "EnemyCrowdCoordinator3D");
+            if (coordinator != null)
+            {
+                return coordinator;
+            }
+
+            current = current.GetParent();
+        }
+
+        return null;
+    }
+
+    private void CancelPendingRecovery()
+    {
+        _recoveryPending = false;
+        _recoveryDelayRemaining = 0.0f;
+        _pendingRecoveryNavigation = null;
     }
 
     private void BeginRecovery()

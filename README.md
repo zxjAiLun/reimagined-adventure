@@ -106,7 +106,9 @@ pause safety, Feral Windup, and dynamic Feral registration. CI runs these
 alongside `SpitterNavigation3DRegressionSmoke.tscn`,
 `CrowdNavigation3DRegressionSmoke.tscn` for 24/40-agent separation,
 congestion, pause, and unregister contracts, and the legacy 2D smokes from
-`.github/workflows/ci.yml`.
+`.github/workflows/ci.yml`. `CrowdNavigationMapLifecycle3DRegressionSmoke.tscn`
+also exercises the old-map QueueFree/new-map overlap window and verifies that
+the new map keeps its own coordinator binding.
 
 ## Migration boundaries
 

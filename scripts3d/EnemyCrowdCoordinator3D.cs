@@ -26,6 +26,20 @@ public partial class EnemyCrowdCoordinator3D : Node
         AddToGroup("enemy_crowd_coordinators_3d");
     }
 
+    public override void _ExitTree()
+    {
+        for (var i = 0; i < _agents.Count; i++)
+        {
+            if (GodotObject.IsInstanceValid(_agents[i]))
+            {
+                _agents[i].ClearCoordinator(this);
+            }
+        }
+
+        _agents.Clear();
+        _registered.Clear();
+    }
+
     public bool Register(EnemyCrowdAgent3D agent)
     {
         if (!GodotObject.IsInstanceValid(agent) || _registered.Contains(agent))
