@@ -40,6 +40,8 @@ jobs:
         run: |
           & $env:GODOT_EXECUTABLE --headless --editor --path $env:GITHUB_WORKSPACE --quit --build-solutions
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build ".\reimagined adventure.csproj" --configuration Debug
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Main scene load
         shell: pwsh
