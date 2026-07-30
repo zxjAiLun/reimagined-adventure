@@ -23,12 +23,13 @@ public static class MapRuntimeScope3D
 
     public static RunSessionNode FindRunSession(Node origin)
     {
-        TestArena3D map = null;
+        RunSessionNode fallbackSession = null;
         for (var current = origin; current != null; current = current.GetParent())
         {
-            if (current is TestArena3D currentMap)
+            var localSession = current.GetNodeOrNull<RunSessionNode>("RunSession");
+            if (localSession != null)
             {
-                map = currentMap;
+                fallbackSession = localSession;
             }
 
             if (current is RunSessionNode session)
@@ -37,6 +38,6 @@ public static class MapRuntimeScope3D
             }
         }
 
-        return map?.GetNodeOrNull<RunSessionNode>("RunSession");
+        return fallbackSession;
     }
 }
