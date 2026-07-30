@@ -27,7 +27,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     [Export] public PackedScene AreaTelegraphScene { get; set; }
     [Export] public PackedScene LineTelegraphScene { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
-    [Export] public bool AllowDirectChaseWithoutNavigation { get; set; } = true;
 
     public CombatFaction Faction => CombatFaction.Enemy;
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
@@ -216,47 +215,19 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         State = BrimstoneColossusState3D.Chasing;
         if (_navigation == null)
         {
-            if (!AllowDirectChaseWithoutNavigation)
-            {
-                Velocity = Vector3.Zero;
-                return;
-            }
-
-            // Preserve the open-arena fallback used by legacy 3D combat
-            // fixtures. Dedicated navigation maps still take the adapter
-            // path above; an arena without a synchronized NavMesh can chase
-            // directly instead of silently freezing the Boss.
-            Velocity = toPlayer.LengthSquared() > 0.001f
-                ? toPlayer.Normalized() * _moveSpeed
-                : Vector3.Zero;
-            if (Velocity.LengthSquared() > 0.001f)
-            {
-                MoveAndSlide();
-            }
-
+            Velocity = Vector3.Zero;
             return;
         }
 
         var previousPosition = GlobalPosition;
         _navigation.SetTarget(_player.GlobalPosition);
         var direction = _navigation.GetDesiredDirection(GlobalPosition, frameDelta);
-        if (!_navigation.IsNavigationReady || !_navigation.HasPath)
+        if (!_navigation.IsNavigationReady
+            || !_navigation.HasPath
+            || !_navigation.IsTargetReachable)
         {
-            if (!AllowDirectChaseWithoutNavigation)
-            {
-                Velocity = Vector3.Zero;
-                _navigation.NotifyMovement(previousPosition, GlobalPosition, frameDelta);
-                return;
-            }
-
-            Velocity = toPlayer.LengthSquared() > 0.001f
-                ? toPlayer.Normalized() * _moveSpeed
-                : Vector3.Zero;
-            if (Velocity.LengthSquared() > 0.001f)
-            {
-                MoveAndSlide();
-            }
-
+            Velocity = Vector3.Zero;
+            _navigation.NotifyMovement(previousPosition, GlobalPosition, frameDelta);
             return;
         }
 

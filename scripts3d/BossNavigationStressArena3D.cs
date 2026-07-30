@@ -13,6 +13,7 @@ public partial class BossNavigationStressArena3D : Node3D
     [Export] public int FeralCount { get; set; } = 1;
     [Export] public int SpitterCount { get; set; }
     [Export] public bool SpawnBoss { get; set; } = true;
+    [Export] public bool UsePressureSpawnLayout { get; set; }
 
     private readonly List<Node3D> _spawnedEnemies = new();
     private BrimstoneColossusController3D _boss;
@@ -45,12 +46,24 @@ public partial class BossNavigationStressArena3D : Node3D
         var startIndex = _spawnedEnemies.Count;
         for (var i = 0; i < feralCount; i++)
         {
-            SpawnEnemy(FeralScene, GetSmallSpawnPosition(startIndex + i));
+            SpawnEnemy(FeralScene, GetSpawnPosition(startIndex + i));
         }
 
         for (var i = 0; i < spitterCount; i++)
         {
-            SpawnEnemy(SpitterScene, GetSmallSpawnPosition(startIndex + feralCount + i));
+            SpawnEnemy(SpitterScene, GetSpawnPosition(startIndex + feralCount + i));
+        }
+    }
+
+    public void ResetSmallAgentsForNavigationPressureTest()
+    {
+        var smallIndex = 0;
+        for (var i = 0; i < _spawnedEnemies.Count; i++)
+        {
+            if (_spawnedEnemies[i] is FeralController3D feral)
+            {
+                feral.ResetForNavigationPressureTest(GetPressureSpawnPosition(smallIndex++));
+            }
         }
     }
 
@@ -67,9 +80,8 @@ public partial class BossNavigationStressArena3D : Node3D
         }
 
         _boss = BossScene.Instantiate<BrimstoneColossusController3D>();
+        _boss.Position = new Vector3(-10.0f, 0.0f, 1.8f);
         AddChild(_boss);
-        _boss.AllowDirectChaseWithoutNavigation = false;
-        _boss.GlobalPosition = new Vector3(-10.0f, 0.0f, 1.8f);
         _spawnedEnemies.Add(_boss);
         return _boss;
     }
@@ -102,5 +114,19 @@ public partial class BossNavigationStressArena3D : Node3D
         var row = index % 5;
         var column = index / 5;
         return new Vector3(-10.0f + column * 0.7f, 0.0f, -6.0f + row * 2.6f);
+    }
+
+    private static Vector3 GetPressureSpawnPosition(int index)
+    {
+        var row = index % 2;
+        var column = index / 2;
+        return new Vector3(-12.0f + column * 1.4f, 0.0f, row == 0 ? -9.0f : 9.0f);
+    }
+
+    private Vector3 GetSpawnPosition(int index)
+    {
+        return UsePressureSpawnLayout
+            ? GetPressureSpawnPosition(index)
+            : GetSmallSpawnPosition(index);
     }
 }

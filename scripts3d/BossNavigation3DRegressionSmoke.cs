@@ -40,6 +40,11 @@ public partial class BossNavigation3DRegressionSmoke : Node
     private bool _slamSnapshotCaptured;
     private bool _spearSnapshotCaptured;
     private bool _pauseStarted;
+    private bool _noPathLayerDisabled;
+    private bool _noPathObserved;
+    private Vector3 _noPathGuardPosition;
+    private int _noPathSlamCount;
+    private int _noPathSpearCount;
 
     public override void _Ready()
     {
@@ -74,24 +79,27 @@ public partial class BossNavigation3DRegressionSmoke : Node
                 ObserveNavigationLayers();
                 break;
             case 3:
-                ObserveBossRoute();
+                ObserveNoPathGuard();
                 break;
             case 4:
-                ObserveSlamLock();
+                ObserveBossRoute();
                 break;
             case 5:
-                PrepareSpearLock();
+                ObserveSlamLock();
                 break;
             case 6:
-                ObserveSpearLock();
+                PrepareSpearLock();
                 break;
             case 7:
-                PreparePause();
+                ObserveSpearLock();
                 break;
             case 8:
-                ObservePause();
+                PreparePause();
                 break;
             case 9:
+                ObservePause();
+                break;
+            case 10:
                 ObserveResumeThenDeath();
                 break;
         }
@@ -206,6 +214,68 @@ public partial class BossNavigation3DRegressionSmoke : Node
         NextStage();
     }
 
+    private void ObserveNoPathGuard()
+    {
+        var navigation = _boss.Navigation;
+        if (navigation == null || navigation.Agent == null)
+        {
+            Fail("Boss navigation adapter disappeared before no-path guard");
+            return;
+        }
+
+        if (!_noPathLayerDisabled)
+        {
+            _boss.GlobalPosition = new Vector3(-10.0f, 0.0f, 0.0f);
+            _player.GlobalPosition = new Vector3(10.0f, 0.0f, 0.0f);
+            navigation.Agent.NavigationLayers = 4;
+            navigation.RequestRepath();
+            _noPathGuardPosition = _boss.GlobalPosition;
+            _noPathSlamCount = _boss.MagmaSlamCount;
+            _noPathSpearCount = _boss.FlameSpearCount;
+            _noPathLayerDisabled = true;
+            _stageElapsed = 0.0;
+            return;
+        }
+
+        var noPath = !navigation.IsNavigationReady
+            || !navigation.HasPath
+            || !navigation.IsTargetReachable;
+        _noPathObserved |= noPath;
+        if (_stageElapsed < 0.8)
+        {
+            if (navigation.IsNavigationReady
+                && navigation.HasPath
+                && navigation.IsTargetReachable)
+            {
+                FailIfTimedOut(
+                    "Boss navigation layer override did not produce an unusable path",
+                    3.0);
+            }
+
+            return;
+        }
+
+        if (!_noPathObserved)
+        {
+            Fail("Boss no-path guard never observed an unavailable navigation route");
+            return;
+        }
+
+        if (_boss.GlobalPosition.DistanceTo(_noPathGuardPosition) > 0.01f
+            || _boss.MagmaSlamCount != _noPathSlamCount
+            || _boss.FlameSpearCount != _noPathSpearCount
+            || IsInsideObstacle(_boss.GlobalPosition)
+            || IsInside(_arena.NarrowChoke, _boss.GlobalPosition, 0.0f))
+        {
+            Fail("Boss moved or attacked while navigation was unavailable");
+            return;
+        }
+
+        navigation.Agent.NavigationLayers = 2;
+        navigation.RequestRepath();
+        NextStage();
+    }
+
     private void ObserveBossRoute()
     {
         if (!_navContractObserved)
@@ -244,7 +314,13 @@ public partial class BossNavigation3DRegressionSmoke : Node
 
         FailIfTimedOut(
             $"Boss did not navigate into Slam range distance={distance:0.00} "
-            + $"reachable={_boss.Navigation.IsTargetReachable} path={_boss.Navigation.PathLength:0.00}", 18.0);
+            + $"pos={_boss.GlobalPosition} direction={_boss.Navigation.DesiredDirection} "
+            + $"reachable={_boss.Navigation.IsTargetReachable} path={_boss.Navigation.PathLength:0.00} "
+            + $"agentIndex={_boss.Navigation.Agent.GetCurrentNavigationPathIndex()} "
+            + $"steeringIndex={_boss.Navigation.SteeringPathIndex} "
+            + $"steeringTarget={_boss.Navigation.SteeringTargetPosition} "
+            + $"lookahead={_boss.Navigation.UsePlanarPathLookahead} "
+            + $"points={FormatPath(_boss.Navigation.Agent.GetCurrentNavigationPath())}", 30.0);
     }
 
     private void ObserveSlamLock()

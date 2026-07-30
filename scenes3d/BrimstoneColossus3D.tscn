@@ -41,7 +41,6 @@ AreaEffectScene = ExtResource("5_area")
 ItemDropScene = ExtResource("6_drop")
 AreaTelegraphScene = ExtResource("7_area_telegraph")
 LineTelegraphScene = ExtResource("8_line_telegraph")
-AllowDirectChaseWithoutNavigation = true
 
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
 navigation_layers = 2

@@ -160,7 +160,7 @@ public partial class EnemyNavigation3D : Node
             if (!_agent.IsNavigationFinished()
                 && TryFindHorizontalPathLookahead(
                     path,
-                    currentPathIndex,
+                    currentPathIndex + 1,
                     currentPosition,
                     Mathf.Max(0.5f, _agent.PathDesiredDistance),
                     out var lookaheadIndex,

@@ -44,8 +44,9 @@ public partial class Brimstone3DRegressionSmoke : Node
                 $"BRIMSTONE_3D_SPIKE_FAIL state={_boss.State}"
                 + $" slam={_boss.MagmaSlamCount} spear={_boss.FlameSpearCount}"
                 + $" player_hp={_player.CurrentHealth} boss_pos={_boss.GlobalPosition}"
-                + $" direct_fallback={_boss.AllowDirectChaseWithoutNavigation}"
                 + $" nav_ready={_boss.Navigation?.IsNavigationReady}"
+                + $" nav_path={_boss.Navigation?.HasPath}"
+                + $" reachable={_boss.Navigation?.IsTargetReachable}"
                 + $" repath={_boss.Navigation?.RepathCount}");
             GetTree().Quit(1);
         }

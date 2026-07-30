@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/TestArena3D.cs" id="1_arena"]
 [ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="2_camera_rig"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts3d/SaveBoundaryNode3D.cs" id="11_save"]
 [ext_resource type="PackedScene" path="res://scenes3d/DamageNumber3D.tscn" id="12_damage_number"]
 [ext_resource type="Script" path="res://scripts3d/DamageNumberSpawner3D.cs" id="13_damage_spawner"]
+[ext_resource type="NavigationMesh" path="res://resources/TestArenaNavigation.tres" id="14_navigation"]
 
 [sub_resource type="Environment" id="Environment_arena"]
 background_mode = 1
@@ -94,7 +95,7 @@ RunSeed = 5573589318791800903
 MapLevel = 1
 
 [node name="Obstacle" type="StaticBody3D" parent="."]
-position = Vector3(2, 0.8, 0)
+position = Vector3(2, 0.8, -4)
 collision_layer = 1
 collision_mask = 0
 
@@ -103,6 +104,14 @@ shape = SubResource("BoxShape3D_obstacle")
 
 [node name="Mesh" type="MeshInstance3D" parent="Obstacle"]
 mesh = SubResource("BoxMesh_obstacle")
+
+[node name="SmallNavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_layers = 1
+navigation_mesh = ExtResource("14_navigation")
+
+[node name="LargeNavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_layers = 2
+navigation_mesh = ExtResource("14_navigation")
 
 [node name="Player3D" parent="." instance=ExtResource("3_player")]
 

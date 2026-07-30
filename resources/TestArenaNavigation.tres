@@ -1,0 +1,9 @@
+[gd_resource type="NavigationMesh" format=3]
+
+[resource]
+vertices = PackedVector3Array(-11.5, 0.3, -7.5, 11.5, 0.3, -7.5, 11.5, 0.3, 7.5, -11.5, 0.3, 7.5)
+polygons = [PackedInt32Array(1, 0, 2), PackedInt32Array(2, 0, 3)]
+geometry_parsed_geometry_type = 1
+geometry_collision_mask = 1
+agent_height = 2.4
+agent_radius = 1.2
