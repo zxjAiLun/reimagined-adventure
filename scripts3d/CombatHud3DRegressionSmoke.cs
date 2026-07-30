@@ -31,6 +31,11 @@ public partial class CombatHud3DRegressionSmoke : Node
         var rewards = arena?.GetNodeOrNull<MapRewardNode3D>("MapRewards3D");
         var boss = arena?.GetNodeOrNull<BrimstoneColossusController3D>("BrimstoneColossus3D")
             ?? GetTree().GetFirstNodeInGroup("bosses_3d") as BrimstoneColossusController3D;
+        if (boss == null && arena != null)
+        {
+            PrepareEncounterBossForHud(arena);
+        }
+
         var flowLabel = hud?.GetNodeOrNull<Label>("PlayerPanel/FlowState");
         var primaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Primary");
         var secondaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Secondary");
@@ -192,6 +197,27 @@ public partial class CombatHud3DRegressionSmoke : Node
         if (_elapsed > 20.0)
         {
             Fail($"HUD smoke timed out at stage {_stage}");
+        }
+    }
+
+    private static void PrepareEncounterBossForHud(TestArena3D arena)
+    {
+        var director = arena.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
+        if (director == null || director.IsEncounterComplete())
+        {
+            return;
+        }
+
+        foreach (var enemy in director.GetActiveEnemies())
+        {
+            if (enemy is ICombatTarget target && target.IsAlive)
+            {
+                target.ApplyDamage(new DamageRequest(
+                    9999,
+                    DamageType.Physical,
+                    "combat_hud_prepare_boss",
+                    CombatFaction.Player));
+            }
         }
     }
 
