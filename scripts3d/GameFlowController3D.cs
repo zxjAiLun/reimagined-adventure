@@ -23,9 +23,13 @@ public partial class GameFlowController3D : Node
     private bool _playerBound;
     private bool _bossBound;
     private bool _encounterBound;
+    private bool _exiting;
+    private int _bindAttempts;
 
     public override void _Ready()
     {
+        _exiting = false;
+        _bindAttempts = 0;
         ProcessMode = ProcessModeEnum.Always;
         AddToGroup("game_flows_3d");
         SetProcessUnhandledInput(true);
@@ -35,6 +39,7 @@ public partial class GameFlowController3D : Node
 
     public override void _ExitTree()
     {
+        _exiting = true;
         if (_playerBound)
         {
             var playerHealth = _player?.GetNodeOrNull<HealthComponent>("HealthComponent");
@@ -61,6 +66,12 @@ public partial class GameFlowController3D : Node
 
     private void BindRuntimeNodes()
     {
+        if (_exiting || !IsInsideTree())
+        {
+            return;
+        }
+
+        _bindAttempts++;
         if (_player == null)
         {
             _player = GetNodeOrNull<PlayerController3D>("../Player3D");
@@ -112,7 +123,10 @@ public partial class GameFlowController3D : Node
             }
         }
 
-        if (!_playerBound || (_encounterDirector?.Enabled != true && !_bossBound))
+        var legacyBossExists = GetNodeOrNull<BrimstoneColossusController3D>("../BrimstoneColossus3D") != null;
+        var needsRetry = !_playerBound
+            || (_encounterDirector?.Enabled != true && legacyBossExists && !_bossBound);
+        if (needsRetry && _bindAttempts < 60)
         {
             CallDeferred(nameof(BindRuntimeNodes));
         }
