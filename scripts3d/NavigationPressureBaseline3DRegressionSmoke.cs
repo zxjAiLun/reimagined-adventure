@@ -27,6 +27,9 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
     private int _pauseRepathCount;
     private int _pauseRecoveryCount;
     private Vector3 _pauseBossPosition;
+    private Vector3 _bossBaselinePosition;
+    private float _bossBaselineDistance;
+    private bool _bossBaselineCaptured;
 
     public override void _Ready()
     {
@@ -43,7 +46,7 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
     {
         _totalElapsed += delta;
         _stageElapsed += delta;
-        if (_totalElapsed > 45.0)
+        if (_totalElapsed > 60.0)
         {
             Fail($"timeout stage={_stage}");
             return;
@@ -99,18 +102,18 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
         }
 
         TrackMetrics();
-        if (_stageElapsed < 4.0)
+        if (_stageElapsed < 16.0)
         {
             return;
         }
 
-        if (!ValidatePressureStage("A", 24, metrics, minimumProgress: 16))
+        if (!ValidatePressureStage("A", 24, metrics, minimumSmallProgress: 20))
         {
             return;
         }
 
         GD.Print(FormatMetrics("A", metrics));
-        _arena.SpawnAdditionalWave(12, 4);
+        _arena.SpawnAdditionalWave(16, 0);
         _stageElapsed = 0.0;
         _stage = 2;
     }
@@ -123,6 +126,7 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
             return;
         }
 
+        _arena.ResetSmallAgentsForNavigationPressureTest();
         _expectedAgents = 40;
         CaptureBaselines();
         ResetMetrics();
@@ -139,12 +143,12 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
         }
 
         TrackMetrics();
-        if (_stageElapsed < 4.0)
+        if (_stageElapsed < 16.0)
         {
             return;
         }
 
-        if (!ValidatePressureStage("B", 40, metrics, minimumProgress: 28))
+        if (!ValidatePressureStage("B", 40, metrics, minimumSmallProgress: 32))
         {
             return;
         }
@@ -164,6 +168,7 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
             return;
         }
 
+        _arena.ResetSmallAgentsForNavigationPressureTest();
         _expectedAgents = 41;
         CaptureBaselines();
         ResetMetrics();
@@ -180,12 +185,17 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
         }
 
         TrackMetrics();
-        if (_stageElapsed < 4.0)
+        if (_stageElapsed < 16.0)
         {
             return;
         }
 
-        if (!ValidatePressureStage("C", 41, metrics, minimumProgress: 28))
+        if (!ValidatePressureStage(
+            "C",
+            41,
+            metrics,
+            minimumSmallProgress: 32,
+            requireBossProgress: true))
         {
             return;
         }
@@ -249,10 +259,25 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
     private void CaptureBaselines()
     {
         _baselines.Clear();
+        _bossBaselineCaptured = false;
         for (var i = 0; i < _coordinator.RegisteredAgentCount; i++)
         {
             var agent = _coordinator.GetRegisteredAgent(i);
-            if (agent != null && GodotObject.IsInstanceValid(agent))
+            if (agent == null || !GodotObject.IsInstanceValid(agent))
+            {
+                continue;
+            }
+
+            var actor = agent.GetParent<Node3D>();
+            if (actor is BrimstoneColossusController3D boss)
+            {
+                _bossBaselinePosition = boss.GlobalPosition;
+                _bossBaselineDistance = HorizontalDistance(
+                    boss.GlobalPosition,
+                    _player.GlobalPosition);
+                _bossBaselineCaptured = true;
+            }
+            else if (IsSmallAgent(actor))
             {
                 _baselines[agent.CrowdId] = agent.WorldPosition;
             }
@@ -263,6 +288,7 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
     {
         _maxPairEvaluations = 0;
         _maxSevereOverlaps = 0;
+        _coordinator.ResetPhysicsTimingMetrics();
     }
 
     private void TrackMetrics()
@@ -298,17 +324,28 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
                 return metrics;
             }
 
-            if (_baselines.TryGetValue(agent.CrowdId, out var baseline)
+            var isSmallAgent = IsSmallAgent(actor);
+            if (isSmallAgent
+                && _baselines.TryGetValue(agent.CrowdId, out var baseline)
                 && HorizontalDistance(actor.GlobalPosition, _player.GlobalPosition)
                     <= HorizontalDistance(baseline, _player.GlobalPosition) - 0.5f)
             {
-                metrics.ProgressCount++;
+                metrics.SmallAgentProgressCount++;
             }
 
             var navigation = actor.GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
-            if (navigation != null && navigation.HasPath)
+            if (isSmallAgent && navigation != null && navigation.HasPath)
             {
-                metrics.PathCount++;
+                metrics.SmallAgentPathCount++;
+            }
+
+            if (actor is BrimstoneColossusController3D boss)
+            {
+                metrics.BossHasPath = navigation != null && navigation.HasPath;
+                metrics.BossMadeProgress = _bossBaselineCaptured
+                    && (HorizontalDistance(boss.GlobalPosition, _bossBaselinePosition) >= 0.5f
+                        || HorizontalDistance(boss.GlobalPosition, _player.GlobalPosition)
+                            <= _bossBaselineDistance - 0.5f);
             }
 
             if (navigation != null && navigation.IsStuck)
@@ -325,10 +362,18 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
         metrics.Valid = true;
         metrics.PairEvaluations = _coordinator.PairEvaluationCount;
         metrics.SevereOverlaps = _coordinator.SevereOverlapPairCount;
+        metrics.AveragePhysicsMilliseconds = _coordinator.AveragePhysicsMilliseconds;
+        metrics.MaxPhysicsMilliseconds = _coordinator.MaxPhysicsMilliseconds;
+        metrics.PhysicsSampleCount = _coordinator.PhysicsSampleCount;
         return metrics;
     }
 
-    private bool ValidatePressureStage(string label, int expected, PressureMetrics metrics, int minimumProgress)
+    private bool ValidatePressureStage(
+        string label,
+        int expected,
+        PressureMetrics metrics,
+        int minimumSmallProgress,
+        bool requireBossProgress = false)
     {
         var pairLimit = expected * (expected - 1) / 2;
         if (metrics.PairEvaluations > pairLimit)
@@ -337,10 +382,18 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
             return false;
         }
 
-        if (metrics.ProgressCount + metrics.PathCount < minimumProgress)
+        if (metrics.SmallAgentProgressCount < minimumSmallProgress)
         {
-            Fail($"stage {label} insufficient navigation progress "
-                + $"progress={metrics.ProgressCount} paths={metrics.PathCount}/{expected}");
+            Fail($"stage {label} insufficient actual small-agent progress "
+                + $"progress={metrics.SmallAgentProgressCount} "
+                + $"paths={metrics.SmallAgentPathCount}/{expected - (requireBossProgress ? 1 : 0)}");
+            return false;
+        }
+
+        if (requireBossProgress && (!metrics.BossMadeProgress || !metrics.BossHasPath))
+        {
+            Fail($"stage {label} Boss did not make actual navigation progress "
+                + $"moved={metrics.BossMadeProgress} hasPath={metrics.BossHasPath}");
             return false;
         }
 
@@ -358,8 +411,13 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
     {
         return $"NAVIGATION_PRESSURE_{label} agents={_expectedAgents}"
             + $" pairEvaluations={metrics.PairEvaluations} severe={metrics.SevereOverlaps}"
-            + $" progress={metrics.ProgressCount} paths={metrics.PathCount}"
-            + $" stuck={metrics.StuckCount} congested={metrics.CongestedCount}";
+            + $" smallProgress={metrics.SmallAgentProgressCount}"
+            + $" smallPaths={metrics.SmallAgentPathCount}"
+            + $" bossProgress={metrics.BossMadeProgress} bossPath={metrics.BossHasPath}"
+            + $" stuck={metrics.StuckCount} congested={metrics.CongestedCount}"
+            + $" avgPhysicsMs={metrics.AveragePhysicsMilliseconds:0.000}"
+            + $" maxPhysicsMs={metrics.MaxPhysicsMilliseconds:0.000}"
+            + $" samples={metrics.PhysicsSampleCount}";
     }
 
     private int SumRepathCounts()
@@ -403,6 +461,11 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
         return first.DistanceTo(second);
     }
 
+    private static bool IsSmallAgent(Node3D actor)
+    {
+        return actor is FeralController3D || actor is SpitterController3D;
+    }
+
     private void NextStage()
     {
         _stage++;
@@ -429,8 +492,13 @@ public partial class NavigationPressureBaseline3DRegressionSmoke : Node
         public string Error = string.Empty;
         public int PairEvaluations;
         public int SevereOverlaps;
-        public int ProgressCount;
-        public int PathCount;
+        public int SmallAgentProgressCount;
+        public int SmallAgentPathCount;
+        public bool BossMadeProgress;
+        public bool BossHasPath;
+        public double AveragePhysicsMilliseconds;
+        public double MaxPhysicsMilliseconds;
+        public int PhysicsSampleCount;
         public int StuckCount;
         public int CongestedCount;
     }

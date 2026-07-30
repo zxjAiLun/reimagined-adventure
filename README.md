@@ -49,10 +49,18 @@ the 1.8 m central choke, while the 1.2 m radius Boss mesh excludes that choke
 and uses the 3.2 m-plus end routes. `BossNavigation3DRegressionSmoke` verifies
 large-agent routing, Feral access to the narrow route, crowd-safe locked Slam
 and Spear attacks, pause/resume, and immediate Boss death cleanup.
-`NavigationPressureBaseline3DRegressionSmoke` records the 24-agent, 40-agent,
-and 40-agent-plus-Boss pair-work baselines and verifies that GameOver freezes
-navigation metrics. Both meshes are repository resources; this stage does not
-rebake navigation at runtime and does not enable RVO avoidance.
+`NavigationPressureBaseline3DRegressionSmoke` uses a pressure-only wall-safe
+Feral layout and requires actual progress from at least 20/24 and 32/40 small
+agents; path ownership is diagnostic only. Its 40-agent-plus-Boss stage checks
+small-agent progress separately from Boss displacement/distance progress and
+also verifies that GameOver freezes navigation metrics. The shared Boss
+controller has no direct-chase fallback: missing, unsynchronized, unreachable,
+or pathless navigation stops the Boss. `TestArena3D` uses the saved
+`resources/TestArenaNavigation.tres` for both small and large layers, and its
+Boss smoke includes the unavailable-layer stop/recovery path. The pressure smoke
+prints coordinator physics timing for 24, 40, and 40-plus-Boss samples. Both
+meshes are repository resources; this stage does not rebake navigation at
+runtime and does not enable RVO avoidance.
 Navigation is currently planar XZ: actors do not jump, traverse multilevel
 terrain, or trigger runtime rebakes.
 Combat hits now also publish authoritative DamageResult feedback: positive hits

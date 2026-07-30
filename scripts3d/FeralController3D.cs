@@ -36,6 +36,22 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
     public bool NavigationMovementSuppressed { get; set; }
 
+    public void ResetForNavigationPressureTest(Vector3 position)
+    {
+        if (!IsAlive)
+        {
+            return;
+        }
+
+        _activeTelegraph?.Cancel();
+        _activeTelegraph = null;
+        State = FeralState3D.Chasing;
+        _stateRemaining = 0.0f;
+        _attackCooldownRemaining = 0.0f;
+        GlobalPosition = new Vector3(position.X, 0.0f, position.Z);
+        _navigation?.RequestRepath();
+    }
+
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
     private HitFlash3D _hitFlash;

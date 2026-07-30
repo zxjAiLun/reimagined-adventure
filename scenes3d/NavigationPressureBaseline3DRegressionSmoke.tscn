@@ -8,6 +8,7 @@ process_mode = 3
 script = ExtResource("1_smoke")
 
 [node name="Arena3D" parent="." instance=ExtResource("2_arena")]
-FeralCount = 16
-SpitterCount = 8
+FeralCount = 24
+SpitterCount = 0
 SpawnBoss = false
+UsePressureSpawnLayout = true

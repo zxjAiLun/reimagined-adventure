@@ -19,6 +19,10 @@ public partial class EnemyCrowdCoordinator3D : Node
     public int PairEvaluationCount { get; private set; }
     public int SevereOverlapPairCount { get; private set; }
     public int UpdateCount { get; private set; }
+    public double LastPhysicsMilliseconds { get; private set; }
+    public double AveragePhysicsMilliseconds { get; private set; }
+    public double MaxPhysicsMilliseconds { get; private set; }
+    public int PhysicsSampleCount { get; private set; }
 
     public override void _Ready()
     {
@@ -77,6 +81,7 @@ public partial class EnemyCrowdCoordinator3D : Node
 
     public override void _PhysicsProcess(double delta)
     {
+        var startedAt = Time.GetTicksUsec();
         UpdateCount++;
         PairEvaluationCount = 0;
         SevereOverlapPairCount = 0;
@@ -121,6 +126,21 @@ public partial class EnemyCrowdCoordinator3D : Node
         {
             _agents[i].FinishCrowdFrame();
         }
+
+        LastPhysicsMilliseconds = (Time.GetTicksUsec() - startedAt) / 1000.0;
+        PhysicsSampleCount++;
+        AveragePhysicsMilliseconds =
+            ((AveragePhysicsMilliseconds * (PhysicsSampleCount - 1)) + LastPhysicsMilliseconds)
+            / PhysicsSampleCount;
+        MaxPhysicsMilliseconds = Mathf.Max((float)MaxPhysicsMilliseconds, (float)LastPhysicsMilliseconds);
+    }
+
+    public void ResetPhysicsTimingMetrics()
+    {
+        LastPhysicsMilliseconds = 0.0;
+        AveragePhysicsMilliseconds = 0.0;
+        MaxPhysicsMilliseconds = 0.0;
+        PhysicsSampleCount = 0;
     }
 
     private void EvaluatePair(EnemyCrowdAgent3D first, EnemyCrowdAgent3D second)
