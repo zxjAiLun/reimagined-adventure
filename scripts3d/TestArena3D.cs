@@ -68,7 +68,7 @@ public partial class TestArena3D : Node3D
 
         var enemy = scene.Instantiate<T>();
         enemy.Name = nodeName;
-        AddChild(enemy);
         enemy.Position = position;
+        AddChild(enemy);
     }
 }
