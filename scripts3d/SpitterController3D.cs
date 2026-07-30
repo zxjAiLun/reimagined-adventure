@@ -75,7 +75,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
-        _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        _runSession = MapRuntimeScope3D.FindRunSession(this);
         FindPlayer();
         RefreshVisuals();
     }
@@ -91,7 +91,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
         _attackCooldownRemaining = Mathf.Max(0.0f, _attackCooldownRemaining - frameDelta);
         if (_player == null || !GodotObject.IsInstanceValid(_player))
         {
-            _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
+            FindPlayer();
         }
 
         if (_player == null || !GodotObject.IsInstanceValid(_player) || !_player.IsAlive)
@@ -180,7 +180,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
 
     private void FindPlayer()
     {
-        _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
+        _player = MapRuntimeScope3D.FindPlayer(this);
     }
 
     private void MoveOrBeginAim(float frameDelta)
@@ -371,7 +371,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
             return;
         }
 
-        _runSession ??= GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        _runSession ??= MapRuntimeScope3D.FindRunSession(this);
         if (_runSession == null)
         {
             GD.PushError("Spitter3D cannot drop loot without a RunSessionNode.");
