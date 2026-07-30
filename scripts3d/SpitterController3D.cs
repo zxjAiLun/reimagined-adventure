@@ -45,6 +45,8 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget
     public LineTelegraph3D ActiveTelegraph => _activeTelegraph;
     public EnemyNavigation3D Navigation => _navigation;
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
+    public RunSessionNode RunSession => _runSession;
+    public PlayerController3D TargetPlayer => _player;
     public Vector3 NavigationTargetPosition => _navigation?.TargetPosition ?? Vector3.Zero;
 
     private HealthComponent _health;

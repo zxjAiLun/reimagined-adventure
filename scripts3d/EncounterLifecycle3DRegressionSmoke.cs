@@ -263,6 +263,14 @@ public partial class EncounterLifecycle3DRegressionSmoke : Node
             var minimumDistance = feralSpawn?.MinimumPlayerDistance ?? 0.0f;
             foreach (var enemy in _secondDirector.GetActiveEnemies())
             {
+                if (enemy is FeralController3D feral
+                    && (!ReferenceEquals(feral.RunSession, _run)
+                        || !ReferenceEquals(feral.TargetPlayer, _secondPlayer)))
+                {
+                    Fail("second-map Feral did not bind the owning RunSession and local Player");
+                    return;
+                }
+
                 var distance = enemy.GlobalPosition.DistanceTo(_secondPlayer.GlobalPosition);
                 if (distance + 0.001f < minimumDistance)
                 {
@@ -294,6 +302,13 @@ public partial class EncounterLifecycle3DRegressionSmoke : Node
             _secondBoss = _secondDirector.ActiveBoss as BrimstoneColossusController3D;
             if (_secondBoss != null)
             {
+                if (!ReferenceEquals(_secondBoss.RunSession, _run)
+                    || !ReferenceEquals(_secondBoss.TargetPlayer, _secondPlayer))
+                {
+                    Fail("second-map Boss did not bind the owning RunSession and local Player");
+                    return;
+                }
+
                 _transitionStage = TransitionStage.VerifyingSecondBossHud;
             }
 

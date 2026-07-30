@@ -42,6 +42,19 @@ public partial class CombatHitFeedback3DRegressionSmoke : Node
         _boss = _arena.GetNode<BrimstoneColossusController3D>("BrimstoneColossus3D");
         _flow = _arena.GetNode<GameFlowController3D>("GameFlow3D");
         _numbers = _arena.GetNode<DamageNumberSpawner3D>("DamageNumberSpawner3D");
+
+        var fallbackSession = _arena.GetNode<RunSessionNode>("RunSession");
+        if (!ReferenceEquals(_feral.RunSession, fallbackSession)
+            || !ReferenceEquals(_spitter.RunSession, fallbackSession)
+            || !ReferenceEquals(_boss.RunSession, fallbackSession)
+            || !ReferenceEquals(_feral.TargetPlayer, _player)
+            || !ReferenceEquals(_spitter.TargetPlayer, _player)
+            || !ReferenceEquals(_boss.TargetPlayer, _player))
+        {
+            Fail("independent TestArena actors did not use the local fallback RunSession and Player");
+            return;
+        }
+
         _feralFlash = _feral.GetNode<HitFlash3D>("HitFlash3D");
         _feralDeath = _feral.GetNode<DeathFeedback3D>("DeathFeedback3D");
 

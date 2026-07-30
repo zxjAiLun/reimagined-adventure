@@ -34,6 +34,8 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     public AreaTelegraph3D ActiveTelegraph => _activeTelegraph;
     public EnemyNavigation3D Navigation => _navigation;
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
+    public RunSessionNode RunSession => _runSession;
+    public PlayerController3D TargetPlayer => _player;
     public bool NavigationMovementSuppressed { get; set; }
 
     public void ResetForNavigationPressureTest(Vector3 position)

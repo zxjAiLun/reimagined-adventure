@@ -40,6 +40,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public float SlamRadius => _slamRadius;
     public EnemyNavigation3D Navigation => _navigation;
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
+    public RunSessionNode RunSession => _runSession;
+    public PlayerController3D TargetPlayer => _player;
     public Vector3 LockedSlamCenter { get; private set; }
     public Vector3 LastSlamTelegraphCenter { get; private set; }
     public float LastSlamTelegraphRadius { get; private set; }
