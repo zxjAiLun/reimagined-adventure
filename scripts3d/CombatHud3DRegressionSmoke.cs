@@ -29,7 +29,8 @@ public partial class CombatHud3DRegressionSmoke : Node
         var skills = player?.GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
         var flow = arena?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
         var rewards = arena?.GetNodeOrNull<MapRewardNode3D>("MapRewards3D");
-        var boss = arena?.GetNodeOrNull<BrimstoneColossusController3D>("BrimstoneColossus3D");
+        var boss = arena?.GetNodeOrNull<BrimstoneColossusController3D>("BrimstoneColossus3D")
+            ?? GetTree().GetFirstNodeInGroup("bosses_3d") as BrimstoneColossusController3D;
         var flowLabel = hud?.GetNodeOrNull<Label>("PlayerPanel/FlowState");
         var primaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Primary");
         var secondaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Secondary");
