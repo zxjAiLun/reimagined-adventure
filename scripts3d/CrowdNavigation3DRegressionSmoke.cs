@@ -36,12 +36,18 @@ public partial class CrowdNavigation3DRegressionSmoke : Node
     private int _pauseUpdateCount;
     private int _pauseRepathCount;
     private int _pauseRecoveryCount;
+    private int _repathBaselineA;
+    private int _repathBaselineB;
     private Vector3 _feralWindupPosition;
     private Vector3 _feralTelegraphPosition;
     private Vector3 _spitterWindupPosition;
     private Vector3 _spitterTelegraphStart;
     private Vector3 _spitterTelegraphEnd;
     private Vector3 _spitterTelegraphDirection;
+    private Vector3 _recoveryStartPositionA;
+    private Vector3 _recoveryStartPositionB;
+    private float _recoveryStartDistanceA;
+    private float _recoveryStartDistanceB;
     private long _firstRecoveryFrame = -1;
     private long _secondRecoveryFrame = -1;
     private int _queueFreeUpdateBaseline;
@@ -92,18 +98,21 @@ public partial class CrowdNavigation3DRegressionSmoke : Node
                 ObserveForcedCongestionRecovery();
                 break;
             case 5:
-                ObserveSpitterLockedWindup();
+                ObserveRecoveryProgress();
                 break;
             case 6:
-                ObservePauseFreeze();
+                ObserveSpitterLockedWindup();
                 break;
             case 7:
-                WaitForExpandedRegistration();
+                ObservePauseFreeze();
                 break;
             case 8:
-                ObserveFortyAgentPressure();
+                WaitForExpandedRegistration();
                 break;
             case 9:
+                ObserveFortyAgentPressure();
+                break;
+            case 10:
                 ObserveUnregistration();
                 break;
         }
@@ -141,6 +150,12 @@ public partial class CrowdNavigation3DRegressionSmoke : Node
     {
         if (CountPairsUnderDistance(0.25f) < _initialSevereOverlapCount)
         {
+            var currentSevereOverlapCount = CountPairsUnderDistance(0.25f);
+            if (currentSevereOverlapCount > _initialSevereOverlapCount * 0.5f)
+            {
+                return;
+            }
+
             StartFeralLock();
             NextStage();
             return;
@@ -309,6 +324,8 @@ public partial class CrowdNavigation3DRegressionSmoke : Node
         _congestionBlocker.SetPhysicsProcess(false);
         _initialFeralRecoveryCount = _congestionFeralA.CrowdAgent?.CongestionRecoveryCount ?? 0;
         _initialSpitterRecoveryCount = _congestionFeralB.CrowdAgent?.CongestionRecoveryCount ?? 0;
+        _repathBaselineA = _congestionFeralA.Navigation?.RepathCount ?? 0;
+        _repathBaselineB = _congestionFeralB.Navigation?.RepathCount ?? 0;
         _stageStarted = true;
     }
 
@@ -332,24 +349,71 @@ public partial class CrowdNavigation3DRegressionSmoke : Node
             _secondRecoveryFrame = _congestionFeralB.CrowdAgent.LastRecoveryPhysicsFrame;
         }
 
-        var repathCount = (_congestionFeralA.Navigation?.RepathCount ?? 0)
-            + (_congestionFeralB.Navigation?.RepathCount ?? 0);
         if (_firstRecoveryFrame >= 0 && _secondRecoveryFrame >= 0
             && Math.Abs(_firstRecoveryFrame - _secondRecoveryFrame) >= 2
-            && repathCount > 0)
+            && (_congestionFeralA.Navigation?.RepathCount ?? 0) > _repathBaselineA
+            && (_congestionFeralB.Navigation?.RepathCount ?? 0) > _repathBaselineB)
         {
+            _recoveryStartPositionA = _congestionFeralA.GlobalPosition;
+            _recoveryStartPositionB = _congestionFeralB.GlobalPosition;
+            _recoveryStartDistanceA = HorizontalDistance(
+                _recoveryStartPositionA,
+                _player.GlobalPosition);
+            _recoveryStartDistanceB = HorizontalDistance(
+                _recoveryStartPositionB,
+                _player.GlobalPosition);
             _congestionFeralA.NavigationMovementSuppressed = false;
             _congestionFeralB.NavigationMovementSuppressed = false;
             _congestionBlocker.SetPhysicsProcess(true);
             ReleaseFrozenNeighbors();
-            StartSpitterLock();
             NextStage();
             return;
         }
 
         FailIfTimedOut(
             $"congestion recovery did not stagger A={recoveryA} B={recoveryB} "
-            + $"frames={_firstRecoveryFrame}/{_secondRecoveryFrame}", 6.0);
+            + $"frames={_firstRecoveryFrame}/{_secondRecoveryFrame} "
+            + $"repath={_congestionFeralA.Navigation?.RepathCount}/{_congestionFeralB.Navigation?.RepathCount} "
+            + $"baseline={_repathBaselineA}/{_repathBaselineB}", 6.0);
+    }
+
+    private void ObserveRecoveryProgress()
+    {
+        if (_congestionFeralA == null || _congestionFeralB == null
+            || !GodotObject.IsInstanceValid(_congestionFeralA)
+            || !GodotObject.IsInstanceValid(_congestionFeralB))
+        {
+            Fail("congestion actors disappeared before recovery progress was observed");
+            return;
+        }
+
+        if (IsInsideObstacle(_congestionFeralA.GlobalPosition)
+            || IsInsideObstacle(_congestionFeralB.GlobalPosition))
+        {
+            Fail("congestion recovery moved an enemy into an obstacle");
+            return;
+        }
+
+        var movedA = HorizontalDistance(_congestionFeralA.GlobalPosition, _recoveryStartPositionA) >= 0.5f
+            || HorizontalDistance(_congestionFeralA.GlobalPosition, _player.GlobalPosition)
+                <= _recoveryStartDistanceA - 0.5f;
+        var movedB = HorizontalDistance(_congestionFeralB.GlobalPosition, _recoveryStartPositionB) >= 0.5f
+            || HorizontalDistance(_congestionFeralB.GlobalPosition, _player.GlobalPosition)
+                <= _recoveryStartDistanceB - 0.5f;
+        var crowdA = _congestionFeralA.CrowdAgent;
+        var crowdB = _congestionFeralB.CrowdAgent;
+
+        if (movedA && movedB && crowdA != null && crowdB != null
+            && !crowdA.IsCongested && !crowdB.IsCongested)
+        {
+            StartSpitterLock();
+            NextStage();
+            return;
+        }
+
+        FailIfTimedOut(
+            $"recovery did not restore progress moved={movedA}/{movedB} "
+            + $"congested={crowdA?.IsCongested}/{crowdB?.IsCongested}", 2.0);
     }
 
     private void StartSpitterLock()
