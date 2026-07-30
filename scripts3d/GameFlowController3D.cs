@@ -84,7 +84,9 @@ public partial class GameFlowController3D : Node
 
         if (_runSession == null)
         {
-            _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+            var map = GetParent<Node3D>();
+            _runSession = map?.GetParent() as RunSessionNode
+                ?? map?.GetNodeOrNull<RunSessionNode>("RunSession");
         }
 
         if (_overlay == null)
@@ -104,7 +106,7 @@ public partial class GameFlowController3D : Node
             _playerBound = true;
         }
 
-        if (_encounterDirector?.Enabled == true)
+        if (_encounterDirector?.IsOperational == true)
         {
             if (!_encounterBound)
             {
@@ -125,7 +127,7 @@ public partial class GameFlowController3D : Node
 
         var legacyBossExists = GetNodeOrNull<BrimstoneColossusController3D>("../BrimstoneColossus3D") != null;
         var needsRetry = !_playerBound
-            || (_encounterDirector?.Enabled != true && legacyBossExists && !_bossBound);
+            || (_encounterDirector?.IsOperational != true && legacyBossExists && !_bossBound);
         if (needsRetry && _bindAttempts < 60)
         {
             CallDeferred(nameof(BindRuntimeNodes));

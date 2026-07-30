@@ -156,6 +156,7 @@ script = ExtResource("18_crowd_coordinator")
 [node name="EncounterDirector3D" type="Node" parent="."]
 script = ExtResource("15_encounter_director")
 DefinitionResource = ExtResource("16_encounter")
+PlayerPath = NodePath("../Player3D")
 EnemyContainerPath = NodePath("../EnemyContainer")
 SpawnPointsPath = NodePath("../SpawnPoints")
 

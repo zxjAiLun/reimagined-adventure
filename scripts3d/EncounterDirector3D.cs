@@ -32,10 +32,13 @@ public partial class EncounterDirector3D : Node
 
     [Export] public EncounterDefinitionResource3D DefinitionResource { get; set; }
     [Export] public bool Enabled { get; set; } = true;
+    [Export] public NodePath PlayerPath { get; set; } = new("../Player3D");
     [Export] public NodePath EnemyContainerPath { get; set; } = new("../EnemyContainer");
     [Export] public NodePath SpawnPointsPath { get; set; } = new("../SpawnPoints");
 
     public EncounterDirectorState3D State { get; private set; } = EncounterDirectorState3D.Disabled;
+    public bool IsOperational => Enabled && State != EncounterDirectorState3D.Disabled;
+    public PlayerController3D Player => _player;
     public int CurrentWaveIndex { get; private set; } = -1;
     public int TotalWaveCount => _waves.Count;
     public int ActiveEnemyCount { get; private set; }
@@ -66,7 +69,7 @@ public partial class EncounterDirector3D : Node
     {
         ProcessMode = ProcessModeEnum.Pausable;
         AddToGroup("encounter_directors_3d");
-        _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
+        _player = GetNodeOrNull<PlayerController3D>(PlayerPath);
         _enemyContainer = GetNodeOrNull<Node3D>(EnemyContainerPath);
         CollectSpawnPoints();
 
@@ -112,7 +115,10 @@ public partial class EncounterDirector3D : Node
             return;
         }
 
-        _player ??= GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
+        if (_player == null || !GodotObject.IsInstanceValid(_player))
+        {
+            _player = GetNodeOrNull<PlayerController3D>(PlayerPath);
+        }
         var frameDelta = Mathf.Max(0.0f, (float)delta);
         switch (State)
         {
@@ -272,7 +278,7 @@ public partial class EncounterDirector3D : Node
         for (var offset = 0; offset < candidates.Length; offset++)
         {
             var point = candidates[(_spawnPointCursor + offset) % candidates.Length];
-            if (point.CanSpawn(_player, navigationLayers))
+            if (point.CanSpawn(_player, navigationLayers, _spawnedEnemies))
             {
                 _spawnPointCursor = (_spawnPointCursor + offset + 1) % candidates.Length;
                 return point;
