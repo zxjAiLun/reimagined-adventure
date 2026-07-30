@@ -40,6 +40,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public float SlamRadius => _slamRadius;
     public EnemyNavigation3D Navigation => _navigation;
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
+    public RunSessionNode RunSession => _runSession;
+    public PlayerController3D TargetPlayer => _player;
     public Vector3 LockedSlamCenter { get; private set; }
     public Vector3 LastSlamTelegraphCenter { get; private set; }
     public float LastSlamTelegraphRadius { get; private set; }
@@ -90,7 +92,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
-        _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        _runSession = MapRuntimeScope3D.FindRunSession(this);
         ApplyDefinition(DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus());
         FindPlayer();
         RefreshVisuals();
@@ -105,7 +107,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
         if (_player == null || !GodotObject.IsInstanceValid(_player))
         {
-            _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
+            FindPlayer();
         }
 
         if (_player == null || !GodotObject.IsInstanceValid(_player) || !_player.IsAlive)
@@ -192,7 +194,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
     private void FindPlayer()
     {
-        _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
+        _player = MapRuntimeScope3D.FindPlayer(this);
     }
 
     private void TryChooseAttack(float frameDelta)
@@ -419,7 +421,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             return;
         }
 
-        _runSession ??= GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        _runSession ??= MapRuntimeScope3D.FindRunSession(this);
         if (_runSession == null)
         {
             GD.PushError("BrimstoneColossus3D cannot drop loot without a RunSessionNode.");

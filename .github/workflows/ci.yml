@@ -39,13 +39,23 @@ jobs:
         shell: pwsh
         run: |
           & $env:GODOT_EXECUTABLE --headless --editor --path $env:GITHUB_WORKSPACE --quit --build-solutions
+          $godotExitCode = $LASTEXITCODE
+          if ($null -ne $godotExitCode -and $godotExitCode -ne 0) { exit $godotExitCode }
+
+      - name: Compile Godot C# assembly
+        shell: pwsh
+        run: |
+          dotnet build ".\reimagined adventure.csproj" --configuration Debug --verbosity minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Main scene load
         shell: pwsh
         run: |
-          & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene res://scenes3d/RunShell3D.tscn --quit-after 120
-          if ($LASTEXITCODE -ne 0) { throw "Godot main scene failed to load ($LASTEXITCODE)" }
+          $output = & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene res://scenes3d/RunShell3D.tscn --quit-after 120 2>&1 | Out-String
+          $godotExitCode = $LASTEXITCODE
+          Write-Output $output
+          if ($null -ne $godotExitCode -and $godotExitCode -ne 0) { throw "Godot main scene failed to load ($godotExitCode)" }
+          if ($output -match "ERROR:|SCRIPT ERROR|Parse Error|Cannot instantiate") { throw "Godot main scene reported an error." }
 
       - name: Combat, save, and content smoke
         shell: pwsh
@@ -72,10 +82,15 @@ jobs:
             "res://scenes3d/CrowdNavigation3DRegressionSmoke.tscn",
             "res://scenes3d/CrowdNavigationMapLifecycle3DRegressionSmoke.tscn",
             "res://scenes3d/BossNavigation3DRegressionSmoke.tscn",
-            "res://scenes3d/NavigationPressureBaseline3DRegressionSmoke.tscn"
+            "res://scenes3d/NavigationPressureBaseline3DRegressionSmoke.tscn",
+            "res://scenes3d/EncounterDirector3DRegressionSmoke.tscn",
+            "res://scenes3d/EncounterLifecycle3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"
-            & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene $scene
-            if ($LASTEXITCODE -ne 0) { throw "Godot smoke failed: $scene ($LASTEXITCODE)" }
+            $output = & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene $scene 2>&1 | Out-String
+            $godotExitCode = $LASTEXITCODE
+            Write-Output $output
+            if ($null -ne $godotExitCode -and $godotExitCode -ne 0) { throw "Godot smoke failed: $scene ($godotExitCode)" }
+            if ($output -match "SPIKE_FAIL|ERROR:|SCRIPT ERROR|Parse Error|Cannot instantiate") { throw "Godot smoke reported a failure: $scene" }
           }
