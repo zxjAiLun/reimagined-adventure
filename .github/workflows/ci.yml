@@ -39,8 +39,13 @@ jobs:
         shell: pwsh
         run: |
           & $env:GODOT_EXECUTABLE --headless --editor --path $env:GITHUB_WORKSPACE --quit --build-solutions
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet build ".\reimagined adventure.csproj" --configuration Debug
+          $godotExitCode = $LASTEXITCODE
+          if ($null -ne $godotExitCode -and $godotExitCode -ne 0) { exit $godotExitCode }
+
+      - name: Compile Godot C# assembly
+        shell: pwsh
+        run: |
+          dotnet build ".\reimagined adventure.csproj" --configuration Debug --verbosity minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Main scene load
