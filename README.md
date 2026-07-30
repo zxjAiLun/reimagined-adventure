@@ -16,9 +16,10 @@ Godot or GodotSharp.
 
 ## 3D product runtime
 
-`migration/3d-mainline` is the active product branch. The 2D runtime under
-`scenes/` is retained only as a legacy behavioral reference. New product
-features target `scenes3d/` and `scripts3d/`. Open
+`main` is the active product baseline and `product/encounter-runtime` is the
+current Stage 4 development branch. The 2D runtime under `scenes/` is
+retained only as a legacy behavioral reference. New product features target
+`scenes3d/` and `scripts3d/`. Open
 `scenes3d/TestArena3D.tscn` for the playable preview, or open
 `scenes3d/RunShell3D.tscn` for the run-owned map shell.
 
@@ -66,11 +67,17 @@ terrain, or trigger runtime rebakes.
 Combat hits now also publish authoritative DamageResult feedback: positive hits
 create world-space damage numbers, trigger isolated-material hit flashes, and
 run immediate collision/physics cleanup plus a short death scale presentation.
+The Stage 4 encounter runtime is data-driven: `DefaultEncounter3D.tres` owns
+three waves (4 Feral, 3 Feral + 2 Spitter, then 1 Brimstone Colossus), while
+`EncounterDirector3D` owns timing, spawn-point selection, active counts, and
+the single `EncounterCompleted` signal consumed by `GameFlowController3D`.
+Production `RunShell3D` maps no longer contain static enemy nodes; old direct
+`TestArena3D` contract smokes create isolated legacy fixtures only.
 
 ## Run the playable slice
 
 Open the repository with Godot 4.7.1 .NET and run the main scene. On
-`migration/3d-mainline` it loads `scenes3d/RunShell3D.tscn`, which owns the 3D
+the 3D product line loads `scenes3d/RunShell3D.tscn`, which owns the 3D
 run session and transitions between map instances. The 2D runtime under
 `scenes/` is retained as a legacy/reference implementation; its Domain rules
 and key regression smokes remain part of CI.
@@ -128,14 +135,18 @@ also exercises the old-map QueueFree/new-map overlap window and verifies that
 the new map keeps its own coordinator binding. `BossNavigation3DRegressionSmoke.tscn`
 and `NavigationPressureBaseline3DRegressionSmoke.tscn` add the Stage 3D
 large-agent route, locked-attack, pressure-bound, and pause-freeze contracts.
+`EncounterDirector3DRegressionSmoke.tscn` verifies wave composition, dynamic
+spawn counts, one-shot completion, and Map Complete.
+`EncounterLifecycle3DRegressionSmoke.tscn` verifies paused spawning is frozen
+and a next map receives a fresh director instance.
 
 ## Migration boundaries
 
 Gameplay rules and portable content data live in `src/Arpg.Domain`. Godot
 scenes, Nodes, resources, UI, InputMap, telegraphs, and particles live in the
 root project. Deferred large systems such as procedural maps, encounter
-composition, the full Boss catalogue, and advanced exceptions are outside the
-first vertical slice.
+composition beyond the fixed Stage 4 waves, the full Boss catalogue, and
+advanced exceptions are outside the current product slice.
 
 The `isometric-3d-parity-v1` tag marks the completed 3D parity stabilization
 boundary. Further work is organized as reviewed product stages; the next

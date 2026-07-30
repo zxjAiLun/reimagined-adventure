@@ -34,14 +34,14 @@ public partial class RunLoop3DRegressionSmoke : Node
             .LastOrDefault();
         var flow = arena?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
         var rewards = arena?.GetNodeOrNull<MapRewardNode3D>("MapRewards3D");
-        var boss = arena?.GetNodeOrNull<BrimstoneColossusController3D>("BrimstoneColossus3D");
+        var director = arena?.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
         var save = arena?.GetNodeOrNull<SaveBoundaryNode3D>("SaveBoundary3D");
         var player = arena?.GetNodeOrNull<PlayerController3D>("Player3D");
-        if (run == null || flow == null || rewards == null || boss == null || save == null || player == null)
+        if (run == null || flow == null || rewards == null || director == null || save == null || player == null)
         {
             if (_elapsed > 8.0)
             {
-                Fail($"3D run-loop nodes did not become ready run={run != null} flow={flow != null} rewards={rewards != null} boss={boss != null} save={save != null} player={player != null}");
+                Fail($"3D run-loop nodes did not become ready run={run != null} flow={flow != null} rewards={rewards != null} director={director != null} save={save != null} player={player != null}");
             }
 
             return;
@@ -117,13 +117,13 @@ public partial class RunLoop3DRegressionSmoke : Node
             return;
         }
 
-        if (flow.State == GameFlowState.Playing && boss.IsAlive)
+        if (flow.State == GameFlowState.Playing)
         {
-            boss.ApplyDamage(new DamageRequest(
-                9999,
-                DamageType.Physical,
-                "run_loop_smoke",
-                CombatFaction.Player));
+            foreach (var enemy in director.GetActiveEnemies())
+            {
+                ApplyLethalDamage(enemy);
+            }
+
             return;
         }
 
@@ -203,5 +203,26 @@ public partial class RunLoop3DRegressionSmoke : Node
         _complete = true;
         GD.PushError($"RUN_LOOP_3D_SPIKE_FAIL {reason}");
         GetTree().Quit(1);
+    }
+
+    private static void ApplyLethalDamage(Node3D enemy)
+    {
+        var request = new DamageRequest(
+            9999,
+            DamageType.Physical,
+            "run_loop_smoke",
+            CombatFaction.Player);
+        switch (enemy)
+        {
+            case FeralController3D feral:
+                feral.ApplyDamage(request);
+                break;
+            case SpitterController3D spitter:
+                spitter.ApplyDamage(request);
+                break;
+            case BrimstoneColossusController3D boss:
+                boss.ApplyDamage(request);
+                break;
+        }
     }
 }

@@ -27,6 +27,7 @@ public partial class CombatHudController3D : CanvasLayer
     private HealthComponent _playerHealth;
     private PlayerSkillController3D _skills;
     private BrimstoneColossusController3D _boss;
+    private EncounterDirector3D _encounterDirector;
     private HealthComponent _bossHealth;
     private GameFlowController3D _flow;
     private RunSessionNode _runSession;
@@ -44,6 +45,8 @@ public partial class CombatHudController3D : CanvasLayer
     private Label _bossHealthValue;
     private Label _flowStateLabel;
     private bool _bound;
+    private bool _bossBound;
+    private bool _directorBound;
 
     public override void _Ready()
     {
@@ -92,7 +95,14 @@ public partial class CombatHudController3D : CanvasLayer
             _bossHealth.Died -= OnBossDied;
         }
 
+        if (_directorBound && IsValid(_encounterDirector))
+        {
+            _encounterDirector.BossSpawned -= OnBossSpawned;
+        }
+
         _bound = false;
+        _bossBound = false;
+        _directorBound = false;
     }
 
     public string SkillName(SkillSlot slot) => _skills?.Definition(slot).Name ?? "loading";
@@ -120,13 +130,14 @@ public partial class CombatHudController3D : CanvasLayer
     {
         if (_bound)
         {
+            TryBindBoss();
             return;
         }
 
         _player ??= GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
         _skills ??= _player?.GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
         _playerHealth ??= _player?.GetNodeOrNull<HealthComponent>("HealthComponent");
-        _boss ??= GetTree().GetFirstNodeInGroup("bosses_3d") as BrimstoneColossusController3D;
+        _encounterDirector ??= GetTree().GetFirstNodeInGroup("encounter_directors_3d") as EncounterDirector3D;
         _bossHealth ??= _boss?.GetNodeOrNull<HealthComponent>("HealthComponent");
         _flow ??= GetTree().GetFirstNodeInGroup("game_flows_3d") as GameFlowController3D;
         _runSession ??= GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
@@ -143,14 +154,37 @@ public partial class CombatHudController3D : CanvasLayer
         _skills.CooldownsChanged += OnCooldownsChanged;
         _flow.StateChanged += OnFlowStateChanged;
         _runSession.MapLevelChanged += OnMapLevelChanged;
-        if (_bossHealth != null)
+        if (_encounterDirector?.Enabled == true && !_directorBound)
         {
-            _bossHealth.HealthChanged += OnBossHealthChanged;
-            _bossHealth.Died += OnBossDied;
+            _encounterDirector.BossSpawned += OnBossSpawned;
+            _directorBound = true;
         }
 
         _bound = true;
+        TryBindBoss();
         RefreshAll();
+    }
+
+    private void TryBindBoss()
+    {
+        if (_bossBound)
+        {
+            return;
+        }
+
+        _boss = _encounterDirector?.Enabled == true
+            ? _encounterDirector.ActiveBoss as BrimstoneColossusController3D
+            : GetTree().GetFirstNodeInGroup("bosses_3d") as BrimstoneColossusController3D;
+        _bossHealth = _boss?.GetNodeOrNull<HealthComponent>("HealthComponent");
+        if (_bossHealth == null)
+        {
+            return;
+        }
+
+        _bossHealth.HealthChanged += OnBossHealthChanged;
+        _bossHealth.Died += OnBossDied;
+        _bossBound = true;
+        RefreshBoss();
     }
 
     private void OnPlayerHealthChanged(int currentHealth, int maxHealth) => RefreshPlayerHealth();
@@ -164,6 +198,18 @@ public partial class CombatHudController3D : CanvasLayer
     private void OnBossHealthChanged(int currentHealth, int maxHealth) => RefreshBoss();
 
     private void OnBossDied() => RefreshBoss();
+
+    private void OnBossSpawned(Node3D boss)
+    {
+        if (boss is not BrimstoneColossusController3D brimstone)
+        {
+            return;
+        }
+
+        _boss = brimstone;
+        _bossHealth = _boss.GetNodeOrNull<HealthComponent>("HealthComponent");
+        TryBindBoss();
+    }
 
     private void OnFlowStateChanged(int state) => RefreshFlowState();
 

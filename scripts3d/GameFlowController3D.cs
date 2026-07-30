@@ -16,34 +16,106 @@ public partial class GameFlowController3D : Node
 
     private PlayerController3D _player;
     private BrimstoneColossusController3D _boss;
+    private EncounterDirector3D _encounterDirector;
     private MapRewardNode3D _mapRewards;
     private RunSessionNode _runSession;
     private Label _overlay;
+    private bool _playerBound;
+    private bool _bossBound;
+    private bool _encounterBound;
 
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
-        _player = GetNodeOrNull<PlayerController3D>("../Player3D");
-        _boss = GetNodeOrNull<BrimstoneColossusController3D>("../BrimstoneColossus3D");
-        _mapRewards = GetNodeOrNull<MapRewardNode3D>("../MapRewards3D");
-        _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
-        _overlay = GetNodeOrNull<Label>("../HUD/ResultOverlay");
         AddToGroup("game_flows_3d");
+        SetProcessUnhandledInput(true);
+        CallDeferred(nameof(BindRuntimeNodes));
+        RefreshOverlay();
+    }
+
+    public override void _ExitTree()
+    {
+        if (_playerBound)
+        {
+            var playerHealth = _player?.GetNodeOrNull<HealthComponent>("HealthComponent");
+            if (playerHealth != null)
+            {
+                playerHealth.Died -= OnPlayerDied;
+            }
+        }
+
+        if (_bossBound)
+        {
+            var bossHealth = _boss?.GetNodeOrNull<HealthComponent>("HealthComponent");
+            if (bossHealth != null)
+            {
+                bossHealth.Died -= OnBossDied;
+            }
+        }
+
+        if (_encounterBound && GodotObject.IsInstanceValid(_encounterDirector))
+        {
+            _encounterDirector.EncounterCompleted -= OnEncounterCompleted;
+        }
+    }
+
+    private void BindRuntimeNodes()
+    {
+        if (_player == null)
+        {
+            _player = GetNodeOrNull<PlayerController3D>("../Player3D");
+        }
+
+        if (_mapRewards == null)
+        {
+            _mapRewards = GetNodeOrNull<MapRewardNode3D>("../MapRewards3D");
+        }
+
+        if (_runSession == null)
+        {
+            _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        }
+
+        if (_overlay == null)
+        {
+            _overlay = GetNodeOrNull<Label>("../HUD/ResultOverlay");
+        }
+
+        if (_encounterDirector == null)
+        {
+            _encounterDirector = GetNodeOrNull<EncounterDirector3D>("../EncounterDirector3D");
+        }
 
         var playerHealth = _player?.GetNodeOrNull<HealthComponent>("HealthComponent");
-        if (playerHealth != null)
+        if (!_playerBound && playerHealth != null)
         {
             playerHealth.Died += OnPlayerDied;
+            _playerBound = true;
         }
 
-        var bossHealth = _boss?.GetNodeOrNull<HealthComponent>("HealthComponent");
-        if (bossHealth != null)
+        if (_encounterDirector?.Enabled == true)
         {
-            bossHealth.Died += OnBossDied;
+            if (!_encounterBound)
+            {
+                _encounterDirector.EncounterCompleted += OnEncounterCompleted;
+                _encounterBound = true;
+            }
+        }
+        else
+        {
+            _boss ??= GetNodeOrNull<BrimstoneColossusController3D>("../BrimstoneColossus3D");
+            var bossHealth = _boss?.GetNodeOrNull<HealthComponent>("HealthComponent");
+            if (!_bossBound && bossHealth != null)
+            {
+                bossHealth.Died += OnBossDied;
+                _bossBound = true;
+            }
         }
 
-        SetProcessUnhandledInput(true);
-        RefreshOverlay();
+        if (!_playerBound || (_encounterDirector?.Enabled != true && !_bossBound))
+        {
+            CallDeferred(nameof(BindRuntimeNodes));
+        }
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -127,6 +199,16 @@ public partial class GameFlowController3D : Node
     }
 
     private void OnBossDied()
+    {
+        CompleteMap();
+    }
+
+    private void OnEncounterCompleted()
+    {
+        CompleteMap();
+    }
+
+    private void CompleteMap()
     {
         if (State != GameFlowState.Playing || _player == null || !_player.IsAlive)
         {
