@@ -1,0 +1,155 @@
+[gd_scene load_steps=25 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/BossNavigationStressArena3D.cs" id="1_arena"]
+[ext_resource type="PackedScene" path="res://scenes3d/Player3D.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes3d/Feral3D.tscn" id="3_feral"]
+[ext_resource type="PackedScene" path="res://scenes3d/Spitter3D.tscn" id="4_spitter"]
+[ext_resource type="PackedScene" path="res://scenes3d/BrimstoneColossus3D.tscn" id="5_boss"]
+[ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="6_camera_rig"]
+[ext_resource type="Script" path="res://scripts/RunSessionNode.cs" id="7_run_session"]
+[ext_resource type="Script" path="res://scripts3d/GameFlowController3D.cs" id="8_flow"]
+[ext_resource type="NavigationMesh" path="res://resources/BossNavigationSmallAgents.tres" id="9_small_nav"]
+[ext_resource type="NavigationMesh" path="res://resources/BossNavigationLargeAgent.tres" id="10_large_nav"]
+[ext_resource type="Script" path="res://scripts3d/EnemyCrowdCoordinator3D.cs" id="11_coordinator"]
+
+[sub_resource type="Environment" id="Environment_boss_navigation"]
+background_mode = 1
+background_color = Color(0.025, 0.045, 0.07, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.42, 0.5, 0.62, 1)
+ambient_light_energy = 0.95
+
+[sub_resource type="BoxShape3D" id="BoxShape_ground"]
+size = Vector3(30, 0.2, 22)
+
+[sub_resource type="StandardMaterial3D" id="Material_ground"]
+albedo_color = Color(0.10, 0.15, 0.21, 1)
+roughness = 0.92
+
+[sub_resource type="BoxMesh" id="Mesh_ground"]
+size = Vector3(30, 0.2, 22)
+material = SubResource("Material_ground")
+
+[sub_resource type="BoxShape3D" id="BoxShape_wall"]
+size = Vector3(2, 2, 14)
+
+[sub_resource type="StandardMaterial3D" id="Material_wall_a"]
+albedo_color = Color(0.62, 0.22, 0.14, 1)
+roughness = 0.78
+
+[sub_resource type="StandardMaterial3D" id="Material_wall_b"]
+albedo_color = Color(0.66, 0.42, 0.12, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="Mesh_wall_a"]
+size = Vector3(2, 2, 14)
+material = SubResource("Material_wall_a")
+
+[sub_resource type="BoxMesh" id="Mesh_wall_b"]
+size = Vector3(2, 2, 14)
+material = SubResource("Material_wall_b")
+
+[sub_resource type="StandardMaterial3D" id="Material_narrow"]
+albedo_color = Color(0.20, 0.72, 0.32, 0.38)
+transparency = 1
+
+[sub_resource type="BoxMesh" id="Mesh_narrow"]
+size = Vector3(1.8, 0.03, 14)
+material = SubResource("Material_narrow")
+
+[sub_resource type="StandardMaterial3D" id="Material_wide"]
+albedo_color = Color(0.22, 0.48, 0.88, 0.32)
+transparency = 1
+
+[sub_resource type="BoxMesh" id="Mesh_wide"]
+size = Vector3(8.2, 0.03, 0.08)
+material = SubResource("Material_wide")
+
+[node name="BossNavigationStressArena3D" type="Node3D"]
+script = ExtResource("1_arena")
+FeralScene = ExtResource("3_feral")
+SpitterScene = ExtResource("4_spitter")
+BossScene = ExtResource("5_boss")
+FeralCount = 1
+SpitterCount = 0
+SpawnBoss = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_boss_navigation")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-55, -25, 0)
+light_color = Color(0.78, 0.9, 1, 1)
+light_energy = 1.7
+shadow_enabled = true
+
+[node name="CameraRig" type="Node3D" parent="."]
+position = Vector3(0, 19, 17)
+script = ExtResource("6_camera_rig")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+rotation_degrees = Vector3(-48, 0, 0)
+fov = 55.0
+current = true
+groups = ["arena_cameras"]
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+position = Vector3(0, -0.1, 0)
+shape = SubResource("BoxShape_ground")
+
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+position = Vector3(0, -0.1, 0)
+mesh = SubResource("Mesh_ground")
+
+[node name="StaticObstacleA" type="StaticBody3D" parent="."]
+position = Vector3(-1.9, 1, 0)
+collision_layer = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticObstacleA"]
+shape = SubResource("BoxShape_wall")
+
+[node name="Mesh" type="MeshInstance3D" parent="StaticObstacleA"]
+mesh = SubResource("Mesh_wall_a")
+
+[node name="StaticObstacleB" type="StaticBody3D" parent="."]
+position = Vector3(1.9, 1, 0)
+collision_layer = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticObstacleB"]
+shape = SubResource("BoxShape_wall")
+
+[node name="Mesh" type="MeshInstance3D" parent="StaticObstacleB"]
+mesh = SubResource("Mesh_wall_b")
+
+[node name="NarrowChoke" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.03, 0)
+mesh = SubResource("Mesh_narrow")
+
+[node name="WideRoute" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.03, 8.5)
+mesh = SubResource("Mesh_wide")
+
+[node name="SmallNavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_layers = 1
+navigation_mesh = ExtResource("9_small_nav")
+
+[node name="LargeNavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_layers = 2
+navigation_mesh = ExtResource("10_large_nav")
+
+[node name="EnemyCrowdCoordinator3D" type="Node" parent="."]
+script = ExtResource("11_coordinator")
+
+[node name="RunSession" type="Node" parent="."]
+script = ExtResource("7_run_session")
+RunSeed = 5573589318791800903
+MapLevel = 1
+
+[node name="Player3D" parent="." instance=ExtResource("2_player")]
+position = Vector3(10, 0, 0)
+
+[node name="GameFlow3D" type="Node" parent="."]
+script = ExtResource("8_flow")

@@ -27,6 +27,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     [Export] public PackedScene AreaTelegraphScene { get; set; }
     [Export] public PackedScene LineTelegraphScene { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
+    [Export] public bool AllowDirectChaseWithoutNavigation { get; set; } = true;
 
     public CombatFaction Faction => CombatFaction.Enemy;
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
@@ -38,6 +39,9 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public int FlameSpearCount { get; private set; }
     public int FlameSpearLaunchCount { get; private set; }
     public float SlamRadius => _slamRadius;
+    public EnemyNavigation3D Navigation => _navigation;
+    public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
+    public Vector3 LockedSlamCenter { get; private set; }
     public Vector3 LastSlamTelegraphCenter { get; private set; }
     public float LastSlamTelegraphRadius { get; private set; }
     public Vector3 LastSlamImpactCenter { get; private set; }
@@ -71,6 +75,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     private bool _slamImpactApplied;
     private bool _spearLaunchPerformed;
     private bool _deathHandled;
+    private EnemyNavigation3D _navigation;
+    private EnemyCrowdAgent3D _crowdAgent;
 
     public override void _Ready()
     {
@@ -83,6 +89,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
         _health.Died += OnDied;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
+        _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
+        _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
         _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         ApplyDefinition(DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus());
         FindPlayer();
@@ -113,7 +121,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         {
             case BrimstoneColossusState3D.Idle:
             case BrimstoneColossusState3D.Chasing:
-                TryChooseAttack();
+                TryChooseAttack(frameDelta);
                 break;
             case BrimstoneColossusState3D.PreparingSlam:
                 Velocity = Vector3.Zero;
@@ -188,7 +196,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _player = GetTree().GetFirstNodeInGroup("player_3d") as PlayerController3D;
     }
 
-    private void TryChooseAttack()
+    private void TryChooseAttack(float frameDelta)
     {
         var toPlayer = _player.GlobalPosition - GlobalPosition;
         toPlayer.Y = 0.0f;
@@ -206,10 +214,69 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         }
 
         State = BrimstoneColossusState3D.Chasing;
-        Velocity = toPlayer.LengthSquared() > 0.001f
-            ? toPlayer.Normalized() * _moveSpeed
+        if (_navigation == null)
+        {
+            if (!AllowDirectChaseWithoutNavigation)
+            {
+                Velocity = Vector3.Zero;
+                return;
+            }
+
+            // Preserve the open-arena fallback used by legacy 3D combat
+            // fixtures. Dedicated navigation maps still take the adapter
+            // path above; an arena without a synchronized NavMesh can chase
+            // directly instead of silently freezing the Boss.
+            Velocity = toPlayer.LengthSquared() > 0.001f
+                ? toPlayer.Normalized() * _moveSpeed
+                : Vector3.Zero;
+            if (Velocity.LengthSquared() > 0.001f)
+            {
+                MoveAndSlide();
+            }
+
+            return;
+        }
+
+        var previousPosition = GlobalPosition;
+        _navigation.SetTarget(_player.GlobalPosition);
+        var direction = _navigation.GetDesiredDirection(GlobalPosition, frameDelta);
+        if (!_navigation.IsNavigationReady || !_navigation.HasPath)
+        {
+            if (!AllowDirectChaseWithoutNavigation)
+            {
+                Velocity = Vector3.Zero;
+                _navigation.NotifyMovement(previousPosition, GlobalPosition, frameDelta);
+                return;
+            }
+
+            Velocity = toPlayer.LengthSquared() > 0.001f
+                ? toPlayer.Normalized() * _moveSpeed
+                : Vector3.Zero;
+            if (Velocity.LengthSquared() > 0.001f)
+            {
+                MoveAndSlide();
+            }
+
+            return;
+        }
+
+        var navigationVelocity = direction.LengthSquared() > 0.001f
+            ? direction * _moveSpeed
             : Vector3.Zero;
-        MoveAndSlide();
+        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, _moveSpeed)
+            ?? navigationVelocity;
+        if (direction.LengthSquared() > 0.001f)
+        {
+            MoveAndSlide();
+        }
+
+        _navigation.NotifyMovement(previousPosition, GlobalPosition, frameDelta);
+        _crowdAgent?.NotifyMovement(
+            _navigation,
+            direction,
+            previousPosition,
+            GlobalPosition,
+            frameDelta);
     }
 
     private void BeginMagmaSlam()
@@ -219,11 +286,12 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _slamImpactApplied = false;
         _stateRemaining = Mathf.Max(0.05f, _slamPreparationSeconds);
         _nextAttackIsSlam = false;
-        LastSlamTelegraphCenter = GlobalPosition;
+        LockedSlamCenter = GlobalPosition;
+        LastSlamTelegraphCenter = LockedSlamCenter;
         LastSlamTelegraphRadius = _slamRadius;
         _activeSlamTelegraph = CreateAreaTelegraph(
             _slamRadius,
-            GlobalPosition,
+            LockedSlamCenter,
             _slamPreparationSeconds);
     }
 
@@ -239,7 +307,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
         _slamImpactApplied = true;
         MagmaSlamImpactCount++;
-        LastSlamImpactCenter = new Vector3(GlobalPosition.X, 0.04f, GlobalPosition.Z);
+        LastSlamImpactCenter = new Vector3(LockedSlamCenter.X, 0.04f, LockedSlamCenter.Z);
         LastSlamImpactRadius = _slamRadius;
         if (AreaEffectScene == null || GetParent() == null)
         {
@@ -249,7 +317,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         var effect = AreaEffectScene.Instantiate<SkillAreaEffect3D>();
         GetParent().AddChild(effect);
         effect.ConfigureHazard(
-            GlobalPosition,
+            LockedSlamCenter,
             _slamRadius,
             0.0,
             0.18,
@@ -363,6 +431,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _deathHandled = true;
         CancelTelegraphs();
         State = BrimstoneColossusState3D.Dead;
+        _crowdAgent?.SetActive(false);
         Velocity = Vector3.Zero;
         CollisionLayer = 0;
         CollisionMask = 0;

@@ -37,15 +37,24 @@ obstacle, Feral chasing, pause/resume, the unchanged Windup/Impact contract,
 and a dynamically instantiated Feral. Stage 3B also routes Spitter
 approach/retreat through the same adapter, keeping it inside a preferred
 distance band while preserving its locked Aim/Windup telegraph direction.
-Navigation is currently planar XZ: actors do not jump, traverse multilevel
-terrain, or trigger runtime rebakes.
 Stage 3C adds a separate `CrowdNavigationStressArena3D.tscn` with a saved
 offline navigation resource, 24-agent default pressure (16 Feral and 8
 Spitter), deterministic symmetric separation, congestion recovery, and
 registration cleanup when dynamically spawned enemies leave the tree. Its
 `CrowdNavigation3DRegressionSmoke` expands the same arena to 40 agents and
 keeps the pair pass bounded at `n(n-1)/2`; the legacy `GreyboxStressArena3D`
-is unchanged.
+is unchanged. Stage 3D adds `BossNavigationStressArena3D.tscn` with two saved
+offline navigation layers: small agents use a 0.55 m radius mesh that includes
+the 1.8 m central choke, while the 1.2 m radius Boss mesh excludes that choke
+and uses the 3.2 m-plus end routes. `BossNavigation3DRegressionSmoke` verifies
+large-agent routing, Feral access to the narrow route, crowd-safe locked Slam
+and Spear attacks, pause/resume, and immediate Boss death cleanup.
+`NavigationPressureBaseline3DRegressionSmoke` records the 24-agent, 40-agent,
+and 40-agent-plus-Boss pair-work baselines and verifies that GameOver freezes
+navigation metrics. Both meshes are repository resources; this stage does not
+rebake navigation at runtime and does not enable RVO avoidance.
+Navigation is currently planar XZ: actors do not jump, traverse multilevel
+terrain, or trigger runtime rebakes.
 Combat hits now also publish authoritative DamageResult feedback: positive hits
 create world-space damage numbers, trigger isolated-material hit flashes, and
 run immediate collision/physics cleanup plus a short death scale presentation.
@@ -108,7 +117,9 @@ alongside `SpitterNavigation3DRegressionSmoke.tscn`,
 congestion, pause, and unregister contracts, and the legacy 2D smokes from
 `.github/workflows/ci.yml`. `CrowdNavigationMapLifecycle3DRegressionSmoke.tscn`
 also exercises the old-map QueueFree/new-map overlap window and verifies that
-the new map keeps its own coordinator binding.
+the new map keeps its own coordinator binding. `BossNavigation3DRegressionSmoke.tscn`
+and `NavigationPressureBaseline3DRegressionSmoke.tscn` add the Stage 3D
+large-agent route, locked-attack, pressure-bound, and pause-freeze contracts.
 
 ## Migration boundaries
 

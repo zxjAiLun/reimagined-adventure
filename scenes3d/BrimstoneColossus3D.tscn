@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/BrimstoneColossusController3D.cs" id="1_boss"]
 [ext_resource type="Resource" path="res://resources/BrimstoneColossus.tres" id="2_definition"]
@@ -11,6 +11,8 @@
 [ext_resource type="Script" path="res://scripts3d/DamageFeedbackSource3D.cs" id="9_damage_source"]
 [ext_resource type="Script" path="res://scripts3d/HitFlash3D.cs" id="10_hit_flash"]
 [ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="11_death_feedback"]
+[ext_resource type="Script" path="res://scripts3d/EnemyNavigation3D.cs" id="12_enemy_navigation"]
+[ext_resource type="Script" path="res://scripts3d/EnemyCrowdAgent3D.cs" id="13_crowd_agent"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
 radius = 1.15
@@ -39,6 +41,37 @@ AreaEffectScene = ExtResource("5_area")
 ItemDropScene = ExtResource("6_drop")
 AreaTelegraphScene = ExtResource("7_area_telegraph")
 LineTelegraphScene = ExtResource("8_line_telegraph")
+AllowDirectChaseWithoutNavigation = true
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+navigation_layers = 2
+path_desired_distance = 0.45
+target_desired_distance = 0.9
+path_max_distance = 8.0
+radius = 1.15
+height = 2.4
+avoidance_enabled = false
+
+[node name="EnemyNavigation3D" type="Node" parent="."]
+script = ExtResource("12_enemy_navigation")
+TargetMoveThreshold = 0.4
+RepathIntervalSeconds = 0.3
+StuckDurationSeconds = 1.5
+MinimumProgressDistance = 0.15
+AgentPathDesiredDistance = 0.45
+AgentTargetDesiredDistance = 0.9
+AgentPathMaxDistance = 8.0
+UsePlanarPathLookahead = true
+
+[node name="EnemyCrowdAgent3D" type="Node" parent="."]
+script = ExtResource("13_crowd_agent")
+BodyRadius = 1.15
+PersonalSpace = 0.15
+SeparationWeight = 0.75
+MaxSeparationSpeedRatio = 0.25
+CongestionSeconds = 1.0
+MinimumProgressDistance = 0.15
+SeparationResponsiveness = 0.2
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 position = Vector3(0, 1.2, 0)

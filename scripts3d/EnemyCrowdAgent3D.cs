@@ -11,6 +11,7 @@ public partial class EnemyCrowdAgent3D : Node
     [Export] public float PersonalSpace { get; set; } = 0.10f;
     [Export] public float SeparationWeight { get; set; } = 0.85f;
     [Export] public float MaxSeparationSpeedRatio { get; set; } = 0.60f;
+    [Export] public float SeparationResponsiveness { get; set; } = 1.0f;
     [Export] public float CongestionSeconds { get; set; } = 0.80f;
     [Export] public float MinimumProgressDistance { get; set; } = 0.08f;
     [Export] public float CongestionPressureThreshold { get; set; } = 0.25f;
@@ -197,7 +198,7 @@ public partial class EnemyCrowdAgent3D : Node
 
     internal void ReceivePair(Vector3 correction, float pressure)
     {
-        _pairCorrection += correction * 4.0f;
+        _pairCorrection += correction * 4.0f * Mathf.Max(0.0f, SeparationResponsiveness);
         _pairPressure += pressure;
         _neighborCount++;
     }
