@@ -19,7 +19,7 @@ public partial class TestArena3D : Node3D
         if (!UsesEncounterRuntime)
         {
             DisableEncounterRuntimeForLegacySmoke();
-            CallDeferred(nameof(CreateLegacyCombatFixtures));
+            CreateLegacyCombatFixtures();
         }
     }
 
