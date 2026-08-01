@@ -13,6 +13,7 @@ public partial class GameFlowController3D : Node
     [Export] public string AtlasMapId { get; set; } = "quiet-coast-3d";
 
     public GameFlowState State { get; private set; } = GameFlowState.Playing;
+    public bool IsEncounterBindingReady => _encounterBound;
 
     private PlayerController3D _player;
     private BrimstoneColossusController3D _boss;
@@ -230,7 +231,6 @@ public partial class GameFlowController3D : Node
 
     private void OnEncounterCompleted()
     {
-        _runSession?.TryCompleteCurrentAtlasMap();
         CompleteMap();
     }
 
@@ -238,6 +238,21 @@ public partial class GameFlowController3D : Node
     {
         if (State != GameFlowState.Playing || _player == null || !_player.IsAlive)
         {
+            return;
+        }
+
+        if (_runSession?.HasFormalAtlas == true
+            && !_runSession.UsesLegacyPlanResolution
+            && _runSession.Atlas.State.IsCompleted(_runSession.CurrentAtlasMapId))
+        {
+            return;
+        }
+
+        if (_runSession?.HasFormalAtlas == true
+            && !_runSession.UsesLegacyPlanResolution
+            && !_runSession.TryCompleteCurrentAtlasMap())
+        {
+            GD.PushError("Could not complete the current Atlas map.");
             return;
         }
 

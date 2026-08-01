@@ -59,10 +59,12 @@ public partial class RunSessionNode : Node
     private string _pendingAtlasMapId = string.Empty;
     private int _atlasCompletionCount;
     private int _routeSelectionCount;
-    private string _resolvedAtlasMapId = string.Empty;
+    private string _resolvedModifierAtlasMapId = string.Empty;
+    private bool _resolvedModifierUsingLegacyPlan;
+    private string _resolvedEncounterAtlasMapId = string.Empty;
+    private bool _resolvedEncounterUsingLegacyPlan;
     private RunMapPlan3D _currentMapPlan;
     private bool _useLegacyPlanResolution;
-    private bool _resolvedUsingLegacyPlan;
 
     public RunSession Session => _session ?? throw new InvalidOperationException("RunSessionNode is not ready.");
     public int ItemSequence => Session.ItemSequence;
@@ -88,7 +90,10 @@ public partial class RunSessionNode : Node
     public AtlasMapDefinition CurrentAtlasMap => _atlas?.FindMap(_currentAtlasMapId);
     public AtlasMapDefinition PendingAtlasMap => _atlas?.FindMap(_pendingAtlasMapId);
     public IReadOnlyList<AtlasMapDefinition> AvailableAtlasMaps =>
-        _atlas?.AvailableMaps ?? Array.Empty<AtlasMapDefinition>();
+        _atlas?.AvailableMaps
+            .Where(CanEnterOnNextMapLevel)
+            .ToArray()
+        ?? Array.Empty<AtlasMapDefinition>();
     public int AtlasCompletionCount => _atlasCompletionCount;
     public int RouteSelectionCount => _routeSelectionCount;
     public bool UsesLegacyPlanResolution => _useLegacyPlanResolution;
@@ -277,7 +282,7 @@ public partial class RunSessionNode : Node
         if (target == null
             || !_atlas.State.IsUnlocked(mapId)
             || _atlas.State.IsCompleted(mapId)
-            || !_atlas.AvailableMaps.Any(candidate => candidate.Id == mapId))
+            || !AvailableAtlasMaps.Any(candidate => candidate.Id == mapId))
         {
             return false;
         }
@@ -399,6 +404,34 @@ public partial class RunSessionNode : Node
         _atlasCompletionCount = _atlas.State.CompletedMapIds.Count;
     }
 
+    private bool CanEnterOnNextMapLevel(AtlasMapDefinition map)
+    {
+        if (map == null
+            || MapModifierCatalog == null
+            || EncounterCatalog == null)
+        {
+            return false;
+        }
+
+        var nextLevel = Session.MapLevel + 1;
+        try
+        {
+            var modifier = MapModifierCatalog.ToDomainCandidates()
+                .FirstOrDefault(candidate => candidate.ModifierId == map.MapModifierId);
+            var encounter = EncounterCatalog.ToDomainCandidates()
+                .FirstOrDefault(candidate => candidate.EncounterId == map.EncounterId);
+            return modifier != null
+                && modifier.IsEligible(nextLevel)
+                && encounter != null
+                && encounter.IsEligible(nextLevel)
+                && encounter.EncounterTier == map.Tier;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
     private void ApplyAtlasState(
         string currentAtlasMapId,
         string pendingAtlasMapId,
@@ -510,8 +543,8 @@ public partial class RunSessionNode : Node
             && _resolvedModifierMapLevel == Session.MapLevel
             && _resolvedModifierRunSeed == Session.RunSeed
             && _resolvedModifierCatalogVersion == catalogVersion
-            && _resolvedAtlasMapId == CurrentAtlasMapId
-            && _resolvedUsingLegacyPlan == _useLegacyPlanResolution)
+            && _resolvedModifierAtlasMapId == CurrentAtlasMapId
+            && _resolvedModifierUsingLegacyPlan == _useLegacyPlanResolution)
         {
             return;
         }
@@ -559,8 +592,8 @@ public partial class RunSessionNode : Node
         _resolvedModifierMapLevel = Session.MapLevel;
         _resolvedModifierRunSeed = Session.RunSeed;
         _resolvedModifierCatalogVersion = catalogVersion;
-        _resolvedAtlasMapId = CurrentAtlasMapId;
-        _resolvedUsingLegacyPlan = _useLegacyPlanResolution;
+        _resolvedModifierAtlasMapId = CurrentAtlasMapId;
+        _resolvedModifierUsingLegacyPlan = _useLegacyPlanResolution;
         _mapModifierResolveCount++;
         EmitSignal(SignalName.MapModifierResolved, CurrentMapModifierId, Session.MapLevel);
     }
@@ -572,8 +605,8 @@ public partial class RunSessionNode : Node
             && _resolvedEncounterMapLevel == Session.MapLevel
             && _resolvedEncounterRunSeed == Session.RunSeed
             && _resolvedEncounterCatalogVersion == catalogVersion
-            && _resolvedAtlasMapId == CurrentAtlasMapId
-            && _resolvedUsingLegacyPlan == _useLegacyPlanResolution)
+            && _resolvedEncounterAtlasMapId == CurrentAtlasMapId
+            && _resolvedEncounterUsingLegacyPlan == _useLegacyPlanResolution)
         {
             return;
         }
@@ -642,8 +675,8 @@ public partial class RunSessionNode : Node
         _resolvedEncounterMapLevel = Session.MapLevel;
         _resolvedEncounterRunSeed = Session.RunSeed;
         _resolvedEncounterCatalogVersion = catalogVersion;
-        _resolvedAtlasMapId = CurrentAtlasMapId;
-        _resolvedUsingLegacyPlan = _useLegacyPlanResolution;
+        _resolvedEncounterAtlasMapId = CurrentAtlasMapId;
+        _resolvedEncounterUsingLegacyPlan = _useLegacyPlanResolution;
         _encounterResolveCount++;
         EmitSignal(
             SignalName.EncounterPlanResolved,

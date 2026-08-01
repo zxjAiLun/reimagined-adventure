@@ -181,7 +181,8 @@ RNG streams. `EncounterPlanRuntime3DRegressionSmoke.tscn` verifies pre-ready
 plan application, cross-map identity, HUD/director binding, save stability,
 pause stability, and the shipped Quiet/Crossfire/Siege compositions.
 `AtlasRouteChoice3DRegressionSmoke.tscn` verifies real encounter completion,
-route selection/confirmation, route-driven map planning, and old-map release;
+GameOver completion guards, Map 1 → Map 2 → Map 3 → Map 4 route progression,
+Tier 3 eligibility filtering, route-driven map planning, and old-map release;
 `AtlasRouteSaveRecovery3DRegressionSmoke.tscn` verifies Playing, MapComplete
 before/after reward, pending-route, and next-map save boundaries without
 rerolling Atlas state or run RNG. CI runs 32 smoke scenes in total.

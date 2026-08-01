@@ -16,6 +16,8 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
     private RunSessionNode _run;
     private TestArena3D _firstArena;
     private TestArena3D _secondArena;
+    private TestArena3D _thirdArena;
+    private TestArena3D _fourthArena;
     private GameFlowController3D _flow;
     private MapRewardNode3D _rewards;
     private AtlasRouteChoiceController3D _route;
@@ -26,7 +28,10 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
     private double _elapsed;
     private double _transitionElapsed;
     private bool _bound;
-    private bool _routeRequested;
+    private int _routeStage = 1;
+    private bool _gameOverGuardChecked;
+    private bool _map2Verified;
+    private bool _map3Verified;
     private bool _complete;
     private AtlasRouteSaveRecoveryRunner _saveRecoveryRunner;
 
@@ -68,13 +73,24 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
             }
         }
 
-        if (!_routeRequested)
+        if (_routeStage == 1)
         {
             TickFirstMap();
             return;
         }
 
-        TickSecondMap(delta);
+        switch (_routeStage)
+        {
+            case 2:
+                TickSecondMap(delta);
+                break;
+            case 3:
+                TickThirdMap(delta);
+                break;
+            case 4:
+                TickFourthMap(delta);
+                break;
+        }
     }
 
     private void BindFirstMap()
@@ -117,6 +133,17 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
     {
         if (_flow.State == GameFlowState.Playing)
         {
+            if (!_flow.IsEncounterBindingReady)
+            {
+                return;
+            }
+
+            if (!_gameOverGuardChecked)
+            {
+                VerifyGameOverCompletionGuard();
+                return;
+            }
+
             KillActiveEnemies();
             return;
         }
@@ -163,7 +190,9 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
             return;
         }
 
-        _routeRequested = true;
+        _routeStage = 2;
+        _transitionElapsed = 0.0;
+        _map2Verified = false;
         if (!_route.TryConfirm())
         {
             Fail("selected Atlas route could not be confirmed");
@@ -197,34 +226,259 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
             return;
         }
 
-        var plan = _secondArena.AppliedRunPlan;
-        var secondHud = _secondArena.GetNodeOrNull<CombatHudController3D>("HUD");
-        var expectedModifier = _run.CurrentMapModifierId == "volatile-hunt";
-        var expectedEncounter = _run.CurrentEncounterId == "crossfire_advance";
-        if (!expectedModifier
-            || !expectedEncounter
-            || plan?.AtlasMapId != "volatile-rift"
-            || plan?.Modifier.Id != "volatile-hunt"
-            || plan?.EncounterId != "crossfire_advance"
-            || plan?.DropItemLevel != 3
-            || _run.RouteSelectionCount != 1
-            || _route.ConfirmCount != 1
-            || secondHud == null
-            || secondHud.EncounterId != "crossfire_advance"
-            || !secondHud.EncounterText.Contains("Crossfire Advance"))
+        _flow = _secondArena.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        _rewards = _secondArena.GetNodeOrNull<MapRewardNode3D>("MapRewards3D");
+        _route = _secondArena.GetNodeOrNull<AtlasRouteChoiceController3D>("AtlasRouteChoice3D");
+        _director = _secondArena.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
+
+        if (!_map2Verified)
         {
-            Fail($"selected route plan/HUD mismatch map={_run.CurrentAtlasMapId} modifier={_run.CurrentMapModifierId} encounter={_run.CurrentEncounterId} planAtlas={plan?.AtlasMapId} planModifier={plan?.Modifier.Id} planEncounter={plan?.EncounterId} drop={plan?.DropItemLevel} routeCount={_run.RouteSelectionCount}/{_route.ConfirmCount} hud={secondHud?.EncounterId}");
+            var plan = _secondArena.AppliedRunPlan;
+            var secondHud = _secondArena.GetNodeOrNull<CombatHudController3D>("HUD");
+            var expectedModifier = _run.CurrentMapModifierId == "volatile-hunt";
+            var expectedEncounter = _run.CurrentEncounterId == "crossfire_advance";
+            if (!expectedModifier
+                || !expectedEncounter
+                || plan?.AtlasMapId != "volatile-rift"
+                || plan?.Modifier.Id != "volatile-hunt"
+                || plan?.EncounterId != "crossfire_advance"
+                || plan?.DropItemLevel != 3
+                || _run.RouteSelectionCount != 1
+                || secondHud == null
+                || secondHud.EncounterId != "crossfire_advance"
+                || !secondHud.EncounterText.Contains("Crossfire Advance"))
+            {
+                Fail($"selected route plan/HUD mismatch map={_run.CurrentAtlasMapId} modifier={_run.CurrentMapModifierId} encounter={_run.CurrentEncounterId} planAtlas={plan?.AtlasMapId} planModifier={plan?.Modifier.Id} planEncounter={plan?.EncounterId} drop={plan?.DropItemLevel} routeCount={_run.RouteSelectionCount}/{_route.ConfirmCount} hud={secondHud?.EncounterId}");
+                return;
+            }
+
+            _map2Verified = true;
+        }
+
+        if (_flow.State == GameFlowState.Playing)
+        {
+            KillActiveEnemies();
+            return;
+        }
+
+        if (_flow.State != GameFlowState.MapComplete)
+        {
+            Fail($"volatile-rift ended in unexpected state {_flow.State}");
+            return;
+        }
+
+        if (_run.AtlasCompletionCount != 2
+            || !_run.Atlas.State.IsCompleted("volatile-rift"))
+        {
+            Fail("volatile-rift did not complete exactly once");
+            return;
+        }
+
+        if (!_rewards.HasChosen && !_rewards.TryChooseReward(0))
+        {
+            Fail("Map 2 reward could not be selected");
+            return;
+        }
+
+        if (!_route.ChoiceActive)
+        {
+            return;
+        }
+
+        if (_route.OptionCount != 1
+            || _route.OptionMapIds[0] != "hardened-frontier"
+            || _run.AvailableAtlasMaps.Count != 1
+            || _run.AvailableAtlasMaps[0].Id != "hardened-frontier"
+            || _run.TrySelectNextAtlasMap("brimstone-caldera")
+            || !_route.TrySelect(0)
+            || !_route.TryConfirm())
+        {
+            Fail("Tier 3 route was exposed before Map Level 3 eligibility");
+            return;
+        }
+
+        _routeStage = 3;
+        _transitionElapsed = 0.0;
+        _thirdArena = null;
+        _map3Verified = false;
+    }
+
+    private void TickThirdMap(double delta)
+    {
+        _transitionElapsed += delta;
+        _thirdArena ??= GetTree().GetNodesInGroup("arena_3d")
+            .OfType<TestArena3D>()
+            .LastOrDefault(map => map.UsesEncounterRuntime
+                && !ReferenceEquals(map, _firstArena)
+                && !ReferenceEquals(map, _secondArena));
+        if (_run.CurrentMapLevel != 3 || _thirdArena == null)
+        {
+            if (_transitionElapsed > 12.0)
+            {
+                Fail("hardened-frontier route did not create Map Level 3");
+            }
+
+            return;
+        }
+
+        if (GodotObject.IsInstanceValid(_secondArena))
+        {
+            if (_transitionElapsed > 4.0)
+            {
+                Fail("Map Level 2 route map was not released");
+            }
+
+            return;
+        }
+
+        if (!_map3Verified)
+        {
+            var plan = _thirdArena.AppliedRunPlan;
+            if (_run.CurrentAtlasMapId != "hardened-frontier"
+                || _run.CurrentMapModifierId != "hardened-front"
+                || _run.CurrentEncounterId != "crossfire_advance"
+                || plan?.AtlasMapId != "hardened-frontier"
+                || plan?.Modifier.Id != "hardened-front"
+                || plan?.EncounterId != "crossfire_advance"
+                || plan?.MapLevel != 3)
+            {
+                Fail("Map Level 3 route plan was not resolved from hardened-frontier");
+                return;
+            }
+
+            _map3Verified = true;
+        }
+
+        _flow = _thirdArena.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        _rewards = _thirdArena.GetNodeOrNull<MapRewardNode3D>("MapRewards3D");
+        _route = _thirdArena.GetNodeOrNull<AtlasRouteChoiceController3D>("AtlasRouteChoice3D");
+        _director = _thirdArena.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
+        if (_flow.State == GameFlowState.Playing)
+        {
+            KillActiveEnemies();
+            return;
+        }
+
+        if (_flow.State != GameFlowState.MapComplete)
+        {
+            Fail($"hardened-frontier ended in unexpected state {_flow.State}");
+            return;
+        }
+
+        if (_run.AtlasCompletionCount != 3
+            || !_run.Atlas.State.IsCompleted("hardened-frontier"))
+        {
+            Fail("hardened-frontier did not complete exactly once");
+            return;
+        }
+
+        if (!_rewards.HasChosen && !_rewards.TryChooseReward(0))
+        {
+            Fail("Map 3 reward could not be selected");
+            return;
+        }
+
+        if (!_route.ChoiceActive)
+        {
+            return;
+        }
+
+        var tierThreeIds = _run.AvailableAtlasMaps
+            .Select(map => map.Id)
+            .OrderBy(id => id)
+            .ToArray();
+        var calderaIndex = _route.OptionMapIds.ToList().IndexOf("brimstone-caldera");
+        if (tierThreeIds.Length != 2
+            || !tierThreeIds.SequenceEqual(new[] { "brimstone-caldera", "siege-gate" })
+            || _route.OptionCount != 2
+            || calderaIndex < 0
+            || !_route.TrySelect(calderaIndex)
+            || !_route.TryConfirm())
+        {
+            Fail("Tier 3 routes were not exposed at eligible Map Level 4");
+            return;
+        }
+
+        _routeStage = 4;
+        _transitionElapsed = 0.0;
+        _fourthArena = null;
+    }
+
+    private void TickFourthMap(double delta)
+    {
+        _transitionElapsed += delta;
+        _fourthArena ??= GetTree().GetNodesInGroup("arena_3d")
+            .OfType<TestArena3D>()
+            .LastOrDefault(map => map.UsesEncounterRuntime
+                && !ReferenceEquals(map, _firstArena)
+                && !ReferenceEquals(map, _secondArena)
+                && !ReferenceEquals(map, _thirdArena));
+        if (_run.CurrentMapLevel != 4 || _fourthArena == null)
+        {
+            if (_transitionElapsed > 12.0)
+            {
+                Fail("Tier 3 route did not create Map Level 4");
+            }
+
+            return;
+        }
+
+        if (GodotObject.IsInstanceValid(_thirdArena))
+        {
+            if (_transitionElapsed > 4.0)
+            {
+                Fail("Map Level 3 route map was not released");
+            }
+
+            return;
+        }
+
+        var plan = _fourthArena.AppliedRunPlan;
+        if (_run.CurrentAtlasMapId != "brimstone-caldera"
+            || _run.CurrentMapModifierId != "volatile-hunt"
+            || _run.CurrentEncounterId != "siege_pressure"
+            || _run.CurrentEncounterTier != 3
+            || plan?.AtlasMapId != "brimstone-caldera"
+            || plan?.EncounterId != "siege_pressure"
+            || plan?.MapLevel != 4)
+        {
+            Fail("Tier 3 route did not resolve Siege Pressure at Map Level 4");
             return;
         }
 
         _complete = true;
-        GD.Print("ATLAS_ROUTE_CHOICE_3D_REGRESSION_PASS completion=true ordering=true options=2 unselected_n_blocked=true volatile_route=true plan=true hud=true old_map_released=true");
+        GD.Print("ATLAS_ROUTE_CHOICE_3D_REGRESSION_PASS completion=true ordering=true gameover_guard=true tier3_hidden_until_level4=true map1_to_map4=true route=true plan=true old_maps_released=true");
         // Flush Godot-managed arrays before the process exits; the managed wrapper
         // finalizer must run while the native Godot runtime is still alive.
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
         GetTree().Quit();
+    }
+
+    private void VerifyGameOverCompletionGuard()
+    {
+        var completionBefore = _run.AtlasCompletionCount;
+        var completedBefore = _run.Atlas.State.CompletedMapIds.ToArray();
+        var unlockedBefore = _run.Atlas.State.UnlockedMapIds.ToArray();
+        _flow.RestoreState(GameFlowState.GameOver);
+        _director.EmitSignal(EncounterDirector3D.SignalName.EncounterCompleted);
+        var unchanged = _flow.State == GameFlowState.GameOver
+            && _run.AtlasCompletionCount == completionBefore
+            && _run.Atlas.State.CompletedMapIds.OrderBy(id => id)
+                .SequenceEqual(completedBefore.OrderBy(id => id))
+            && _run.Atlas.State.UnlockedMapIds.OrderBy(id => id)
+                .SequenceEqual(unlockedBefore.OrderBy(id => id))
+            && !_rewards.HasChosen
+            && !_route.ChoiceActive;
+        if (!unchanged)
+        {
+            Fail("GameOver EncounterCompleted mutated Atlas or opened a route choice");
+            return;
+        }
+
+        _flow.RestoreState(GameFlowState.Playing);
+        _gameOverGuardChecked = true;
     }
 
     private void KillActiveEnemies()
