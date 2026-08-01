@@ -26,6 +26,11 @@ public partial class MapModifierRuntime3DRegressionSmoke : Node
     private int _expectedDropLevel;
     private string _expectedModifierId;
     private int _resolvedSignalCount;
+    private FeralController3D _activeFeral;
+    private SpitterController3D _activeSpitter;
+    private BrimstoneColossusController3D _activeBoss;
+    private int _attackPhase;
+    private float _attackElapsed;
 
     public override void _Ready()
     {
@@ -58,6 +63,12 @@ public partial class MapModifierRuntime3DRegressionSmoke : Node
         {
             director.Enabled = false;
             director.ProcessMode = ProcessModeEnum.Disabled;
+        }
+
+        if (_attackPhase != 0)
+        {
+            TickModifierAttack((float)delta);
+            return;
         }
 
         if (!_started)
@@ -100,7 +111,7 @@ public partial class MapModifierRuntime3DRegressionSmoke : Node
             var newDrops = CollectNewDrops();
             if (newDrops < _expectedNewDrops)
             {
-                if (_elapsed > 18.0)
+                if (_elapsed > 45.0)
                 {
                     Fail($"expected {_expectedNewDrops} modifier drops, observed {newDrops}");
                 }
@@ -138,7 +149,7 @@ public partial class MapModifierRuntime3DRegressionSmoke : Node
 
             if (_resolvedSignalCount < 2 || _run.CurrentMapModifier == null)
             {
-                if (_elapsed > 18.0)
+                if (_elapsed > 45.0)
                 {
                     Fail("cross-map modifier resolution signal was not emitted");
                 }
@@ -242,24 +253,106 @@ public partial class MapModifierRuntime3DRegressionSmoke : Node
             return false;
         }
 
-        var damage = feral.ApplyDamage(new DamageRequest(
-            1,
-            DamageType.Physical,
-            $"modifier_runtime_{modifierId}",
-            CombatFaction.Player));
-        if (damage.DamageApplied <= 0)
-        {
-            Fail($"{modifierId} real enemy damage result was not applied");
-            return false;
-        }
-
-        var dropsBefore = GetTree().GetNodesInGroup("item_drops_3d").Count;
-        Kill(feral);
-        Kill(spitter);
-        Kill(boss);
-        _expectedNewDrops = dropsBefore == 0 ? 3 : 3;
+        _activeFeral = feral;
+        _activeSpitter = spitter;
+        _activeBoss = boss;
+        // Dynamic actors are added with their normal physics processing enabled.
+        // Freeze every actor before starting the serialized attack phases so a
+        // later phase cannot damage the player while an earlier phase is being
+        // observed by the smoke.
+        feral.SetPhysicsProcess(false);
+        spitter.SetPhysicsProcess(false);
+        boss.SetPhysicsProcess(false);
+        ClearEnemyProjectiles();
+        _player.ApplyRestoredHealth(_player.MaxHealth);
+        _player.GlobalPosition = Vector3.Zero;
+        feral.GlobalPosition = new Vector3(1.0f, 0.0f, 0.0f);
+        spitter.GlobalPosition = new Vector3(0.0f, 0.0f, 5.0f);
+        boss.GlobalPosition = new Vector3(2.0f, 0.0f, 0.0f);
+        _attackPhase = 1;
+        _attackElapsed = 0.0f;
         _expectedDropLevel = itemLevel;
         return true;
+    }
+
+    private void TickModifierAttack(float delta)
+    {
+        _attackElapsed += delta;
+        if (_attackElapsed > 5.0f)
+        {
+            Fail($"{_expectedModifierId} actual attack phase {_attackPhase} timed out");
+            return;
+        }
+
+        switch (_attackPhase)
+        {
+            case 1:
+                _activeFeral.SetPhysicsProcess(true);
+                if (_activeFeral.ImpactCount > 0)
+                {
+                    var damage = _player.MaxHealth - _player.CurrentHealth;
+                    if (damage != _activeFeral.AppliedPrimaryDamage)
+                    {
+                        Fail($"{_expectedModifierId} Feral actual damage was {damage}, expected {_activeFeral.AppliedPrimaryDamage}");
+                        return;
+                    }
+
+                    _activeFeral.SetPhysicsProcess(false);
+                    _player.ApplyRestoredHealth(_player.MaxHealth);
+                    ClearEnemyProjectiles();
+                    _activeSpitter.AttackCooldown = 10.0f;
+                    _activeSpitter.SetPhysicsProcess(true);
+                    _attackPhase = 2;
+                    _attackElapsed = 0.0f;
+                }
+
+                break;
+            case 2:
+                if (_activeSpitter.ProjectileShotCount > 0
+                    && _player.CurrentHealth < _player.MaxHealth)
+                {
+                    var damage = _player.MaxHealth - _player.CurrentHealth;
+                    if (damage != _activeSpitter.AppliedPrimaryDamage)
+                    {
+                        Fail($"{_expectedModifierId} Spitter actual damage was {damage}, expected {_activeSpitter.AppliedPrimaryDamage}");
+                        return;
+                    }
+
+                    _activeSpitter.SetPhysicsProcess(false);
+                    _player.ApplyRestoredHealth(_player.MaxHealth);
+                    ClearEnemyProjectiles();
+                    _activeBoss.SetPhysicsProcess(true);
+                    _attackPhase = 3;
+                    _attackElapsed = 0.0f;
+                }
+
+                break;
+            case 3:
+                if (_activeBoss.MagmaSlamImpactCount > 0
+                    && _player.CurrentHealth < _player.MaxHealth)
+                {
+                    var damage = _player.MaxHealth - _player.CurrentHealth;
+                    if (damage != _activeBoss.AppliedPrimaryDamage)
+                    {
+                        Fail($"{_expectedModifierId} Boss Slam actual damage was {damage}, expected {_activeBoss.AppliedPrimaryDamage}");
+                        return;
+                    }
+
+                    _activeBoss.SetPhysicsProcess(false);
+                    ClearEnemyProjectiles();
+                    Kill(_activeFeral);
+                    Kill(_activeSpitter);
+                    Kill(_activeBoss);
+                    _expectedNewDrops = 3;
+                    _attackPhase = 0;
+                    _attackElapsed = 0.0f;
+                    _activeFeral = null;
+                    _activeSpitter = null;
+                    _activeBoss = null;
+                }
+
+                break;
+        }
     }
 
     private T Spawn<T>(
@@ -312,6 +405,17 @@ public partial class MapModifierRuntime3DRegressionSmoke : Node
             DamageType.Physical,
             "modifier_runtime_lethal",
             CombatFaction.Player));
+    }
+
+    private void ClearEnemyProjectiles()
+    {
+        foreach (var node in GetTree().GetNodesInGroup("enemy_projectiles_3d"))
+        {
+            if (node is Node projectile)
+            {
+                projectile.QueueFree();
+            }
+        }
     }
 
     private int CollectNewDrops()
