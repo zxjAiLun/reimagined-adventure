@@ -15,6 +15,8 @@ public partial class MapScope3DRegressionSmoke : Node
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        DisableNavigationForScopeFixture("MapA");
+        DisableNavigationForScopeFixture("MapB");
     }
 
     public override void _Process(double delta)
@@ -124,5 +126,15 @@ public partial class MapScope3DRegressionSmoke : Node
         _complete = true;
         GD.PushError($"MAP_SCOPE_3D_REGRESSION_FAIL {reason}");
         GetTree().Quit(1);
+    }
+
+    private void DisableNavigationForScopeFixture(string mapPath)
+    {
+        GetNodeOrNull<NavigationRegion3D>($"{mapPath}/SmallNavigationRegion3D")?.SetDeferred(
+            NavigationRegion3D.PropertyName.Enabled,
+            false);
+        GetNodeOrNull<NavigationRegion3D>($"{mapPath}/LargeNavigationRegion3D")?.SetDeferred(
+            NavigationRegion3D.PropertyName.Enabled,
+            false);
     }
 }
