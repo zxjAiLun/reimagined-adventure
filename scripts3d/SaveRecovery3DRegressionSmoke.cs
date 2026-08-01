@@ -95,7 +95,7 @@ public partial class SaveRecovery3DRegressionSmoke : Node
 
                 var maxHpWeapon = CreateMaxHpWeapon();
                 if (!player.RestoreInventory(Array.Empty<Item>(), maxHpWeapon)
-                    || player.MaxHealth != 125)
+                    || player.MaxHealth != 130)
                 {
                     Fail("could not prepare equipment MaxHp save");
                     return;
@@ -124,7 +124,7 @@ public partial class SaveRecovery3DRegressionSmoke : Node
                     return;
                 }
 
-                var equipmentRestorePass = player.MaxHealth == 125
+                var equipmentRestorePass = player.MaxHealth == 130
                     && player.CurrentHealth == 115
                     && player.EquippedWeapon?.Id == "save_recovery_vitality_weapon";
                 if (!equipmentRestorePass)
@@ -241,14 +241,8 @@ public partial class SaveRecovery3DRegressionSmoke : Node
     private static Item CreateMaxHpWeapon()
     {
         var baseDefinition = ItemBaseLibrary.Find("rustbound_blade");
-        var vitalityAffix = new Affix
-        {
-            Id = "save_recovery_vitality",
-            Name = "Vitality",
-            Tier = 1,
-            IsPrefix = true,
-            Stats = new Stats { MaxHp = 25 },
-        };
+        var vitalityAffix = AffixLibrary.Find("stalwart_t2")?.Roll()
+            ?? throw new InvalidOperationException("stalwart_t2 is missing from the affix library");
 
         var item = new Item
         {
@@ -257,6 +251,7 @@ public partial class SaveRecovery3DRegressionSmoke : Node
             BaseId = baseDefinition.Id,
             Slot = baseDefinition.Slot,
             Rarity = Rarity.Magic,
+            ItemLevel = 4,
             RequiredLevel = baseDefinition.RequiredLevel,
             Stats = Stats.Combine(baseDefinition.ImplicitStats, vitalityAffix.Stats),
             Affixes = [vitalityAffix],
