@@ -78,7 +78,7 @@ public partial class BuildIntermission3DRegressionSmoke : Node
         var build = arena.GetNode<BuildIntermissionController3D>("BuildIntermission3D");
         var route = arena.GetNode<AtlasRouteChoiceController3D>("AtlasRouteChoice3D");
         var player = arena.GetNode<PlayerController3D>("Player3D");
-        var screen = arena.GetNode<InventoryScreenController3D>("InventoryScreen3D");
+        var screen = arena.GetNode<InventoryScreenController3D>("Player3D/InventoryScreen3D");
         _firstArena = arena;
 
         if (!run.TryCompleteCurrentAtlasMap()
