@@ -78,6 +78,7 @@ public partial class BuildIntermission3DRegressionSmoke : Node
         var build = arena.GetNode<BuildIntermissionController3D>("BuildIntermission3D");
         var route = arena.GetNode<AtlasRouteChoiceController3D>("AtlasRouteChoice3D");
         var player = arena.GetNode<PlayerController3D>("Player3D");
+        var screen = arena.GetNode<InventoryScreenController3D>("InventoryScreen3D");
         _firstArena = arena;
 
         if (!run.TryCompleteCurrentAtlasMap()
@@ -129,9 +130,18 @@ public partial class BuildIntermission3DRegressionSmoke : Node
             throw new InvalidOperationException("build inventory/equipment swap was not deterministic");
         }
 
-        if (!player.Skills.TryAttachSupport(SkillSlot.Primary, "volley"))
+        if (!screen.IsScreenVisible)
         {
-            throw new InvalidOperationException("Volley support could not be configured during build");
+            throw new InvalidOperationException("formal build screen did not open after reward selection");
+        }
+
+        SendAction("unequip_item");
+        SendAction("equip_item");
+        if (player.Equipment.ItemInSlot(EquipmentSlot.Weapon)?.Id != weaponA.Id
+            || player.Items.Count != 1
+            || player.Items[0].Id != weaponB.Id)
+        {
+            throw new InvalidOperationException("keyboard equip/unequip actions did not update the weapon slot");
         }
 
         var oldWorldItem = generator.GenerateItemDrop(new ItemRollContext(
@@ -144,31 +154,46 @@ public partial class BuildIntermission3DRegressionSmoke : Node
         oldWorldDrop.Configure(oldWorldItem);
         _oldWorldDropId = oldWorldItem.Id;
 
-        if (!build.Currency.TryAdd(3)
-            || !build.TryMoveInventoryToStash(weaponA.Id))
+        if (!build.Currency.TryAdd(3))
         {
-            throw new InvalidOperationException("inventory to stash transaction failed");
+            throw new InvalidOperationException("could not prepare forge currency");
         }
 
-        if (!build.TryReforge(weaponA.Id, out var result, out var error)
-            || result == null
-            || !string.IsNullOrWhiteSpace(error)
-            || result.CraftedItem.Id == weaponA.Id
+        SendAction("stash_transfer");
+        SendAction("stash_transfer");
+        SendAction("stash_transfer");
+        if (build.StashItems.Count != 1
+            || build.StashItems[0].Id != weaponB.Id
+            || player.Items.Count != 0)
+        {
+            throw new InvalidOperationException("keyboard stash transfer was not bidirectional");
+        }
+
+        SendAction("reforge_item");
+        var result = build.StashItems.FirstOrDefault();
+        if (result == null
+            || result.Id == weaponB.Id
             || build.Currency.ForgeFragments != 2
             || build.StashItems.Count != 1
-            || build.StashItems[0].Id != result.CraftedItem.Id)
+            || build.StashItems[0].Id != result.Id)
         {
-            throw new InvalidOperationException($"stash reforge transaction failed: {error}");
+            throw new InvalidOperationException("keyboard reforge transaction failed");
         }
 
-        if (player.Skills.SupportIdBySkillSlot.GetValueOrDefault(SkillSlot.Primary) != "volley")
+        SendAction("attach_support");
+        SendAction("detach_support");
+        SendAction("attach_support");
+        if (player.Skills.SupportIdBySkillSlot.GetValueOrDefault(SkillSlot.Primary) != "volley"
+            || !screen.StashText.Contains(result.Id, StringComparison.Ordinal)
+            || !screen.CurrencyText.Contains("Forge Fragments: 2", StringComparison.Ordinal)
+            || !screen.SupportsText.Contains("Primary: Volley", StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("configured Volley support was not retained before route");
+            throw new InvalidOperationException("formal build UI did not reflect stash, currency, and support actions");
         }
 
         _expectedInventoryIds = player.Items.Select(item => item.Id).OrderBy(id => id).ToArray();
         _expectedEquipmentIds = player.EquippedItems.ToDictionary(pair => pair.Key, pair => pair.Value.Id);
-        _expectedStashId = result.CraftedItem.Id;
+        _expectedStashId = result.Id;
         _expectedForgeFragments = build.Currency.ForgeFragments;
         _expectedPrimarySupport = player.Skills.SupportIdBySkillSlot[SkillSlot.Primary];
         _expectedItemSequence = run.Session.ItemSequence;
@@ -176,8 +201,8 @@ public partial class BuildIntermission3DRegressionSmoke : Node
         _expectedCraftingRandom = run.Session.CraftingRandom.State;
         _expectedEventRandom = run.Session.EventRandom.State;
 
-        if (!build.TryCompleteBuildForTest()
-            || !build.IsRouteChoice
+        SendAction("complete_build");
+        if (!build.IsRouteChoice
             || !route.ChoiceActive
             || route.OptionCount == 0
             || !route.TrySelect(0)
@@ -247,5 +272,14 @@ public partial class BuildIntermission3DRegressionSmoke : Node
         _complete = true;
         GD.PushError($"BUILD_INTERMISSION_3D_REGRESSION_FAIL {reason}");
         GetTree().Quit(1);
+    }
+
+    private void SendAction(string action)
+    {
+        GetViewport().PushInput(new InputEventAction
+        {
+            Action = new StringName(action),
+            Pressed = true,
+        });
     }
 }

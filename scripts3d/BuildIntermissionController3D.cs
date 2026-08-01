@@ -14,12 +14,16 @@ public partial class BuildIntermissionController3D : Node
     [Signal]
     public delegate void PhaseChangedEventHandler(int phase);
 
+    [Signal]
+    public delegate void BuildDataChangedEventHandler();
+
     public MapCompletePhase Phase { get; private set; } = MapCompletePhase.RewardChoice;
     public Stash Stash { get; } = Stash.CreateDefault();
     public RunCurrencyWallet Currency => _build?.Currency ?? _fallbackCurrency;
     public IReadOnlyList<Item> StashItems => Stash.Items;
     public bool IsBuildManagement => Phase == MapCompletePhase.BuildManagement;
     public bool IsRouteChoice => Phase == MapCompletePhase.RouteChoice;
+    public string SelectedStashItemId => _selectedStashItemId;
 
     private readonly RunCurrencyWallet _fallbackCurrency = new();
     private readonly BuildcraftTransactions _transactions = new();
@@ -28,11 +32,13 @@ public partial class BuildIntermissionController3D : Node
     private MapRewardNode3D _rewards = null!;
     private GameFlowController3D _flow = null!;
     private RunSessionNode _run = null!;
+    private string _selectedStashItemId = string.Empty;
     private bool _exiting;
 
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        SetProcessUnhandledInput(true);
         AddToGroup("build_intermissions_3d");
         CallDeferred(nameof(BindRuntime));
     }
@@ -65,25 +71,112 @@ public partial class BuildIntermissionController3D : Node
         return true;
     }
 
-    public bool TryMoveInventoryToStash(string itemId, string tabId = "default") =>
-        IsBuildManagement
-        && _player != null
-        && _transactions.TryMoveInventoryToStash(
-            _player.Inventory,
-            _player.Equipment,
-            Stash,
-            tabId,
-            itemId);
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!IsBuildManagement)
+        {
+            return;
+        }
 
-    public bool TryMoveStashToInventory(string itemId, string tabId = "default") =>
-        IsBuildManagement
-        && _player != null
-        && _transactions.TryMoveStashToInventory(
-            _player.Inventory,
-            _player.Equipment,
-            Stash,
-            tabId,
-            itemId);
+        if (@event.IsActionPressed("complete_build", true))
+        {
+            if (TryCompleteBuild())
+            {
+                GetViewport().SetInputAsHandled();
+            }
+
+            return;
+        }
+
+        if (@event.IsActionPressed("stash_transfer", true))
+        {
+            if (TryTransferSelected())
+            {
+                GetViewport().SetInputAsHandled();
+            }
+
+            return;
+        }
+
+        if (@event.IsActionPressed("reforge_item", true))
+        {
+            if (TryReforgeSelected(out _, out _))
+            {
+                GetViewport().SetInputAsHandled();
+            }
+
+            return;
+        }
+
+        if (@event.IsActionPressed("attach_support", true))
+        {
+            if (_player?.Skills?.TryAttachSupport(SkillSlot.Primary, "volley") == true)
+            {
+                NotifyBuildDataChanged();
+                GetViewport().SetInputAsHandled();
+            }
+
+            return;
+        }
+
+        if (@event.IsActionPressed("detach_support", true))
+        {
+            if (_player?.Skills?.TryDetachSupport(SkillSlot.Primary) == true)
+            {
+                NotifyBuildDataChanged();
+                GetViewport().SetInputAsHandled();
+            }
+
+            return;
+        }
+
+        if (@event.IsActionPressed("unequip_item", true))
+        {
+            if (TryUnequipFirstOccupiedSlot())
+            {
+                GetViewport().SetInputAsHandled();
+            }
+        }
+    }
+
+    public bool TryMoveInventoryToStash(string itemId, string tabId = "default")
+    {
+        var moved = IsBuildManagement
+            && _player != null
+            && _transactions.TryMoveInventoryToStash(
+                _player.Inventory,
+                _player.Equipment,
+                Stash,
+                tabId,
+                itemId);
+        if (moved)
+        {
+            _selectedStashItemId = itemId;
+            NotifyBuildDataChanged();
+        }
+
+        return moved;
+    }
+
+    public bool TryMoveStashToInventory(string itemId, string tabId = "default")
+    {
+        var moved = IsBuildManagement
+            && _player != null
+            && _transactions.TryMoveStashToInventory(
+                _player.Inventory,
+                _player.Equipment,
+                Stash,
+                tabId,
+                itemId);
+        if (moved)
+        {
+            _selectedStashItemId = string.Empty;
+            _build?.SelectItem(itemId);
+            NotifyBuildDataChanged();
+        }
+
+        return moved;
+    }
 
     public bool TryReforge(string itemId, out CraftingResult? result, out string error)
     {
@@ -103,7 +196,7 @@ public partial class BuildIntermissionController3D : Node
             return false;
         }
 
-        return _transactions.TryReforge(
+        var crafted = _transactions.TryReforge(
             new CraftingRecipe
             {
                 Id = "reforge_item",
@@ -120,7 +213,92 @@ public partial class BuildIntermissionController3D : Node
             _run.Session,
             out result,
             out error);
+        if (crafted && result != null)
+        {
+            var craftedItem = result.CraftedItem;
+            if (_player.Items.Any(candidate => candidate.Id == craftedItem.Id))
+            {
+                _selectedStashItemId = string.Empty;
+                _build.SelectItem(craftedItem.Id);
+            }
+            else
+            {
+                _selectedStashItemId = craftedItem.Id;
+            }
+
+            NotifyBuildDataChanged();
+        }
+
+        return crafted;
     }
+
+    public bool TryTransferSelected()
+    {
+        if (!IsBuildManagement || _player == null)
+        {
+            return false;
+        }
+
+        var inventoryId = _build?.SelectedItemId;
+        if (!string.IsNullOrWhiteSpace(inventoryId)
+            && _player.Items.Any(item => item.Id == inventoryId))
+        {
+            return TryMoveInventoryToStash(inventoryId);
+        }
+
+        var stashId = !string.IsNullOrWhiteSpace(_selectedStashItemId)
+            && Stash.ContainsItemId(_selectedStashItemId)
+                ? _selectedStashItemId
+                : Stash.Items.FirstOrDefault()?.Id;
+        return !string.IsNullOrWhiteSpace(stashId)
+            && TryMoveStashToInventory(stashId);
+    }
+
+    public bool TryReforgeSelected(out CraftingResult? result, out string error)
+    {
+        result = null;
+        error = string.Empty;
+        if (!IsBuildManagement || _player == null)
+        {
+            error = "crafting is only available during build management";
+            return false;
+        }
+
+        var selectedId = _build?.SelectedItemId;
+        if (string.IsNullOrWhiteSpace(selectedId)
+            || !_player.Items.Any(item => item.Id == selectedId))
+        {
+            selectedId = _selectedStashItemId;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedId))
+        {
+            selectedId = Stash.Items.FirstOrDefault()?.Id;
+        }
+
+        return !string.IsNullOrWhiteSpace(selectedId)
+            && TryReforge(selectedId, out result, out error);
+    }
+
+    private bool TryUnequipFirstOccupiedSlot()
+    {
+        if (_player == null)
+        {
+            return false;
+        }
+
+        foreach (var slot in Enum.GetValues<EquipmentSlot>())
+        {
+            if (_player.Equipment.ItemInSlot(slot) != null)
+            {
+                return _player.TryUnequip(slot);
+            }
+        }
+
+        return false;
+    }
+
+    private void NotifyBuildDataChanged() => EmitSignal(SignalName.BuildDataChanged);
 
     public bool CanRestore(
         IReadOnlyList<Item> stashItems,
@@ -202,7 +380,9 @@ public partial class BuildIntermissionController3D : Node
         Stash.RestoreItems(stashItems);
         Currency.Restore(forgeFragments);
         Phase = phase;
+        _selectedStashItemId = Stash.Items.FirstOrDefault()?.Id ?? string.Empty;
         EmitSignal(SignalName.PhaseChanged, (int)Phase);
+        NotifyBuildDataChanged();
         if (Phase == MapCompletePhase.BuildManagement)
         {
             _build?.Open();

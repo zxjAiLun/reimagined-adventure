@@ -13,13 +13,19 @@ public partial class InventoryScreenController3D : CanvasLayer
     public string ItemsText => _itemsLabel?.Text ?? string.Empty;
     public string EquipmentText => _equipmentLabel?.Text ?? string.Empty;
     public string DetailsText => _detailsLabel?.Text ?? string.Empty;
+    public string SupportsText => _supportsLabel?.Text ?? string.Empty;
+    public string StashText => _stashLabel?.Text ?? string.Empty;
+    public string CurrencyText => _currencyLabel?.Text ?? string.Empty;
 
     private PlayerBuildController3D _build;
     private Label _itemsLabel;
     private Label _equipmentLabel;
     private Label _detailsLabel;
     private Label _supportsLabel;
+    private Label _stashLabel;
+    private Label _currencyLabel;
     private Label _hintLabel;
+    private BuildIntermissionController3D _intermission;
     private bool _exiting;
 
     public override void _Ready()
@@ -30,6 +36,8 @@ public partial class InventoryScreenController3D : CanvasLayer
         _equipmentLabel = GetNodeOrNull<Label>("Panel/Equipment");
         _detailsLabel = GetNodeOrNull<Label>("Panel/Details");
         _supportsLabel = GetNodeOrNull<Label>("Panel/Supports");
+        _stashLabel = GetNodeOrNull<Label>("Panel/Stash");
+        _currencyLabel = GetNodeOrNull<Label>("Panel/Currency");
         _hintLabel = GetNodeOrNull<Label>("Panel/Hint");
         CallDeferred(nameof(BindBuild));
     }
@@ -40,6 +48,11 @@ public partial class InventoryScreenController3D : CanvasLayer
         if (_build != null)
         {
             _build.BuildChanged -= Refresh;
+        }
+
+        if (_intermission != null)
+        {
+            _intermission.BuildDataChanged -= Refresh;
         }
     }
 
@@ -100,9 +113,23 @@ public partial class InventoryScreenController3D : CanvasLayer
                     $"{slot}: {player.Skills?.Supports(slot).FirstOrDefault()?.Name ?? "none"}"));
         }
 
+        if (_intermission != null && _stashLabel != null)
+        {
+            _stashLabel.Text = "Stash:\n"
+                + (_intermission.StashItems.Count == 0
+                    ? "empty"
+                    : string.Join("\n", _intermission.StashItems.Select(item =>
+                        $"{(item.Id == _intermission.SelectedStashItemId ? "> " : "  ")}{FormatItem(item)}")));
+        }
+
+        if (_intermission != null && _currencyLabel != null)
+        {
+            _currencyLabel.Text = $"Forge Fragments: {_intermission.Currency.ForgeFragments}";
+        }
+
         if (_hintLabel != null)
         {
-            _hintLabel.Text = "I: close   Up/Down: select   E: equip   U: unequip selected slot";
+            _hintLabel.Text = "I close  Up/Down select  E equip  X unequip  T stash  C reforge  O/P support  B done";
         }
     }
 
@@ -120,7 +147,12 @@ public partial class InventoryScreenController3D : CanvasLayer
             return;
         }
 
+        _intermission = GetParent()?.GetParent()?.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
         _build.BuildChanged += Refresh;
+        if (_intermission != null)
+        {
+            _intermission.BuildDataChanged += Refresh;
+        }
     }
 
     private static string FormatItem(Item item) => item == null
