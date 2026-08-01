@@ -112,4 +112,35 @@ public sealed class SaveValidationTests
         Assert.Equal(["quiet-coast", "hardened-frontier"], restored.AtlasUnlockedMapIds);
         Assert.Equal(["quiet-coast"], restored.AtlasCompletedMapIds);
     }
+
+    [Fact]
+    public void FullEquipmentDictionaryRoundTripsAndLegacyWeaponMigrates()
+    {
+        var generator = new LootGenerator(9910);
+        var weapon = generator.GenerateItemDrop(new ItemRollContext(1, LootSourceKind.Reward, EquipmentSlot.Weapon, ForcedRarity: Rarity.Magic));
+        var armor = generator.GenerateItemDrop(new ItemRollContext(1, LootSourceKind.Reward, EquipmentSlot.Armor, ForcedRarity: Rarity.Magic));
+        var ring = generator.GenerateItemDrop(new ItemRollContext(1, LootSourceKind.Reward, EquipmentSlot.Ring, ForcedRarity: Rarity.Magic));
+        var amulet = generator.GenerateItemDrop(new ItemRollContext(1, LootSourceKind.Reward, EquipmentSlot.Amulet, ForcedRarity: Rarity.Magic));
+
+        var state = new MinimalRunState
+        {
+            EquippedItemsBySlot = new Dictionary<EquipmentSlot, Item>
+            {
+                [EquipmentSlot.Weapon] = weapon,
+                [EquipmentSlot.Armor] = armor,
+                [EquipmentSlot.Ring] = ring,
+                [EquipmentSlot.Amulet] = amulet,
+            },
+            ForgeFragments = 4,
+        };
+
+        var restored = SaveSnapshot.Capture(state).Restore();
+
+        Assert.Equal(4, restored.EquippedItemsBySlot.Count);
+        Assert.Equal(armor.Id, restored.EquippedItemsBySlot[EquipmentSlot.Armor].Id);
+        Assert.Equal(4, restored.ForgeFragments);
+
+        var legacy = SaveSnapshot.Capture(new MinimalRunState { EquippedWeapon = weapon }).Restore();
+        Assert.Equal(weapon.Id, legacy.EquippedItemsBySlot[EquipmentSlot.Weapon].Id);
+    }
 }

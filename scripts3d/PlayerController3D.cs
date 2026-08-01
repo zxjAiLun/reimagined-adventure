@@ -16,6 +16,9 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     [Signal]
     public delegate void EquipmentChangedEventHandler();
 
+    [Signal]
+    public delegate void InventoryChangedEventHandler();
+
     public const uint PlayerCollisionLayer = 2;
     public const uint PlayerCollisionMask = 9;
 
@@ -33,12 +36,16 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     public int SpreadShotDamage => SkillSupportMath.Damage(
         SkillLibrary.SpreadShot(),
         EffectiveStats);
-    public int ItemCount => _items.Count;
+    public int ItemCount => _inventory.Count;
     public string EquippedWeaponName => _equipment.ItemInSlot(EquipmentSlot.Weapon)?.Name ?? "none";
-    public IReadOnlyList<Item> Items => _items;
+    public IReadOnlyList<Item> Items => _inventory.Items;
+    public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItems => _equipment.Items;
+    public RunInventory Inventory => _inventory;
+    public Equipment Equipment => _equipment;
+    public int InventoryCapacity => _inventory.Capacity;
     public Item EquippedWeapon => _equipment.ItemInSlot(EquipmentSlot.Weapon);
 
-    private readonly List<Item> _items = new();
+    private readonly RunInventory _inventory = new(16);
     private readonly Equipment _equipment = new();
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
@@ -47,6 +54,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     private MouseGroundTargeting3D _targeting;
     private PlayerMotor3D _motor;
     private PlayerSkillController3D _skills;
+    private PlayerBuildController3D _build;
     private Stats _equipmentStats = Stats.Neutral;
     private Stats _rewardStats = Stats.Neutral;
     private int _baseMaxHealth;
@@ -63,6 +71,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         _targeting = GetNode<MouseGroundTargeting3D>("MouseGroundTargeting3D");
         _motor = GetNodeOrNull<PlayerMotor3D>("PlayerMotor3D");
         _skills = GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
+        _build = GetNodeOrNull<PlayerBuildController3D>("PlayerBuildController3D");
         _targeting.Camera = GetTree().GetFirstNodeInGroup("arena_cameras") as Camera3D;
         _baseMaxHealth = _health.MaxHealth;
         _health.Died += OnDied;
@@ -72,6 +81,11 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (_build?.IsOpen == true)
+        {
+            return;
+        }
+
         if (!IsAlive)
         {
             return;
@@ -199,14 +213,13 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     public bool TryAddItem(Item item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        item.Validate();
-        if (_items.Count >= 8 || _items.Exists(existing => existing.Id == item.Id))
+        var added = _inventory.TryAdd(item, _equipment);
+        if (added)
         {
-            return false;
+            EmitSignal(SignalName.InventoryChanged);
         }
 
-        _items.Add(item);
-        return true;
+        return added;
     }
 
     public void SetRewardStats(Stats stats)
@@ -229,8 +242,20 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         Stats rewardStats,
         out int maxHealth)
     {
+        var equippedItems = equippedWeapon == null
+            ? new Dictionary<EquipmentSlot, Item>()
+            : new Dictionary<EquipmentSlot, Item> { [EquipmentSlot.Weapon] = equippedWeapon };
+        return TryCalculateMaxHealthForRestore(items, equippedItems, rewardStats, out maxHealth);
+    }
+
+    public bool TryCalculateMaxHealthForRestore(
+        IReadOnlyList<Item> items,
+        IReadOnlyDictionary<EquipmentSlot, Item> equippedItems,
+        Stats rewardStats,
+        out int maxHealth)
+    {
         maxHealth = 0;
-        if (!TryBuildRestoreStats(items, equippedWeapon, rewardStats, out var restoreStats))
+        if (!TryBuildRestoreStats(items, equippedItems, rewardStats, out var restoreStats))
         {
             return false;
         }
@@ -256,20 +281,30 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
     public bool RestoreInventory(IReadOnlyList<Item> items, Item equippedWeapon)
     {
-        if (!TryBuildRestoreStats(items, equippedWeapon, _rewardStats, out _))
+        var equippedItems = equippedWeapon == null
+            ? new Dictionary<EquipmentSlot, Item>()
+            : new Dictionary<EquipmentSlot, Item> { [EquipmentSlot.Weapon] = equippedWeapon };
+        return RestoreEquipment(items, equippedItems);
+    }
+
+    public bool RestoreEquipment(
+        IReadOnlyList<Item> items,
+        IReadOnlyDictionary<EquipmentSlot, Item> equippedItems)
+    {
+        if (!TryBuildRestoreStats(items, equippedItems, _rewardStats, out _))
         {
             return false;
         }
 
-        _items.Clear();
-        _items.AddRange(items);
+        _inventory.Restore(items);
         _equipment.Reset();
-        if (equippedWeapon != null)
+        foreach (var pair in equippedItems ?? new Dictionary<EquipmentSlot, Item>())
         {
-            _equipment.Equip(equippedWeapon, 1);
+            _equipment.Equip(pair.Value, 1);
         }
 
         RecalculateEffectiveStats();
+        EmitSignal(SignalName.InventoryChanged);
         EmitSignal(SignalName.EquipmentChanged);
         EmitSignal(SignalName.StatsChanged);
         return true;
@@ -300,25 +335,22 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
     public bool TryEquipNewestWeapon()
     {
-        for (var index = _items.Count - 1; index >= 0; index--)
+        for (var index = _inventory.Items.Count - 1; index >= 0; index--)
         {
-            var item = _items[index];
+            var item = _inventory.Items[index];
             if (item.Slot != EquipmentSlot.Weapon || !_equipment.CanEquip(item, 1))
             {
                 continue;
             }
 
-            var replaced = _equipment.Equip(item, 1);
-            if (replaced == null)
+            var result = _inventory.TryEquip(item.Id, _equipment, 1);
+            if (!result.Succeeded)
             {
-                _items.RemoveAt(index);
-            }
-            else
-            {
-                _items[index] = replaced;
+                return false;
             }
 
             RecalculateEffectiveStats();
+            EmitSignal(SignalName.InventoryChanged);
             EmitSignal(SignalName.EquipmentChanged);
             EmitSignal(SignalName.StatsChanged);
             return true;
@@ -327,9 +359,39 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         return false;
     }
 
+    public bool TryEquipItem(string itemId)
+    {
+        var result = _inventory.TryEquip(itemId, _equipment, 1);
+        if (!result.Succeeded)
+        {
+            return false;
+        }
+
+        RecalculateEffectiveStats();
+        EmitSignal(SignalName.InventoryChanged);
+        EmitSignal(SignalName.EquipmentChanged);
+        EmitSignal(SignalName.StatsChanged);
+        return true;
+    }
+
+    public bool TryUnequip(EquipmentSlot slot)
+    {
+        var result = _inventory.TryUnequip(slot, _equipment);
+        if (!result.Succeeded)
+        {
+            return false;
+        }
+
+        RecalculateEffectiveStats();
+        EmitSignal(SignalName.InventoryChanged);
+        EmitSignal(SignalName.EquipmentChanged);
+        EmitSignal(SignalName.StatsChanged);
+        return true;
+    }
+
     public string InventorySummary()
     {
-        return $"Bag {ItemCount}/8 | Weapon: {EquippedWeaponName} | Spread damage: {SpreadShotDamage}";
+        return $"Bag {ItemCount}/{InventoryCapacity} | Weapon: {EquippedWeaponName} | Spread damage: {SpreadShotDamage}";
     }
 
     private void OnDied()
@@ -375,12 +437,12 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
     private static bool TryBuildRestoreStats(
         IReadOnlyList<Item> items,
-        Item equippedWeapon,
+        IReadOnlyDictionary<EquipmentSlot, Item> equippedItems,
         Stats rewardStats,
         out Stats restoreStats)
     {
         restoreStats = null;
-        if (items == null || items.Count > 8 || rewardStats == null)
+        if (items == null || items.Count > 16 || rewardStats == null || equippedItems == null)
         {
             return false;
         }
@@ -404,14 +466,17 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         }
 
         var restoreEquipment = new Equipment();
-        if (equippedWeapon != null)
+        foreach (var pair in equippedItems)
         {
-            if (ids.Contains(equippedWeapon.Id) || !restoreEquipment.CanEquip(equippedWeapon, 1))
+            if (!Enum.IsDefined(pair.Key)
+                || pair.Value == null
+                || ids.Contains(pair.Value.Id)
+                || !restoreEquipment.CanEquip(pair.Value, 1))
             {
                 return false;
             }
 
-            restoreEquipment.Equip(equippedWeapon, 1);
+            restoreEquipment.Equip(pair.Value, 1);
         }
 
         try

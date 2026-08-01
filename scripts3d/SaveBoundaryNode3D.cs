@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Arpg.Domain;
 using Godot;
@@ -58,6 +59,7 @@ public partial class SaveBoundaryNode3D : Node
             InventoryItems = items,
             EquippedWeaponId = _player.EquippedWeapon?.Id,
             EquippedWeapon = _player.EquippedWeapon,
+            EquippedItemsBySlot = _player.EquippedItems.ToDictionary(pair => pair.Key, pair => pair.Value),
             CurrentAtlasMapId = _runSession?.CurrentAtlasMapId ?? "quiet-coast",
             PendingAtlasMapId = _runSession?.PendingAtlasMapId,
             AtlasUnlockedMapIds = _runSession?.Atlas?.State.UnlockedMapIds.ToArray()
@@ -86,9 +88,10 @@ public partial class SaveBoundaryNode3D : Node
         if (_player == null
             || state.InventoryItems.Count == 0 && state.InventoryItemIds.Count > 0
             || !state.InventoryItems.All(item => item != null)
+            || !TryGetEquippedItems(state, out var targetEquipment)
             || !_player.TryCalculateMaxHealthForRestore(
                 state.InventoryItems,
-                state.EquippedWeapon,
+                targetEquipment,
                 state.RewardStats,
                 out var targetMaxHealth)
             || state.PlayerMaxHealth != targetMaxHealth
@@ -116,7 +119,7 @@ public partial class SaveBoundaryNode3D : Node
         var previousState = CaptureCurrentState();
         try
         {
-            if (!_player.RestoreInventory(state.InventoryItems, state.EquippedWeapon))
+            if (!_player.RestoreEquipment(state.InventoryItems, targetEquipment))
             {
                 throw new InvalidOperationException("saved 3D inventory is invalid");
             }
@@ -209,6 +212,7 @@ public partial class SaveBoundaryNode3D : Node
             InventoryItems = items,
             EquippedWeaponId = _player.EquippedWeapon?.Id,
             EquippedWeapon = _player.EquippedWeapon,
+            EquippedItemsBySlot = _player.EquippedItems.ToDictionary(pair => pair.Key, pair => pair.Value),
             CurrentAtlasMapId = _runSession?.CurrentAtlasMapId ?? "quiet-coast",
             PendingAtlasMapId = _runSession?.PendingAtlasMapId,
             AtlasUnlockedMapIds = _runSession?.Atlas?.State.UnlockedMapIds.ToArray()
@@ -239,7 +243,8 @@ public partial class SaveBoundaryNode3D : Node
     {
         try
         {
-            if (!_player.RestoreInventory(state.InventoryItems, state.EquippedWeapon))
+            if (!TryGetEquippedItems(state, out var equipment)
+                || !_player.RestoreEquipment(state.InventoryItems, equipment))
             {
                 throw new InvalidOperationException("could not restore inventory");
             }
@@ -315,4 +320,20 @@ public partial class SaveBoundaryNode3D : Node
         SaveRunState.MapComplete => GameFlowState.MapComplete,
         _ => GameFlowState.Playing,
     };
+
+    private static bool TryGetEquippedItems(
+        MinimalRunState state,
+        out IReadOnlyDictionary<EquipmentSlot, Item> equippedItems)
+    {
+        equippedItems = state?.EquippedItemsBySlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
+            ?? new Dictionary<EquipmentSlot, Item>();
+        if (state?.EquippedWeapon != null && !equippedItems.ContainsKey(EquipmentSlot.Weapon))
+        {
+            var migrated = equippedItems.ToDictionary(pair => pair.Key, pair => pair.Value);
+            migrated[EquipmentSlot.Weapon] = state.EquippedWeapon;
+            equippedItems = migrated;
+        }
+
+        return state != null;
+    }
 }

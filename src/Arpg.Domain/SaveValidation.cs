@@ -28,6 +28,9 @@ public sealed class MinimalRunState
     public string? EquippedWeaponId { get; init; }
     public IReadOnlyList<Item> InventoryItems { get; init; } = Array.Empty<Item>();
     public Item? EquippedWeapon { get; init; }
+    public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; init; } =
+        new Dictionary<EquipmentSlot, Item>();
+    public int ForgeFragments { get; init; }
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
@@ -49,7 +52,7 @@ public sealed class SaveSnapshot
     public const uint ExpectedMagic = 0x4D415247U;
     public const int CurrentVersion = 1;
     public const int MaxManaCharges = 3;
-    public const int MaxInventoryCount = 8;
+    public const int MaxInventoryCount = 16;
 
     public uint Magic { get; init; } = ExpectedMagic;
     public int Version { get; init; } = CurrentVersion;
@@ -69,6 +72,9 @@ public sealed class SaveSnapshot
     public string? EquippedWeaponId { get; init; }
     public IReadOnlyList<Item> InventoryItems { get; init; } = Array.Empty<Item>();
     public Item? EquippedWeapon { get; init; }
+    public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; init; } =
+        new Dictionary<EquipmentSlot, Item>();
+    public int ForgeFragments { get; init; }
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
@@ -87,7 +93,14 @@ public sealed class SaveSnapshot
         var itemIds = inventoryItems.Length > 0
             ? inventoryItems.Select(item => item.Id).ToArray()
             : state.InventoryItemIds?.ToArray() ?? Array.Empty<string>();
-        var equippedWeapon = state.EquippedWeapon;
+        var equippedItems = state.EquippedItemsBySlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
+            ?? new Dictionary<EquipmentSlot, Item>();
+        if (state.EquippedWeapon != null && !equippedItems.ContainsKey(EquipmentSlot.Weapon))
+        {
+            equippedItems[EquipmentSlot.Weapon] = state.EquippedWeapon;
+        }
+
+        var equippedWeapon = equippedItems.GetValueOrDefault(EquipmentSlot.Weapon);
         var equippedWeaponId = equippedWeapon?.Id ?? state.EquippedWeaponId;
         var snapshot = new SaveSnapshot
         {
@@ -107,6 +120,8 @@ public sealed class SaveSnapshot
             EquippedWeaponId = equippedWeaponId,
             InventoryItems = inventoryItems,
             EquippedWeapon = equippedWeapon,
+            EquippedItemsBySlot = equippedItems,
+            ForgeFragments = state.ForgeFragments,
             PassiveAllocatedIndices = state.PassiveAllocatedIndices?.ToArray() ?? Array.Empty<int>(),
             AtlasUnlockedMapIds = state.AtlasUnlockedMapIds?.ToArray() ?? Array.Empty<string>(),
             AtlasCompletedMapIds = state.AtlasCompletedMapIds?.ToArray() ?? Array.Empty<string>(),
@@ -142,6 +157,8 @@ public sealed class SaveSnapshot
             EquippedWeaponId = EquippedWeaponId,
             InventoryItems = InventoryItems.ToArray(),
             EquippedWeapon = EquippedWeapon,
+            EquippedItemsBySlot = EquippedItemsBySlot.ToDictionary(pair => pair.Key, pair => pair.Value),
+            ForgeFragments = ForgeFragments,
             PassiveAllocatedIndices = PassiveAllocatedIndices.ToArray(),
             AtlasUnlockedMapIds = AtlasUnlockedMapIds.ToArray(),
             AtlasCompletedMapIds = AtlasCompletedMapIds.ToArray(),
@@ -182,6 +199,7 @@ public sealed class SaveSnapshot
             || !IsValidStats(RewardStats)
             || ManaCharges < 0
             || ManaCharges > MaxManaCharges
+            || ForgeFragments < 0
             || InventoryCount < 0
             || InventoryCount > MaxInventoryCount
             || InventoryItemIds == null
@@ -199,6 +217,13 @@ public sealed class SaveSnapshot
             || EquippedWeapon != null
                 && (!IsValidItem(EquippedWeapon)
                     || EquippedWeaponId != EquippedWeapon.Id)
+            || EquippedItemsBySlot == null
+            || EquippedItemsBySlot.Any(pair => !Enum.IsDefined(pair.Key) || pair.Value == null || !IsValidItem(pair.Value))
+            || EquippedItemsBySlot.Values.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count()
+                != EquippedItemsBySlot.Count
+            || EquippedItemsBySlot.TryGetValue(EquipmentSlot.Weapon, out var mappedWeapon)
+                && (EquippedWeapon == null || mappedWeapon.Id != EquippedWeapon.Id)
+            || EquippedItemsBySlot.Values.Any(item => InventoryItemIds.Contains(item.Id, StringComparer.Ordinal))
             || PassiveAllocatedIndices == null
             || PassiveAllocatedIndices.Any(index => index < 0)
             || PassiveAllocatedIndices.Distinct().Count() != PassiveAllocatedIndices.Count
