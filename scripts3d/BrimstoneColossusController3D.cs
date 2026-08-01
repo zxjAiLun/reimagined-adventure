@@ -61,6 +61,10 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public string SpawnWaveId { get; private set; } = string.Empty;
     public int SpawnOrdinal { get; private set; }
     public int SpawnContextAppliedCount { get; private set; }
+    public float MoveSpeed => _moveSpeed;
+    public float MagmaSlamPreparationSeconds => _slamPreparationSeconds;
+    public float FlameSpearPreparationSeconds => _spearPreparationSeconds;
+    public float RecoverySeconds => _recoverySeconds;
 
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
