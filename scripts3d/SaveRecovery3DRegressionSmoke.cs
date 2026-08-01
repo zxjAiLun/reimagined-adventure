@@ -256,6 +256,7 @@ public partial class SaveRecovery3DRegressionSmoke : Node
             Name = "Save Recovery Vitality Blade",
             BaseId = baseDefinition.Id,
             Slot = baseDefinition.Slot,
+            Rarity = Rarity.Magic,
             RequiredLevel = baseDefinition.RequiredLevel,
             Stats = Stats.Combine(baseDefinition.ImplicitStats, vitalityAffix.Stats),
             Affixes = [vitalityAffix],

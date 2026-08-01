@@ -263,6 +263,7 @@ public partial class CombatHud3DRegressionSmoke : Node
             Name = "Combat HUD Vitality Blade",
             BaseId = baseDefinition.Id,
             Slot = baseDefinition.Slot,
+            Rarity = Rarity.Magic,
             RequiredLevel = baseDefinition.RequiredLevel,
             Stats = Stats.Combine(baseDefinition.ImplicitStats, vitalityAffix.Stats),
             Affixes = [vitalityAffix],
