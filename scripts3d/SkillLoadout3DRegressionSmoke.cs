@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Arpg.Domain;
 using Godot;
@@ -13,6 +14,9 @@ public partial class SkillLoadout3DRegressionSmoke : Node
     private int _baseProjectileDamage;
     private float _baseAreaRadius;
     private float _baseAreaCooldown;
+    private float _pausedSecondaryCooldown;
+    private string[] _unlockedSupportIds = Array.Empty<string>();
+    private Dictionary<SkillSlot, string> _equippedSupports = new();
     private bool _complete;
 
     public override void _Ready()
@@ -43,14 +47,20 @@ public partial class SkillLoadout3DRegressionSmoke : Node
                 case 0 when _elapsed >= 0.25:
                     BeginProjectileContract();
                     break;
-                case 1 when _skills.CooldownRemaining(SkillSlot.Primary) <= 0.001f:
+                case 1 when _skills.CooldownRemaining(SkillSlot.Primary) <= 0.00001f:
                     VerifyVolleyContract();
                     break;
-                case 2 when _skills.CooldownRemaining(SkillSlot.Primary) <= 0.001f:
+                case 2 when _skills.CooldownRemaining(SkillSlot.Primary) <= 0.00001f:
                     BeginAreaContract();
                     break;
-                case 3 when _skills.CooldownRemaining(SkillSlot.Secondary) <= 0.001f:
+                case 3 when _skills.CooldownRemaining(SkillSlot.Secondary) <= 0.00001f:
                     VerifyAmplifyContract();
+                    break;
+                case 4 when _elapsed >= 0.35:
+                    VerifyPausedCooldown();
+                    break;
+                case 5 when _skills.CooldownRemaining(SkillSlot.Secondary) <= 0.00001f:
+                    VerifyDetachedBaseContract();
                     break;
             }
         }
@@ -126,11 +136,51 @@ public partial class SkillLoadout3DRegressionSmoke : Node
             throw new InvalidOperationException("Amplify did not change real area radius and cooldown");
         }
 
-        var unlocked = _skills.UnlockedSupportIds.ToArray();
-        var equipped = _skills.SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value);
+        if (_skills.TryAttachSupport(SkillSlot.Primary, "amplify")
+            || _skills.TryAttachSupport(SkillSlot.Secondary, "volley"))
+        {
+            throw new InvalidOperationException("incompatible support was accepted at runtime");
+        }
+
+        _unlockedSupportIds = _skills.UnlockedSupportIds.ToArray();
+        _equippedSupports = _skills.SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value);
+        _pausedSecondaryCooldown = _skills.CooldownRemaining(SkillSlot.Secondary);
+        GetTree().Paused = true;
+        _elapsed = 0.0;
+        _stage = 4;
+    }
+
+    private void VerifyPausedCooldown()
+    {
+        if (!Mathf.IsEqualApprox(_skills.CooldownRemaining(SkillSlot.Secondary), _pausedSecondaryCooldown))
+        {
+            GetTree().Paused = false;
+            throw new InvalidOperationException(
+                $"paused cooldown advanced from {_pausedSecondaryCooldown:0.000} to {_skills.CooldownRemaining(SkillSlot.Secondary):0.000}");
+        }
+
+        GetTree().Paused = false;
+        _elapsed = 0.0;
+        _stage = 5;
+    }
+
+    private void VerifyDetachedBaseContract()
+    {
+        if (!_skills.TryDetachSupport(SkillSlot.Secondary)
+            || !_skills.TryCastAreaAtForTest(SkillSlot.Secondary, new Vector3(1.0f, 0.0f, 1.0f)))
+        {
+            throw new InvalidOperationException("detached Meteor did not cast");
+        }
+
+        if (!Mathf.IsEqualApprox(_player.LastAreaRadius, _baseAreaRadius)
+            || _skills.CooldownRemaining(SkillSlot.Secondary) <= 0.0f)
+        {
+            throw new InvalidOperationException("detaching Amplify did not restore the base area contract");
+        }
+
         _skills.TryDetachSupport(SkillSlot.Primary);
         _skills.TryDetachSupport(SkillSlot.Secondary);
-        if (!_skills.TryRestoreLoadout(unlocked, equipped)
+        if (!_skills.TryRestoreLoadout(_unlockedSupportIds, _equippedSupports)
             || _skills.SupportCount(SkillSlot.Primary) != 1
             || _skills.SupportCount(SkillSlot.Secondary) != 1)
         {

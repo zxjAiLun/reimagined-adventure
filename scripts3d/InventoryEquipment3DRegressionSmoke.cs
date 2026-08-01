@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Arpg.Domain;
 using Godot;
 
@@ -97,6 +98,110 @@ public partial class InventoryEquipment3DRegressionSmoke : Node
             throw new InvalidOperationException("multi-slot stats did not reach effective player stats");
         }
 
+        var ironhide = generator.GenerateItemDrop(new ItemRollContext(
+            1,
+            LootSourceKind.Reward,
+            EquipmentSlot.Armor,
+            ForcedRarity: Rarity.Unique,
+            ForcedBaseId: "ironhide_vest"));
+        if (!_player.TryAddItem(ironhide)
+            || !_player.TryEquipItem(ironhide.Id)
+            || !_player.Items.Any(item => item.Id == items[1].Id))
+        {
+            throw new InvalidOperationException("armor replacement did not return the old armor to inventory");
+        }
+
+        var initialArmoredHit = _player.ApplyDamage(new DamageRequest(
+            20,
+            DamageType.Physical,
+            "inventory_equipment_no_armor",
+            CombatFaction.Enemy));
+        _player.ApplyRestoredHealth(_player.MaxHealth);
+        if (!_player.TryUnequip(EquipmentSlot.Armor))
+        {
+            throw new InvalidOperationException("could not unequip armor for mitigation baseline");
+        }
+
+        var baselinePhysical = _player.ApplyDamage(new DamageRequest(
+            20,
+            DamageType.Physical,
+            "inventory_equipment_baseline",
+            CombatFaction.Enemy));
+        _player.ApplyRestoredHealth(_player.MaxHealth);
+        if (!_player.TryEquipItem(ironhide.Id))
+        {
+            throw new InvalidOperationException("could not re-equip Ironhide Vest");
+        }
+
+        var armoredPhysical = _player.ApplyDamage(new DamageRequest(
+            20,
+            DamageType.Physical,
+            "inventory_equipment_armor",
+            CombatFaction.Enemy));
+        _player.ApplyRestoredHealth(_player.MaxHealth);
+        if (baselinePhysical.DamageApplied <= armoredPhysical.DamageApplied
+            || initialArmoredHit.DamageApplied <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Armor did not change actual DamageResult baseline={baselinePhysical.DamageApplied} armored={armoredPhysical.DamageApplied}");
+        }
+
+        var emberweave = generator.GenerateItemDrop(new ItemRollContext(
+            1,
+            LootSourceKind.Reward,
+            EquipmentSlot.Armor,
+            ForcedRarity: Rarity.Unique,
+            ForcedBaseId: "emberweave_coat"));
+        if (!_player.TryAddItem(emberweave)
+            || !_player.TryEquipItem(emberweave.Id))
+        {
+            throw new InvalidOperationException("could not equip Emberweave Coat");
+        }
+
+        if (!_player.TryUnequip(EquipmentSlot.Armor))
+        {
+            throw new InvalidOperationException("could not unequip Emberweave Coat for resistance baseline");
+        }
+
+        var baselineFire = _player.ApplyDamage(new DamageRequest(
+            20,
+            DamageType.Fire,
+            "inventory_equipment_fire_baseline",
+            CombatFaction.Enemy));
+        _player.ApplyRestoredHealth(_player.MaxHealth);
+        if (!_player.TryEquipItem(emberweave.Id))
+        {
+            throw new InvalidOperationException("could not re-equip Emberweave Coat");
+        }
+
+        var resistantFire = _player.ApplyDamage(new DamageRequest(
+            20,
+            DamageType.Fire,
+            "inventory_equipment_fire_resistance",
+            CombatFaction.Enemy));
+        _player.ApplyRestoredHealth(_player.MaxHealth);
+        if (baselineFire.DamageApplied <= resistantFire.DamageApplied)
+        {
+            throw new InvalidOperationException(
+                $"Fire resistance did not change actual DamageResult baseline={baselineFire.DamageApplied} resistant={resistantFire.DamageApplied}");
+        }
+
+        var atomicInventory = new RunInventory(1);
+        var atomicEquipment = new Equipment();
+        var atomicWeapon = generator.GenerateItemDrop(new ItemRollContext(
+            1, LootSourceKind.Reward, EquipmentSlot.Weapon, ForcedRarity: Rarity.Magic));
+        var atomicFiller = generator.GenerateItemDrop(new ItemRollContext(
+            1, LootSourceKind.Reward, EquipmentSlot.Ring, ForcedRarity: Rarity.Magic));
+        if (!atomicInventory.TryAdd(atomicWeapon, atomicEquipment)
+            || !atomicInventory.TryEquip(atomicWeapon.Id, atomicEquipment).Succeeded
+            || !atomicInventory.TryAdd(atomicFiller, atomicEquipment)
+            || atomicInventory.TryUnequip(EquipmentSlot.Weapon, atomicEquipment).Succeeded
+            || atomicEquipment.ItemInSlot(EquipmentSlot.Weapon)?.Id != atomicWeapon.Id
+            || atomicInventory.Items.Single().Id != atomicFiller.Id)
+        {
+            throw new InvalidOperationException("full-inventory unequip rejection was not atomic");
+        }
+
         if (!_build.Open())
         {
             throw new InvalidOperationException("build screen did not open");
@@ -107,7 +212,8 @@ public partial class InventoryEquipment3DRegressionSmoke : Node
             || !screen.IsScreenVisible
             || !screen.ItemsText.Contains("Inventory", StringComparison.Ordinal)
             || !screen.EquipmentText.Contains("Weapon", StringComparison.Ordinal)
-            || !screen.DetailsText.Contains("Effective Stats", StringComparison.Ordinal))
+            || !screen.DetailsText.Contains("Compare", StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(_build.CompareSelectedToSlot()))
         {
             throw new InvalidOperationException("inventory UI did not present build data");
         }

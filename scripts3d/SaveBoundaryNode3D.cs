@@ -108,7 +108,12 @@ public partial class SaveBoundaryNode3D : Node
             || _player.Skills == null
             || !_player.Skills.CanRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot)
             || _buildIntermission != null
-                && !_buildIntermission.CanRestore(state.StashItems, state.ForgeFragments, state.MapCompletePhase)
+                && !_buildIntermission.CanRestore(
+                    state.StashItems,
+                    state.ForgeFragments,
+                    state.MapCompletePhase,
+                    state.InventoryItems,
+                    targetEquipment)
             || state.PlayerMaxHealth != targetMaxHealth
             || state.PlayerCurrentHealth < 0
             || state.PlayerCurrentHealth > targetMaxHealth

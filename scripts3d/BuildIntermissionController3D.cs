@@ -127,9 +127,40 @@ public partial class BuildIntermissionController3D : Node
         int forgeFragments,
         MapCompletePhase phase)
     {
-        if (stashItems == null || stashItems.Count > 24 || forgeFragments < 0 || !Enum.IsDefined(phase))
+        return CanRestore(
+            stashItems,
+            forgeFragments,
+            phase,
+            _player?.Items ?? Array.Empty<Item>(),
+            _player?.EquippedItems ?? new Dictionary<EquipmentSlot, Item>());
+    }
+
+    public bool CanRestore(
+        IReadOnlyList<Item> stashItems,
+        int forgeFragments,
+        MapCompletePhase phase,
+        IReadOnlyList<Item> targetInventory,
+        IReadOnlyDictionary<EquipmentSlot, Item> targetEquipment)
+    {
+        if (stashItems == null
+            || stashItems.Count > 24
+            || forgeFragments < 0
+            || !Enum.IsDefined(phase)
+            || targetInventory == null
+            || targetEquipment == null)
         {
             return false;
+        }
+
+        var occupiedIds = new HashSet<string>(
+            targetInventory.Where(item => item != null).Select(item => item.Id),
+            StringComparer.Ordinal);
+        foreach (var pair in targetEquipment)
+        {
+            if (pair.Value == null || !occupiedIds.Add(pair.Value.Id))
+            {
+                return false;
+            }
         }
 
         var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -149,8 +180,7 @@ public partial class BuildIntermissionController3D : Node
                 return false;
             }
 
-            if (_player != null
-                && (_player.Inventory.Contains(item.Id) || _player.Equipment.ContainsItemId(item.Id)))
+            if (occupiedIds.Contains(item.Id))
             {
                 return false;
             }

@@ -59,6 +59,11 @@ public partial class PlayerSkillController3D : Node
 
     public override void _Process(double delta)
     {
+        if (GetTree().Paused)
+        {
+            return;
+        }
+
         var frameDelta = (float)delta;
         var changed = false;
         foreach (var slot in Enum.GetValues<SkillSlot>())
@@ -89,6 +94,11 @@ public partial class PlayerSkillController3D : Node
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (GetTree().Paused)
+        {
+            return;
+        }
+
         if (@event.IsActionPressed("skill_meteor", true))
         {
             TryCast(SkillSlot.Secondary);

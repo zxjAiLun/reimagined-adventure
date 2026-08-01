@@ -51,6 +51,8 @@ public partial class LootEconomy3DRegressionSmoke : Node
         var slots = Enum.GetValues<EquipmentSlot>();
         var drops = new List<Item>();
         var wallet = new RunCurrencyWallet();
+        var craftingStateBefore = session.CraftingRandom.State;
+        var eventStateBefore = session.EventRandom.State;
 
         foreach (var slot in slots)
         {
@@ -72,9 +74,56 @@ public partial class LootEconomy3DRegressionSmoke : Node
         }
 
         if (drops.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != drops.Count
-            || wallet.ForgeFragments != 4)
+            || wallet.ForgeFragments != 4
+            || session.CraftingRandom.State != craftingStateBefore
+            || session.EventRandom.State != eventStateBefore)
         {
-            throw new InvalidOperationException("drop identity or fragment accumulation failed");
+            throw new InvalidOperationException("drop identity, fragment accumulation, or RNG isolation failed");
+        }
+
+        var quantityProfile = new LootDropProfile(25, 1, 0, 0, false);
+        var lowQuantity = new LootGenerator(4003).GenerateDrops(
+            new ItemRollContext(1, LootSourceKind.Reward, EquipmentSlot.Ring),
+            quantityProfile,
+            new MapModifierStats { ItemQuantityMultiplier = 1.0 });
+        var highQuantity = new LootGenerator(4003).GenerateDrops(
+            new ItemRollContext(1, LootSourceKind.Reward, EquipmentSlot.Ring),
+            quantityProfile,
+            new MapModifierStats { ItemQuantityMultiplier = 4.0 });
+        if (lowQuantity.Items.Count != 0 || highQuantity.Items.Count != 1)
+        {
+            throw new InvalidOperationException("quantity multiplier did not change the real drop result");
+        }
+
+        var rarityChanged = false;
+        for (var seed = 1UL; seed <= 10_000UL && !rarityChanged; seed++)
+        {
+            var lowRarity = new RunSession(seed).CreateLootGenerator().GenerateDrops(
+                new ItemRollContext(1, LootSourceKind.Reward, EquipmentSlot.Amulet),
+                new LootDropProfile(100, 1, 0, 0, true),
+                new MapModifierStats { ItemRarityMultiplier = 1.0 });
+            var highRarity = new RunSession(seed).CreateLootGenerator().GenerateDrops(
+                new ItemRollContext(1, LootSourceKind.Reward, EquipmentSlot.Amulet),
+                new LootDropProfile(100, 1, 0, 0, true),
+                new MapModifierStats { ItemRarityMultiplier = 8.0 });
+            rarityChanged = lowRarity.Items.Count == 1
+                && highRarity.Items.Count == 1
+                && highRarity.Items[0].Rarity > lowRarity.Items[0].Rarity;
+        }
+
+        if (!rarityChanged)
+        {
+            throw new InvalidOperationException("rarity multiplier did not change any deterministic real item roll");
+        }
+
+        var boss = new RunSession(0xB055UL).CreateLootGenerator().GenerateDrops(
+            new ItemRollContext(4, LootSourceKind.Boss, GuaranteedUnique: true),
+            LootDropProfiles.Boss);
+        if (boss.Items.Count == 0
+            || boss.Items[0].Rarity != Rarity.Unique
+            || boss.ForgeFragments != LootDropProfiles.Boss.ForgeFragmentAmount)
+        {
+            throw new InvalidOperationException("Boss guaranteed unique and fragment contract failed");
         }
 
         var dropScene = GD.Load<PackedScene>("res://scenes3d/ItemDrop3D.tscn")

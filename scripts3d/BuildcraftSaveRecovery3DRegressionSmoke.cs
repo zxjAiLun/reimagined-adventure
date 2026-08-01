@@ -63,9 +63,24 @@ public partial class BuildcraftSaveRecovery3DRegressionSmoke : Node
         }
 
         rewards.BeginChoice();
-        if (!rewards.TryChooseReward(0) || !build.IsBuildManagement)
+        if (!save.TrySaveCurrentRun(out var rewardSaveError))
+        {
+            throw new InvalidOperationException($"reward-choice save failed: {rewardSaveError}");
+        }
+
+        if (!rewards.TryChooseReward(0))
         {
             throw new InvalidOperationException("reward did not enter build management");
+        }
+
+        if (!save.TryLoadAndApplyLastRun(out var rewardChoiceRestore, out var rewardChoiceLoadError)
+            || rewardChoiceRestore.MapCompletePhase != MapCompletePhase.RewardChoice
+            || rewards.HasChosen
+            || build.IsBuildManagement
+            || !rewards.TryChooseReward(0)
+            || !build.IsBuildManagement)
+        {
+            throw new InvalidOperationException($"reward-choice recovery failed: {rewardChoiceLoadError}");
         }
 
         var generator = run.Session.CreateLootGenerator();
@@ -112,6 +127,17 @@ public partial class BuildcraftSaveRecovery3DRegressionSmoke : Node
             throw new InvalidOperationException("build management save did not restore exact state");
         }
 
+        if (!build.TryReforge(expectedStashId, out var craftedResult, out var craftingError)
+            || craftedResult == null
+            || build.Currency.ForgeFragments != 1
+            || build.StashItems.Count != 1
+            || build.StashItems[0].Id != craftedResult.CraftedItem.Id)
+        {
+            throw new InvalidOperationException($"saved build input could not complete reforge: {craftingError}");
+        }
+
+        var craftedStashId = craftedResult.CraftedItem.Id;
+
         if (!build.TryCompleteBuildForTest()
             || !route.ChoiceActive
             || !route.TrySelect(0)
@@ -136,7 +162,10 @@ public partial class BuildcraftSaveRecovery3DRegressionSmoke : Node
             || restored.MapCompletePhase != MapCompletePhase.RouteChoice
             || !build.IsRouteChoice
             || !route.ChoiceActive
-            || run.PendingAtlasMapId != route.SelectedMapId)
+            || run.PendingAtlasMapId != route.SelectedMapId
+            || build.Currency.ForgeFragments != 1
+            || build.StashItems.Count != 1
+            || build.StashItems[0].Id != craftedStashId)
         {
             throw new InvalidOperationException($"route phase recovery failed: {loadError}");
         }

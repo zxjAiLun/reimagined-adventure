@@ -88,7 +88,9 @@ public partial class InventoryScreenController3D : CanvasLayer
                     + $"Projectile x{player.EffectiveStats.ProjectileDamageMultiplier:0.00}\n"
                     + $"Area x{player.EffectiveStats.AreaDamageMultiplier:0.00}\n"
                     + $"Max HP +{player.EffectiveStats.MaxHp}"
-                : $"Selected\n{FormatItem(selected)}\n{FormatStats(selected.Stats)}";
+                : $"Selected\n{FormatItem(selected)}\n"
+                    + $"Compare\n{_build.CompareSelectedToSlot()}\n"
+                    + FormatStats(selected.Stats);
         }
 
         if (_supportsLabel != null)
