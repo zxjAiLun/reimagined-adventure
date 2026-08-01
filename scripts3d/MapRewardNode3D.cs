@@ -67,7 +67,13 @@ public partial class MapRewardNode3D : Node
         }
 
         var reward = _rewards[index];
-        _player?.SetRewardStats(reward.Apply(Stats.Neutral));
+        if (_player == null)
+        {
+            return false;
+        }
+
+        var cumulativeStats = reward.Apply(_player.RewardStats);
+        _player.SetRewardStats(cumulativeStats);
         ChosenReward = reward;
         _chosen = true;
         _choiceActive = false;

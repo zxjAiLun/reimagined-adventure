@@ -24,7 +24,7 @@ public partial class SaveBoundaryNode3D : Node
     {
         _player = GetNodeOrNull<PlayerController3D>("../Player3D");
         _flow = GetNodeOrNull<GameFlowController3D>("../GameFlow3D");
-        _runSession = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        _runSession = MapRuntimeScope3D.FindRunSession(this);
         AddToGroup("save_boundaries_3d");
     }
 
