@@ -14,10 +14,14 @@ public partial class RunSessionNode : Node
     [Signal]
     public delegate void MapModifierResolvedEventHandler(string modifierId, int mapLevel);
 
+    [Signal]
+    public delegate void EncounterPlanResolvedEventHandler(string encounterId, int encounterTier, int mapLevel);
+
     [Export] public long RunSeed { get; set; } = (long)RandomService.DefaultSeed;
     [Export] public int MapLevel { get; set; } = 1;
     [Export] public PackedScene MapScene { get; set; }
     [Export] public MapModifierCatalogResource3D MapModifierCatalog { get; set; }
+    [Export] public EncounterCatalogResource3D EncounterCatalog { get; set; }
 
     private RunSession _session;
     private LootGenerator _lootGenerator;
@@ -30,6 +34,14 @@ public partial class RunSessionNode : Node
     private int _resolvedModifierCatalogVersion;
     private ulong _currentMapModifierSeed;
     private int _mapModifierResolveCount;
+    private EncounterDefinitionResource3D _currentEncounterDefinition;
+    private string _currentEncounterDisplayName = string.Empty;
+    private int _currentEncounterTier;
+    private int _resolvedEncounterMapLevel;
+    private ulong _resolvedEncounterRunSeed;
+    private int _resolvedEncounterCatalogVersion;
+    private ulong _currentEncounterSeed;
+    private int _encounterResolveCount;
 
     public RunSession Session => _session ?? throw new InvalidOperationException("RunSessionNode is not ready.");
     public int ItemSequence => Session.ItemSequence;
@@ -38,6 +50,14 @@ public partial class RunSessionNode : Node
     public string CurrentMapModifierId => _currentMapModifier?.Id ?? "quiet-coast";
     public ulong CurrentMapModifierSeed => _currentMapModifierSeed;
     public int MapModifierResolveCount => _mapModifierResolveCount;
+    public EncounterDefinitionResource3D CurrentEncounterDefinition => _currentEncounterDefinition;
+    public string CurrentEncounterId => _currentEncounterDefinition?.EncounterId ?? "quiet_coast_skirmish";
+    public string CurrentEncounterDisplayName => string.IsNullOrWhiteSpace(_currentEncounterDisplayName)
+        ? CurrentEncounterId
+        : _currentEncounterDisplayName;
+    public int CurrentEncounterTier => _currentEncounterTier > 0 ? _currentEncounterTier : 1;
+    public ulong CurrentEncounterSeed => _currentEncounterSeed;
+    public int EncounterResolveCount => _encounterResolveCount;
 
     public override void _Ready()
     {
@@ -59,6 +79,7 @@ public partial class RunSessionNode : Node
         _craftingGenerator = Session.CreateCraftingGenerator();
         AddToGroup("run_sessions");
         ResolveCurrentMapModifierIfNeeded();
+        ResolveCurrentEncounterIfNeeded();
         if (MapScene != null)
         {
             CallDeferred(nameof(InstantiateMap));
@@ -84,6 +105,7 @@ public partial class RunSessionNode : Node
         RunSeed = (long)runSeed;
         MapLevel = mapLevel;
         ResolveCurrentMapModifierIfNeeded();
+        ResolveCurrentEncounterIfNeeded();
         EmitSignal(SignalName.MapLevelChanged, Session.MapLevel);
         return true;
     }
@@ -131,6 +153,7 @@ public partial class RunSessionNode : Node
         }
 
         ResolveCurrentMapModifierIfNeeded();
+        ResolveCurrentEncounterIfNeeded();
         EmitSignal(SignalName.MapLevelChanged, Session.MapLevel);
 
         _restoreNextMapState = true;
@@ -150,13 +173,14 @@ public partial class RunSessionNode : Node
         }
 
         _currentMap = MapScene.Instantiate<Node>();
+        var plan = CreateCurrentMapPlan();
         if (_currentMap is TestArena arena)
         {
             arena.MapLevel = Session.MapLevel;
         }
         if (_currentMap is TestArena3D arena3d)
         {
-            arena3d.MapLevel = Session.MapLevel;
+            arena3d.ConfigureBeforeReady(plan);
         }
 
         AddChild(_currentMap);
@@ -205,6 +229,72 @@ public partial class RunSessionNode : Node
         _resolvedModifierCatalogVersion = catalogVersion;
         _mapModifierResolveCount++;
         EmitSignal(SignalName.MapModifierResolved, CurrentMapModifierId, Session.MapLevel);
+    }
+
+    private void ResolveCurrentEncounterIfNeeded()
+    {
+        var catalogVersion = EncounterCatalog?.CatalogVersion ?? 0;
+        if (_currentEncounterDefinition != null
+            && _resolvedEncounterMapLevel == Session.MapLevel
+            && _resolvedEncounterRunSeed == Session.RunSeed
+            && _resolvedEncounterCatalogVersion == catalogVersion)
+        {
+            return;
+        }
+
+        if (EncounterCatalog == null)
+        {
+            _currentEncounterDefinition = GD.Load<EncounterDefinitionResource3D>(
+                "res://resources/DefaultEncounter3D.tres")
+                ?? throw new InvalidOperationException("The default encounter resource is missing.");
+            _currentEncounterDisplayName = _currentEncounterDefinition.EncounterId;
+            _currentEncounterTier = 1;
+            _currentEncounterSeed = RandomService.DeriveSeed(Session.RunSeed, 0x454E434F554E5445UL);
+        }
+        else
+        {
+            if (!EncounterCatalog.IsValid(out var catalogError))
+            {
+                throw new InvalidOperationException($"Invalid encounter catalog: {catalogError}");
+            }
+
+            var selection = EncounterSelection.Select(
+                Session.RunSeed,
+                Session.MapLevel,
+                EncounterCatalog.CatalogVersion,
+                EncounterCatalog.ToDomainCandidates());
+            _currentEncounterDefinition = EncounterCatalog.ResolveDefinition(selection.EncounterId);
+            _currentEncounterDisplayName = EncounterCatalog.ResolveDisplayName(selection.EncounterId);
+            _currentEncounterTier = EncounterCatalog.ResolveTier(selection.EncounterId);
+            _currentEncounterSeed = selection.SelectionSeed;
+        }
+
+        _resolvedEncounterMapLevel = Session.MapLevel;
+        _resolvedEncounterRunSeed = Session.RunSeed;
+        _resolvedEncounterCatalogVersion = catalogVersion;
+        _encounterResolveCount++;
+        EmitSignal(
+            SignalName.EncounterPlanResolved,
+            CurrentEncounterId,
+            CurrentEncounterTier,
+            Session.MapLevel);
+    }
+
+    private RunMapPlan3D CreateCurrentMapPlan()
+    {
+        var plan = new RunMapPlan3D(
+            this,
+            Session.MapLevel,
+            CurrentMapModifier ?? MapModifierLibrary.Find("quiet-coast")!,
+            CurrentMapModifierSeed,
+            CurrentEncounterDefinition
+                ?? throw new InvalidOperationException("Encounter plan was not resolved."),
+            CurrentEncounterId,
+            CurrentEncounterDisplayName,
+            CurrentEncounterTier,
+            CurrentEncounterSeed);
+        plan.Validate();
+        return plan;
     }
 
     private void ApplySavedStateToMap()

@@ -31,6 +31,12 @@ public partial class EncounterDirector3D : Node
     [Signal]
     public delegate void BossSpawnedEventHandler(Node3D boss);
 
+    [Signal]
+    public delegate void WaveClearedEventHandler(int waveIndex, string waveId);
+
+    [Signal]
+    public delegate void ActiveEnemyCountChangedEventHandler(int activeEnemyCount);
+
     [Export] public EncounterDefinitionResource3D DefinitionResource { get; set; }
     [Export] public bool Enabled { get; set; } = true;
     [Export] public NodePath PlayerPath { get; set; } = new("../Player3D");
@@ -40,6 +46,7 @@ public partial class EncounterDirector3D : Node
     public EncounterDirectorState3D State { get; private set; } = EncounterDirectorState3D.Disabled;
     public bool IsOperational => Enabled && State != EncounterDirectorState3D.Disabled;
     public PlayerController3D Player => _player;
+    public string CurrentEncounterId => DefinitionResource?.EncounterId ?? string.Empty;
     public int CurrentWaveIndex { get; private set; } = -1;
     public int TotalWaveCount => _waves.Count;
     public int ActiveEnemyCount { get; private set; }
@@ -57,6 +64,7 @@ public partial class EncounterDirector3D : Node
     private readonly List<EncounterSpawnPoint3D> _spawnPoints = new();
     private readonly List<Node3D> _spawnedEnemies = new();
     private readonly HashSet<Node3D> _countedDead = new();
+    private readonly HashSet<int> _clearedWaves = new();
     private readonly HashSet<HealthComponent> _trackedHealth = new();
     private Node3D _enemyContainer;
     private PlayerController3D _player;
@@ -106,6 +114,7 @@ public partial class EncounterDirector3D : Node
         _trackedHealth.Clear();
         _spawnedEnemies.Clear();
         _countedDead.Clear();
+        _clearedWaves.Clear();
     }
 
     public override void _PhysicsProcess(double delta)
@@ -209,6 +218,14 @@ public partial class EncounterDirector3D : Node
 
         if (CurrentWaveSpawnedCount >= CurrentWaveTargetCount && ActiveEnemyCount == 0)
         {
+            if (_clearedWaves.Add(CurrentWaveIndex))
+            {
+                EmitSignal(
+                    SignalName.WaveCleared,
+                    CurrentWaveIndex,
+                    wave.WaveId);
+            }
+
             if (CurrentWaveIndex + 1 >= _waves.Count)
             {
                 BeginWave(_waves.Count);
@@ -349,6 +366,7 @@ public partial class EncounterDirector3D : Node
         if (health.IsAlive)
         {
             ActiveEnemyCount++;
+            EmitSignal(SignalName.ActiveEnemyCountChanged, ActiveEnemyCount);
         }
         else
         {
@@ -374,6 +392,7 @@ public partial class EncounterDirector3D : Node
 
             _countedDead.Add(enemy);
             ActiveEnemyCount = Mathf.Max(0, ActiveEnemyCount - 1);
+            EmitSignal(SignalName.ActiveEnemyCountChanged, ActiveEnemyCount);
         }
     }
 }
