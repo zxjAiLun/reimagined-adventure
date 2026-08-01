@@ -103,7 +103,7 @@ public partial class CombatHud3DRegressionSmoke : Node
                 return;
 
             case 2:
-                if (hud.PlayerMaxHealth != 125
+                if (hud.PlayerMaxHealth != 110
                     || hud.PlayerMaxHealth != player.MaxHealth
                     || hud.EquippedWeaponText == "none"
                     || hud.SpreadShotDamage == _baselineSpreadDamage)
@@ -240,34 +240,22 @@ public partial class CombatHud3DRegressionSmoke : Node
 
     private static Item CreateMaxHpWeapon()
     {
-        var baseDefinition = ItemBaseLibrary.Find("rustbound_blade");
+        var baseDefinition = ItemBaseLibrary.Find("brimstone_brand");
         if (baseDefinition == null)
         {
-            throw new InvalidOperationException("rustbound_blade test base is missing");
+            throw new InvalidOperationException("brimstone_brand test base is missing");
         }
 
-        var vitalityAffix = new Affix
-        {
-            Id = "combat_hud_vitality",
-            Name = "Vitality",
-            Tier = 1,
-            IsPrefix = true,
-            Stats = new Stats
-            {
-                MaxHp = 25,
-                DamageMultiplier = 5.0,
-            },
-        };
         var item = new Item
         {
             Id = "combat_hud_vitality_weapon",
             Name = "Combat HUD Vitality Blade",
             BaseId = baseDefinition.Id,
             Slot = baseDefinition.Slot,
-            Rarity = Rarity.Magic,
+            Rarity = Rarity.Unique,
             RequiredLevel = baseDefinition.RequiredLevel,
-            Stats = Stats.Combine(baseDefinition.ImplicitStats, vitalityAffix.Stats),
-            Affixes = [vitalityAffix],
+            Stats = Stats.Combine(baseDefinition.ImplicitStats, baseDefinition.UniqueStats),
+            Affixes = Array.Empty<Affix>(),
         };
         item.Validate();
         return item;
