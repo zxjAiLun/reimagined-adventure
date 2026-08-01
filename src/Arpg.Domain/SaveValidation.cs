@@ -31,6 +31,13 @@ public sealed class MinimalRunState
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
+    public string CurrentAtlasMapId { get; init; } = "quiet-coast";
+    public string? PendingAtlasMapId { get; init; }
+    public int RouteSelectionCount { get; init; }
+    public int SelectedNextMapOption { get; init; } = -1;
+    public int SelectedMapRewardOption { get; init; } = -1;
+    public bool NextMapOptionChosen { get; init; }
+    public bool MapRewardChosen { get; init; }
 }
 
 /// <summary>
@@ -65,6 +72,9 @@ public sealed class SaveSnapshot
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
+    public string CurrentAtlasMapId { get; init; } = "quiet-coast";
+    public string? PendingAtlasMapId { get; init; }
+    public int RouteSelectionCount { get; init; }
     public int SelectedNextMapOption { get; init; } = -1;
     public int SelectedMapRewardOption { get; init; } = -1;
     public bool NextMapOptionChosen { get; init; }
@@ -100,6 +110,13 @@ public sealed class SaveSnapshot
             PassiveAllocatedIndices = state.PassiveAllocatedIndices?.ToArray() ?? Array.Empty<int>(),
             AtlasUnlockedMapIds = state.AtlasUnlockedMapIds?.ToArray() ?? Array.Empty<string>(),
             AtlasCompletedMapIds = state.AtlasCompletedMapIds?.ToArray() ?? Array.Empty<string>(),
+            CurrentAtlasMapId = state.CurrentAtlasMapId,
+            PendingAtlasMapId = state.PendingAtlasMapId,
+            RouteSelectionCount = state.RouteSelectionCount,
+            SelectedNextMapOption = state.SelectedNextMapOption,
+            SelectedMapRewardOption = state.SelectedMapRewardOption,
+            NextMapOptionChosen = state.NextMapOptionChosen,
+            MapRewardChosen = state.MapRewardChosen,
         };
         snapshot.Validate();
         return snapshot;
@@ -128,6 +145,13 @@ public sealed class SaveSnapshot
             PassiveAllocatedIndices = PassiveAllocatedIndices.ToArray(),
             AtlasUnlockedMapIds = AtlasUnlockedMapIds.ToArray(),
             AtlasCompletedMapIds = AtlasCompletedMapIds.ToArray(),
+            CurrentAtlasMapId = CurrentAtlasMapId,
+            PendingAtlasMapId = PendingAtlasMapId,
+            RouteSelectionCount = RouteSelectionCount,
+            SelectedNextMapOption = SelectedNextMapOption,
+            SelectedMapRewardOption = SelectedMapRewardOption,
+            NextMapOptionChosen = NextMapOptionChosen,
+            MapRewardChosen = MapRewardChosen,
         };
     }
 
@@ -187,6 +211,14 @@ public sealed class SaveSnapshot
             || !AtlasCompletedMapIds.All(AtlasUnlockedMapIds.Contains))
         {
             error = "invalid player resource values";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(CurrentAtlasMapId)
+            || PendingAtlasMapId == CurrentAtlasMapId
+            || RouteSelectionCount < 0)
+        {
+            error = "invalid atlas route state";
             return false;
         }
 

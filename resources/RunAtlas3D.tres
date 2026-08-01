@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="AtlasDefinitionResource" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/AtlasDefinitionResource.cs" id="1_atlas"]
+[ext_resource type="Script" path="res://scripts/AtlasMapResource.cs" id="2_map"]
+
+[sub_resource type="Resource" id="Map_quiet"]
+script = ExtResource("2_map")
+MapId = "quiet-coast"
+DisplayName = "Quiet Coast"
+Tier = 1
+MapModifierId = "quiet-coast"
+EncounterId = "quiet_coast_skirmish"
+Description = "A quiet opening route with baseline danger."
+ItemLevel = 1
+
+[sub_resource type="Resource" id="Map_hardened"]
+script = ExtResource("2_map")
+MapId = "hardened-frontier"
+DisplayName = "Hardened Frontier"
+Tier = 2
+PrerequisiteMapId = "quiet-coast"
+MapModifierId = "hardened-front"
+EncounterId = "crossfire_advance"
+Description = "A fortified route where enemies endure more punishment."
+ItemLevel = 2
+
+[sub_resource type="Resource" id="Map_volatile"]
+script = ExtResource("2_map")
+MapId = "volatile-rift"
+DisplayName = "Volatile Rift"
+Tier = 2
+PrerequisiteMapId = "quiet-coast"
+MapModifierId = "volatile-hunt"
+EncounterId = "crossfire_advance"
+Description = "A volatile route where enemies deal increased damage."
+ItemLevel = 2
+
+[sub_resource type="Resource" id="Map_caldera"]
+script = ExtResource("2_map")
+MapId = "brimstone-caldera"
+DisplayName = "Brimstone Caldera"
+Tier = 3
+PrerequisiteMapId = "hardened-frontier"
+MapModifierId = "volatile-hunt"
+EncounterId = "siege_pressure"
+Description = "A high-pressure caldera guarded by Brimstone forces."
+ItemLevel = 4
+
+[sub_resource type="Resource" id="Map_siege"]
+script = ExtResource("2_map")
+MapId = "siege-gate"
+DisplayName = "Siege Gate"
+Tier = 3
+PrerequisiteMapId = "volatile-rift"
+MapModifierId = "hardened-front"
+EncounterId = "siege_pressure"
+Description = "A hardened gate under sustained siege pressure."
+ItemLevel = 4
+
+[resource]
+script = ExtResource("1_atlas")
+Maps = [SubResource("Map_quiet"), SubResource("Map_hardened"), SubResource("Map_volatile"), SubResource("Map_caldera"), SubResource("Map_siege")]

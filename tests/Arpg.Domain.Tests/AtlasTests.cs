@@ -59,4 +59,23 @@ public sealed class AtlasTests
 
         Assert.Throws<ArgumentException>(() => definition.Validate());
     }
+
+    [Fact]
+    public void AtlasMapRequiresEncounterId()
+    {
+        var definition = new AtlasDefinition
+        {
+            Maps =
+            [
+                new AtlasMapDefinition
+                {
+                    Id = "route",
+                    Name = "Route",
+                    EncounterId = string.Empty,
+                },
+            ],
+        };
+
+        Assert.Throws<ArgumentException>(() => definition.Validate());
+    }
 }
