@@ -184,7 +184,7 @@ public partial class BuildIntermission3DRegressionSmoke : Node
         SendAction("detach_support");
         SendAction("attach_support");
         if (player.Skills.SupportIdBySkillSlot.GetValueOrDefault(SkillSlot.Primary) != "volley"
-            || !screen.StashText.Contains(result.Id, StringComparison.Ordinal)
+            || !screen.StashText.Contains(result.Name, StringComparison.Ordinal)
             || !screen.CurrencyText.Contains("Forge Fragments: 2", StringComparison.Ordinal)
             || !screen.SupportsText.Contains("Primary: Volley", StringComparison.Ordinal))
         {
