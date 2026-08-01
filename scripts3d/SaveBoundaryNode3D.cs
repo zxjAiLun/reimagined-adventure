@@ -20,6 +20,7 @@ public partial class SaveBoundaryNode3D : Node
     private PlayerController3D _player;
     private GameFlowController3D _flow;
     private MapRewardNode3D _mapRewards;
+    private BuildIntermissionController3D _buildIntermission;
     private RunSessionNode _runSession;
 
     public override void _Ready()
@@ -27,6 +28,7 @@ public partial class SaveBoundaryNode3D : Node
         _player = GetNodeOrNull<PlayerController3D>("../Player3D");
         _flow = GetNodeOrNull<GameFlowController3D>("../GameFlow3D");
         _mapRewards = GetNodeOrNull<MapRewardNode3D>("../MapRewards3D");
+        _buildIntermission = GetNodeOrNull<BuildIntermissionController3D>("../BuildIntermission3D");
         _runSession = MapRuntimeScope3D.FindRunSession(this);
         AddToGroup("save_boundaries_3d");
     }
@@ -64,6 +66,11 @@ public partial class SaveBoundaryNode3D : Node
                 ?? SkillLoadout.DefaultUnlockedSupportIds.ToArray(),
             SupportIdBySkillSlot = _player.Skills?.SupportIdBySkillSlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
                 ?? new Dictionary<SkillSlot, string>(),
+            ForgeFragments = _buildIntermission?.Currency.ForgeFragments ?? 0,
+            StashItems = _buildIntermission?.StashItems.ToArray() ?? Array.Empty<Item>(),
+            MapCompletePhase = _flow?.State == GameFlowState.MapComplete
+                ? _buildIntermission?.Phase ?? MapCompletePhase.RewardChoice
+                : MapCompletePhase.RewardChoice,
             CurrentAtlasMapId = _runSession?.CurrentAtlasMapId ?? "quiet-coast",
             PendingAtlasMapId = _runSession?.PendingAtlasMapId,
             AtlasUnlockedMapIds = _runSession?.Atlas?.State.UnlockedMapIds.ToArray()
@@ -100,6 +107,8 @@ public partial class SaveBoundaryNode3D : Node
                 out var targetMaxHealth)
             || _player.Skills == null
             || !_player.Skills.CanRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot)
+            || _buildIntermission != null
+                && !_buildIntermission.CanRestore(state.StashItems, state.ForgeFragments, state.MapCompletePhase)
             || state.PlayerMaxHealth != targetMaxHealth
             || state.PlayerCurrentHealth < 0
             || state.PlayerCurrentHealth > targetMaxHealth
@@ -134,6 +143,12 @@ public partial class SaveBoundaryNode3D : Node
             if (!_player.Skills.TryRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot))
             {
                 throw new InvalidOperationException("saved 3D skill loadout is invalid");
+            }
+
+            if (_buildIntermission != null
+                && !_buildIntermission.RestoreState(state.StashItems, state.ForgeFragments, state.MapCompletePhase))
+            {
+                throw new InvalidOperationException("saved 3D build intermission is invalid");
             }
             if (InjectFailureAfterRewardForTest)
             {
@@ -227,6 +242,11 @@ public partial class SaveBoundaryNode3D : Node
                 ?? SkillLoadout.DefaultUnlockedSupportIds.ToArray(),
             SupportIdBySkillSlot = _player.Skills?.SupportIdBySkillSlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
                 ?? new Dictionary<SkillSlot, string>(),
+            ForgeFragments = _buildIntermission?.Currency.ForgeFragments ?? 0,
+            StashItems = _buildIntermission?.StashItems.ToArray() ?? Array.Empty<Item>(),
+            MapCompletePhase = _flow?.State == GameFlowState.MapComplete
+                ? _buildIntermission?.Phase ?? MapCompletePhase.RewardChoice
+                : MapCompletePhase.RewardChoice,
             CurrentAtlasMapId = _runSession?.CurrentAtlasMapId ?? "quiet-coast",
             PendingAtlasMapId = _runSession?.PendingAtlasMapId,
             AtlasUnlockedMapIds = _runSession?.Atlas?.State.UnlockedMapIds.ToArray()
@@ -267,6 +287,12 @@ public partial class SaveBoundaryNode3D : Node
             if (!_player.Skills.TryRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot))
             {
                 throw new InvalidOperationException("could not restore skill loadout");
+            }
+
+            if (_buildIntermission != null
+                && !_buildIntermission.RestoreState(state.StashItems, state.ForgeFragments, state.MapCompletePhase))
+            {
+                throw new InvalidOperationException("could not restore build intermission");
             }
             if (_runSession != null && (_runSession.UsesLegacyPlanResolution
                 ? !_runSession.TryRestore(

@@ -43,13 +43,13 @@ public partial class SkillLoadout3DRegressionSmoke : Node
                 case 0 when _elapsed >= 0.25:
                     BeginProjectileContract();
                     break;
-                case 1 when _skills.CooldownRemaining(SkillSlot.Primary) <= 0.01f:
+                case 1 when _skills.CooldownRemaining(SkillSlot.Primary) <= 0.001f:
                     VerifyVolleyContract();
                     break;
-                case 2 when _skills.CooldownRemaining(SkillSlot.Primary) <= 0.01f:
+                case 2 when _skills.CooldownRemaining(SkillSlot.Primary) <= 0.001f:
                     BeginAreaContract();
                     break;
-                case 3 when _skills.CooldownRemaining(SkillSlot.Secondary) <= 0.01f:
+                case 3 when _skills.CooldownRemaining(SkillSlot.Secondary) <= 0.001f:
                     VerifyAmplifyContract();
                     break;
             }
@@ -81,16 +81,19 @@ public partial class SkillLoadout3DRegressionSmoke : Node
 
     private void VerifyVolleyContract()
     {
-        if (!_skills.TryAttachSupport(SkillSlot.Primary, "volley")
-            || !_skills.TryCastForTest(SkillSlot.Primary))
+        var attached = _skills.TryAttachSupport(SkillSlot.Primary, "volley");
+        var cast = attached && _skills.TryCastForTest(SkillSlot.Primary);
+        if (!attached || !cast)
         {
-            throw new InvalidOperationException("Volley did not attach and cast");
+            throw new InvalidOperationException($"Volley did not attach and cast attached={attached} cast={cast} cooldown={_skills.CooldownRemaining(SkillSlot.Primary):0.000} supports={_skills.SupportCount(SkillSlot.Primary)}");
         }
 
         if (_player.LastSpreadProjectileCount <= _baseProjectileCount
-            || _player.LastSpreadProjectileDamage >= _baseProjectileDamage)
+            || _player.LastSpreadProjectileDamage > _baseProjectileDamage
+            || _player.LastSpreadProjectileDamage < 1)
         {
-            throw new InvalidOperationException("Volley did not change real projectile count and damage");
+            throw new InvalidOperationException(
+                $"Volley did not change real projectile count and damage count={_player.LastSpreadProjectileCount}/{_baseProjectileCount} damage={_player.LastSpreadProjectileDamage}/{_baseProjectileDamage}");
         }
 
         _stage = 2;

@@ -28,6 +28,12 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     [Export] public PackedScene LineTelegraphScene { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
 
+    /// <summary>
+    /// Compatibility hook for the deterministic scaling smoke. Production
+    /// deaths use LootDropProfiles.Boss below.
+    /// </summary>
+    public bool ForceGuaranteedDropForTest { get; set; }
+
     public CombatFaction Faction => CombatFaction.Enemy;
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
     public int MaxHealth => _health?.MaxHealth ?? 0;
@@ -507,10 +513,33 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             return;
         }
 
-        var drop = ItemDropScene.Instantiate<ItemDrop3D>();
+        if (ForceGuaranteedDropForTest)
+        {
+            SpawnDropItem(_runSession.GenerateWeaponDrop(AppliedDropItemLevel, boss: true));
+            return;
+        }
+
+        var result = _runSession.GenerateDrops(
+            new ItemRollContext(AppliedDropItemLevel, LootSourceKind.Boss, GuaranteedUnique: true),
+            LootDropProfiles.Boss);
+        _runSession.TryAwardForgeFragments(result.ForgeFragments);
+        foreach (var item in result.Items)
+        {
+            SpawnDropItem(item);
+        }
+    }
+
+    private void SpawnDropItem(Item item)
+    {
+        var drop = ItemDropScene?.Instantiate<ItemDrop3D>();
+        if (drop == null || GetParent() == null)
+        {
+            return;
+        }
+
         GetParent().AddChild(drop);
         drop.GlobalPosition = GlobalPosition;
-        drop.Configure(_runSession.GenerateWeaponDrop(AppliedDropItemLevel, boss: true));
+        drop.Configure(item);
     }
 
     private void RefreshVisuals()

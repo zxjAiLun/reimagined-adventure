@@ -189,6 +189,8 @@ public sealed class MinimalSaveService
         public Item EquippedWeapon { get; set; }
         public Dictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; set; } = new();
         public int ForgeFragments { get; set; }
+        public List<Item> StashItems { get; set; } = new();
+        public MapCompletePhase MapCompletePhase { get; set; } = MapCompletePhase.RewardChoice;
         public List<string> UnlockedSupportIds { get; set; } = SkillLoadout.DefaultUnlockedSupportIds.ToList();
         public Dictionary<SkillSlot, string> SupportIdBySkillSlot { get; set; } = new();
         public List<int> PassiveAllocatedIndices { get; set; } = new();
@@ -226,6 +228,8 @@ public sealed class MinimalSaveService
                 EquippedWeapon = snapshot.EquippedWeapon,
                 EquippedItemsBySlot = snapshot.EquippedItemsBySlot.ToDictionary(pair => pair.Key, pair => pair.Value),
                 ForgeFragments = snapshot.ForgeFragments,
+                StashItems = snapshot.StashItems.ToList(),
+                MapCompletePhase = snapshot.MapCompletePhase,
                 UnlockedSupportIds = snapshot.UnlockedSupportIds.ToList(),
                 SupportIdBySkillSlot = snapshot.SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value),
                 PassiveAllocatedIndices = snapshot.PassiveAllocatedIndices.ToList(),
@@ -243,6 +247,12 @@ public sealed class MinimalSaveService
 
         public SaveSnapshot ToSnapshot()
         {
+            var resolvedPhase = SaveSnapshot.ResolveMapCompletePhase(
+                State,
+                MapRewardChosen,
+                NextMapOptionChosen,
+                PendingAtlasMapId,
+                MapCompletePhase);
             return new SaveSnapshot
             {
                 Magic = Magic,
@@ -265,6 +275,8 @@ public sealed class MinimalSaveService
                 EquippedWeapon = EquippedWeapon,
                 EquippedItemsBySlot = EquippedItemsBySlot ?? new Dictionary<EquipmentSlot, Item>(),
                 ForgeFragments = ForgeFragments,
+                StashItems = StashItems ?? new List<Item>(),
+                MapCompletePhase = resolvedPhase,
                 UnlockedSupportIds = UnlockedSupportIds ?? SkillLoadout.DefaultUnlockedSupportIds.ToList(),
                 SupportIdBySkillSlot = SupportIdBySkillSlot ?? new Dictionary<SkillSlot, string>(),
                 PassiveAllocatedIndices = PassiveAllocatedIndices ?? new List<int>(),

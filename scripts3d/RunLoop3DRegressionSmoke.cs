@@ -55,6 +55,13 @@ public partial class RunLoop3DRegressionSmoke : Node
                 return;
             }
 
+            var build = arena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+            if (build == null || !build.TryCompleteBuildForTest())
+            {
+                Fail("build intermission did not complete before next-map transition");
+                return;
+            }
+
             CaptureExpectedTransitionState(run, player);
             return;
         }

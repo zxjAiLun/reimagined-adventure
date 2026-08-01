@@ -153,6 +153,17 @@ public partial class RunSessionNode : Node
         return _lootGenerator.GenerateDrops(context, profile, mapModifier, effectiveRewardStats);
     }
 
+    public bool TryAwardForgeFragments(int amount)
+    {
+        if (amount <= 0)
+        {
+            return amount == 0;
+        }
+
+        var build = _currentMap?.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+        return build?.Currency.TryAdd(amount) == true;
+    }
+
     public LootGenerator LootGenerator => _lootGenerator ?? throw new InvalidOperationException("RunSessionNode is not ready.");
     public LootGenerator CraftingGenerator => _craftingGenerator ?? throw new InvalidOperationException("RunSessionNode is not ready.");
 
@@ -293,7 +304,8 @@ public partial class RunSessionNode : Node
         if (!HasFormalAtlas
             || string.IsNullOrWhiteSpace(mapId)
             || string.Equals(mapId, _currentAtlasMapId, StringComparison.Ordinal)
-            || !IsCurrentMapCompleteWithReward())
+            || !IsCurrentMapCompleteWithReward()
+            || !IsBuildIntermissionReadyForRoute())
         {
             return false;
         }
@@ -332,6 +344,7 @@ public partial class RunSessionNode : Node
         if (!HasFormalAtlas
             || string.IsNullOrWhiteSpace(_pendingAtlasMapId)
             || !IsCurrentMapCompleteWithReward()
+            || !IsBuildIntermissionReadyForRoute()
             || MapScene == null
             || _currentMap == null
             || !IsInstanceValid(_currentMap))
@@ -403,6 +416,12 @@ public partial class RunSessionNode : Node
         var rewards = _currentMap?.GetNodeOrNull<MapRewardNode3D>("MapRewards3D")
             ?? GetTree().GetFirstNodeInGroup("map_rewards_3d") as MapRewardNode3D;
         return flow?.State == GameFlowState.MapComplete && rewards?.HasChosen == true;
+    }
+
+    private bool IsBuildIntermissionReadyForRoute()
+    {
+        var build = _currentMap?.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+        return build == null || build.IsRouteChoice;
     }
 
     private void InitializeAtlas()
@@ -490,9 +509,12 @@ public partial class RunSessionNode : Node
         var save3d = _currentMap?.GetNodeOrNull<SaveBoundaryNode3D>("SaveBoundary3D")
             ?? GetTree().GetFirstNodeInGroup("save_boundaries_3d") as SaveBoundaryNode3D;
         var canAdvance = flow != null
-            ? flow.State == GameFlowState.MapComplete && flow.PrepareNextMap()
+            ? flow.State == GameFlowState.MapComplete
+                && IsBuildIntermissionReadyForRoute()
+                && flow.PrepareNextMap()
             : flow3d != null
                 && flow3d.State == GameFlowState.MapComplete
+                && IsBuildIntermissionReadyForRoute()
                 && flow3d.PrepareNextMap();
         if (!canAdvance)
         {

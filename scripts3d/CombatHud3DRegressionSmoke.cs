@@ -162,7 +162,8 @@ public partial class CombatHud3DRegressionSmoke : Node
                     return;
                 }
 
-                if (!run.LoadNextMap())
+                var build = arena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+                if (build == null || !build.TryCompleteBuildForTest() || !run.LoadNextMap())
                 {
                     Fail("could not load next map for Map Level HUD test");
                     return;

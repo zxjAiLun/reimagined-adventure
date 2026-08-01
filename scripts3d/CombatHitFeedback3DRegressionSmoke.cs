@@ -40,6 +40,7 @@ public partial class CombatHitFeedback3DRegressionSmoke : Node
         _feral = _arena.GetNode<FeralController3D>("Feral3D");
         _spitter = _arena.GetNode<SpitterController3D>("Spitter3D");
         _boss = _arena.GetNode<BrimstoneColossusController3D>("BrimstoneColossus3D");
+        _feral.ForceGuaranteedDropForTest = true;
         _flow = _arena.GetNode<GameFlowController3D>("GameFlow3D");
         _numbers = _arena.GetNode<DamageNumberSpawner3D>("DamageNumberSpawner3D");
 
@@ -319,6 +320,7 @@ public partial class CombatHitFeedback3DRegressionSmoke : Node
         }
 
         _dynamicFeral = feralScene.Instantiate<FeralController3D>();
+        _dynamicFeral.ForceGuaranteedDropForTest = true;
         _arena.AddChild(_dynamicFeral);
         _dynamicFeral.GlobalPosition = new Vector3(5.0f, 0.0f, 0.0f);
         _stage = 9;

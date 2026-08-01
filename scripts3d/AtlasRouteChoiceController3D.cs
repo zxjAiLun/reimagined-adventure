@@ -20,6 +20,7 @@ public partial class AtlasRouteChoiceController3D : CanvasLayer
     private RunSessionNode _run;
     private MapRewardNode3D _rewards;
     private GameFlowController3D _flow;
+    private BuildIntermissionController3D _build;
     private Control _panel;
     private Label _optionsLabel;
     private bool _bound;
@@ -40,6 +41,10 @@ public partial class AtlasRouteChoiceController3D : CanvasLayer
         {
             _run.RouteOptionsChanged -= OnRouteOptionsChanged;
             _rewards.RewardChosen -= OnRewardChosen;
+            if (_build != null)
+            {
+                _build.PhaseChanged -= OnBuildPhaseChanged;
+            }
         }
     }
 
@@ -111,6 +116,7 @@ public partial class AtlasRouteChoiceController3D : CanvasLayer
         _run = MapRuntimeScope3D.FindRunSession(this);
         _rewards = GetParent<Node3D>()?.GetNodeOrNull<MapRewardNode3D>("MapRewards3D");
         _flow = GetParent<Node3D>()?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        _build = GetParent<Node3D>()?.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
         if (_run == null || _rewards == null || _flow == null)
         {
             CallDeferred(nameof(BindRuntime));
@@ -119,18 +125,24 @@ public partial class AtlasRouteChoiceController3D : CanvasLayer
 
         _run.RouteOptionsChanged += OnRouteOptionsChanged;
         _rewards.RewardChosen += OnRewardChosen;
+        if (_build != null)
+        {
+            _build.PhaseChanged += OnBuildPhaseChanged;
+        }
         _bound = true;
         Refresh();
     }
 
     private void OnRewardChosen(string rewardId)
     {
-        ChoiceActive = true;
+        ChoiceActive = _build == null || _build.IsRouteChoice;
         SelectedMapId = string.Empty;
         Refresh();
     }
 
     private void OnRouteOptionsChanged() => Refresh();
+
+    private void OnBuildPhaseChanged(int phase) => Refresh();
 
     private void Refresh()
     {
@@ -142,7 +154,8 @@ public partial class AtlasRouteChoiceController3D : CanvasLayer
         _optionMapIds.Clear();
         if (_run.HasFormalAtlas
             && _flow.State == GameFlowState.MapComplete
-            && _rewards.HasChosen)
+            && _rewards.HasChosen
+            && (_build == null || _build.IsRouteChoice))
         {
             _optionMapIds.AddRange(_run.AvailableAtlasMaps.Select(map => map.Id));
             ChoiceActive = _optionMapIds.Count > 0;
