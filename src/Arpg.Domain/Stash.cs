@@ -27,6 +27,11 @@ public sealed class StashTab
         return true;
     }
 
+    public bool CanDeposit(Item item) =>
+        item != null
+        && _items.Count < Capacity
+        && !_items.Any(existing => existing.Id == item.Id);
+
     public Item? Withdraw(string itemId)
     {
         if (string.IsNullOrWhiteSpace(itemId))
@@ -43,6 +48,26 @@ public sealed class StashTab
         var item = _items[index];
         _items.RemoveAt(index);
         return item;
+    }
+
+    public void ReplaceItems(IEnumerable<Item> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var replacement = items.ToArray();
+        if (replacement.Length > Capacity
+            || replacement.Any(item => item == null)
+            || replacement.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != replacement.Length)
+        {
+            throw new ArgumentException("Replacement stash items are invalid.", nameof(items));
+        }
+
+        foreach (var item in replacement)
+        {
+            item.Validate();
+        }
+
+        _items.Clear();
+        _items.AddRange(replacement);
     }
 
     public bool Contains(string itemId) =>
@@ -83,6 +108,7 @@ public sealed class Stash
     private readonly Dictionary<string, StashTab> _tabs = new(StringComparer.Ordinal);
 
     public IReadOnlyCollection<StashTab> Tabs => _tabs.Values;
+    public IReadOnlyList<Item> Items => _tabs.Values.SelectMany(tab => tab.Items).ToArray();
 
     public Stash(IEnumerable<StashTab> tabs)
     {
@@ -122,6 +148,17 @@ public sealed class Stash
         return !string.IsNullOrWhiteSpace(itemId)
             && _tabs.Values.Any(tab => tab.Contains(itemId));
     }
+
+    public void RestoreItems(IEnumerable<Item> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var tab = _tabs.Values.FirstOrDefault()
+            ?? throw new InvalidOperationException("Stash has no tab.");
+        tab.ReplaceItems(items);
+        ValidateUniqueItemIds();
+    }
+
+    public bool CanAccept(string tabId, Item item) => FindTab(tabId)?.CanDeposit(item) == true;
 
     public void AddTab(StashTab tab)
     {

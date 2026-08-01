@@ -20,19 +20,16 @@ public sealed class CraftingRecipe
             throw new ArgumentOutOfRangeException(nameof(Slot), Slot, "Unknown crafting slot.");
         }
 
-        if (Slot != EquipmentSlot.Weapon)
-        {
-            throw new ArgumentException("The first crafting batch only supports weapon recipes.", nameof(Slot));
-        }
-
         if (RequiredBaseId != null && string.IsNullOrWhiteSpace(RequiredBaseId))
         {
             throw new ArgumentException("Required base id cannot be blank.", nameof(RequiredBaseId));
         }
 
-        if (RequiredBaseId != null && ItemBaseLibrary.Find(RequiredBaseId) == null)
+        if (RequiredBaseId != null
+            && (ItemBaseLibrary.Find(RequiredBaseId) == null
+                || ItemBaseLibrary.Find(RequiredBaseId)!.Slot != Slot))
         {
-            throw new ArgumentException($"Unknown required weapon base '{RequiredBaseId}'.", nameof(RequiredBaseId));
+            throw new ArgumentException($"Unknown required {Slot} base '{RequiredBaseId}'.", nameof(RequiredBaseId));
         }
 
         if (ForgeFragmentCost < 0)
@@ -80,7 +77,16 @@ public sealed class CraftingBench
             throw new InvalidOperationException($"Cannot craft recipe '{recipe.Name}' with the supplied input.");
         }
 
-        var crafted = generator.GenerateWeaponDropForBase(input.BaseId, input.ItemLevel, input.Id);
+        var context = new ItemRollContext(
+            input.ItemLevel,
+            LootSourceKind.Crafting,
+            input.Slot,
+            ForcedBaseId: input.BaseId);
+        var crafted = generator.GenerateItemDrop(context);
+        while (crafted.Id == input.Id)
+        {
+            crafted = generator.GenerateItemDrop(context);
+        }
         return new CraftingResult(input, crafted, recipe.ForgeFragmentCost);
     }
 }
@@ -99,7 +105,7 @@ public static class CraftingLibrary
     {
         Id = $"reforge_{baseId}",
         Name = $"Reforge {baseId}",
-        Slot = EquipmentSlot.Weapon,
+        Slot = ItemBaseLibrary.Find(baseId)?.Slot ?? EquipmentSlot.Weapon,
         RequiredBaseId = baseId,
         ForgeFragmentCost = 1,
     };

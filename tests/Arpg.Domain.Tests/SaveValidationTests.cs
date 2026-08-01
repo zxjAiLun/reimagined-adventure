@@ -172,4 +172,38 @@ public sealed class SaveValidationTests
         };
         Assert.False(invalid.TryValidate(out _));
     }
+
+    [Fact]
+    public void BuildIntermissionPayloadRoundTripsAndLegacyPhaseIsDerived()
+    {
+        var generator = new LootGenerator(9911);
+        var inventory = generator.GenerateItemDrop(new ItemRollContext(
+            1, LootSourceKind.Reward, EquipmentSlot.Weapon, ForcedRarity: Rarity.Magic));
+        var stashed = generator.GenerateItemDrop(new ItemRollContext(
+            1, LootSourceKind.Reward, EquipmentSlot.Armor, ForcedRarity: Rarity.Magic));
+        var state = new MinimalRunState
+        {
+            State = SaveRunState.MapComplete,
+            InventoryItems = [inventory],
+            StashItems = [stashed],
+            ForgeFragments = 3,
+            MapCompletePhase = MapCompletePhase.BuildManagement,
+            MapRewardChosen = true,
+            SelectedMapRewardOption = 0,
+        };
+
+        var restored = SaveSnapshot.Capture(state).Restore();
+        Assert.Equal(MapCompletePhase.BuildManagement, restored.MapCompletePhase);
+        Assert.Equal(3, restored.ForgeFragments);
+        Assert.Equal(stashed.Id, restored.StashItems.Single().Id);
+
+        var legacy = SaveSnapshot.Capture(new MinimalRunState
+        {
+            State = SaveRunState.MapComplete,
+            MapRewardChosen = true,
+            SelectedMapRewardOption = 0,
+        });
+        Assert.Equal(MapCompletePhase.BuildManagement, legacy.MapCompletePhase);
+        Assert.True(legacy.TryValidate(out var error), error);
+    }
 }

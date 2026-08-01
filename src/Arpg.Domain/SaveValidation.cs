@@ -31,6 +31,8 @@ public sealed class MinimalRunState
     public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; init; } =
         new Dictionary<EquipmentSlot, Item>();
     public int ForgeFragments { get; init; }
+    public IReadOnlyList<Item> StashItems { get; init; } = Array.Empty<Item>();
+    public MapCompletePhase MapCompletePhase { get; init; } = MapCompletePhase.RewardChoice;
     public IReadOnlyList<string> UnlockedSupportIds { get; init; } = SkillLoadout.DefaultUnlockedSupportIds;
     public IReadOnlyDictionary<SkillSlot, string> SupportIdBySkillSlot { get; init; } =
         new Dictionary<SkillSlot, string>();
@@ -78,6 +80,8 @@ public sealed class SaveSnapshot
     public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; init; } =
         new Dictionary<EquipmentSlot, Item>();
     public int ForgeFragments { get; init; }
+    public IReadOnlyList<Item> StashItems { get; init; } = Array.Empty<Item>();
+    public MapCompletePhase MapCompletePhase { get; init; } = MapCompletePhase.RewardChoice;
     public IReadOnlyList<string> UnlockedSupportIds { get; init; } = SkillLoadout.DefaultUnlockedSupportIds;
     public IReadOnlyDictionary<SkillSlot, string> SupportIdBySkillSlot { get; init; } =
         new Dictionary<SkillSlot, string>();
@@ -108,6 +112,12 @@ public sealed class SaveSnapshot
 
         var equippedWeapon = equippedItems.GetValueOrDefault(EquipmentSlot.Weapon);
         var equippedWeaponId = equippedWeapon?.Id ?? state.EquippedWeaponId;
+        var mapCompletePhase = ResolveMapCompletePhase(
+            state.State,
+            state.MapRewardChosen,
+            state.NextMapOptionChosen,
+            state.PendingAtlasMapId,
+            state.MapCompletePhase);
         var snapshot = new SaveSnapshot
         {
             State = state.State,
@@ -128,6 +138,8 @@ public sealed class SaveSnapshot
             EquippedWeapon = equippedWeapon,
             EquippedItemsBySlot = equippedItems,
             ForgeFragments = state.ForgeFragments,
+            StashItems = state.StashItems?.ToArray() ?? Array.Empty<Item>(),
+            MapCompletePhase = mapCompletePhase,
             UnlockedSupportIds = state.UnlockedSupportIds?.ToArray() ?? SkillLoadout.DefaultUnlockedSupportIds.ToArray(),
             SupportIdBySkillSlot = state.SupportIdBySkillSlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
                 ?? new Dictionary<SkillSlot, string>(),
@@ -168,6 +180,8 @@ public sealed class SaveSnapshot
             EquippedWeapon = EquippedWeapon,
             EquippedItemsBySlot = EquippedItemsBySlot.ToDictionary(pair => pair.Key, pair => pair.Value),
             ForgeFragments = ForgeFragments,
+            StashItems = StashItems.ToArray(),
+            MapCompletePhase = MapCompletePhase,
             UnlockedSupportIds = UnlockedSupportIds.ToArray(),
             SupportIdBySkillSlot = SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value),
             PassiveAllocatedIndices = PassiveAllocatedIndices.ToArray(),
@@ -211,6 +225,15 @@ public sealed class SaveSnapshot
             || ManaCharges < 0
             || ManaCharges > MaxManaCharges
             || ForgeFragments < 0
+            || !Enum.IsDefined(MapCompletePhase)
+            || MapCompletePhase != MapCompletePhase.RewardChoice
+                && (State != SaveRunState.MapComplete || !MapRewardChosen)
+            || StashItems == null
+            || StashItems.Count > 24
+            || StashItems.Any(item => item == null || !IsValidItem(item))
+            || StashItems.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != StashItems.Count
+            || StashItems.Any(item => InventoryItemIds.Contains(item.Id, StringComparer.Ordinal)
+                || EquippedItemsBySlot.Values.Any(equipped => equipped.Id == item.Id))
             || InventoryCount < 0
             || InventoryCount > MaxInventoryCount
             || InventoryItemIds == null
@@ -283,6 +306,25 @@ public sealed class SaveSnapshot
     }
 
     private static bool ValidOption(int value) => value >= -1 && value < 3;
+
+    public static MapCompletePhase ResolveMapCompletePhase(
+        SaveRunState state,
+        bool mapRewardChosen,
+        bool nextMapOptionChosen,
+        string? pendingAtlasMapId,
+        MapCompletePhase phase)
+    {
+        if (state != SaveRunState.MapComplete
+            || !mapRewardChosen
+            || phase != MapCompletePhase.RewardChoice)
+        {
+            return phase;
+        }
+
+        return nextMapOptionChosen || !string.IsNullOrWhiteSpace(pendingAtlasMapId)
+            ? MapCompletePhase.RouteChoice
+            : MapCompletePhase.BuildManagement;
+    }
 
     private static bool IsValidItem(Item item)
     {
