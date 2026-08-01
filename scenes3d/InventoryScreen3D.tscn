@@ -1,0 +1,54 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/InventoryScreenController3D.cs" id="1_screen"]
+[ext_resource type="Script" path="res://scripts3d/ItemPresentation3D.cs" id="2_item"]
+
+[node name="InventoryScreen3D" type="CanvasLayer"]
+script = ExtResource("1_screen")
+
+[node name="Panel" type="Panel" parent="."]
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 1060.0
+offset_bottom = 700.0
+modulate = Color(0.03, 0.05, 0.09, 0.96)
+
+[node name="Title" type="Label" parent="Panel"]
+offset_left = 24.0
+offset_top = 18.0
+offset_right = 960.0
+offset_bottom = 54.0
+theme_override_font_sizes/font_size = 28
+text = "BUILD / INVENTORY"
+
+[node name="Items" type="Label" parent="Panel"]
+offset_left = 24.0
+offset_top = 70.0
+offset_right = 500.0
+offset_bottom = 520.0
+theme_override_font_sizes/font_size = 18
+text = "Inventory: empty"
+
+[node name="Equipment" type="Label" parent="Panel"]
+offset_left = 520.0
+offset_top = 70.0
+offset_right = 980.0
+offset_bottom = 280.0
+theme_override_font_sizes/font_size = 18
+text = "Equipment:"
+
+[node name="Details" type="Label" parent="Panel"]
+offset_left = 520.0
+offset_top = 300.0
+offset_right = 980.0
+offset_bottom = 520.0
+theme_override_font_sizes/font_size = 16
+text = "Effective Stats"
+
+[node name="Hint" type="Label" parent="Panel"]
+offset_left = 24.0
+offset_top = 585.0
+offset_right = 980.0
+offset_bottom = 625.0
+theme_override_font_sizes/font_size = 16
+text = "I: close   Up/Down: select   E: equip"
