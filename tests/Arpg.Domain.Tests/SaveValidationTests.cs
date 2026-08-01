@@ -143,4 +143,33 @@ public sealed class SaveValidationTests
         var legacy = SaveSnapshot.Capture(new MinimalRunState { EquippedWeapon = weapon }).Restore();
         Assert.Equal(weapon.Id, legacy.EquippedItemsBySlot[EquipmentSlot.Weapon].Id);
     }
+
+    [Fact]
+    public void SupportLoadoutRoundTripsAndInvalidCompatibilityIsRejected()
+    {
+        var state = new MinimalRunState
+        {
+            UnlockedSupportIds = ["volley", "amplify"],
+            SupportIdBySkillSlot = new Dictionary<SkillSlot, string>
+            {
+                [SkillSlot.Primary] = "volley",
+                [SkillSlot.Secondary] = "amplify",
+            },
+        };
+        var restored = SaveSnapshot.Capture(state).Restore();
+
+        Assert.Equal(["volley", "amplify"], restored.UnlockedSupportIds);
+        Assert.Equal("volley", restored.SupportIdBySkillSlot[SkillSlot.Primary]);
+
+        var invalid = new SaveSnapshot
+        {
+            UnlockedSupportIds = ["volley", "amplify"],
+            SupportIdBySkillSlot = new Dictionary<SkillSlot, string>
+            {
+                [SkillSlot.Primary] = "volley",
+                [SkillSlot.Secondary] = "volley",
+            },
+        };
+        Assert.False(invalid.TryValidate(out _));
+    }
 }

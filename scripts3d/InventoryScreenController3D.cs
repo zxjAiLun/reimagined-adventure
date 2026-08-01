@@ -18,6 +18,7 @@ public partial class InventoryScreenController3D : CanvasLayer
     private Label _itemsLabel;
     private Label _equipmentLabel;
     private Label _detailsLabel;
+    private Label _supportsLabel;
     private Label _hintLabel;
     private bool _exiting;
 
@@ -28,6 +29,7 @@ public partial class InventoryScreenController3D : CanvasLayer
         _itemsLabel = GetNodeOrNull<Label>("Panel/Items");
         _equipmentLabel = GetNodeOrNull<Label>("Panel/Equipment");
         _detailsLabel = GetNodeOrNull<Label>("Panel/Details");
+        _supportsLabel = GetNodeOrNull<Label>("Panel/Supports");
         _hintLabel = GetNodeOrNull<Label>("Panel/Hint");
         CallDeferred(nameof(BindBuild));
     }
@@ -87,6 +89,13 @@ public partial class InventoryScreenController3D : CanvasLayer
                     + $"Area x{player.EffectiveStats.AreaDamageMultiplier:0.00}\n"
                     + $"Max HP +{player.EffectiveStats.MaxHp}"
                 : $"Selected\n{FormatItem(selected)}\n{FormatStats(selected.Stats)}";
+        }
+
+        if (_supportsLabel != null)
+        {
+            _supportsLabel.Text = "Skill Supports:\n"
+                + string.Join("\n", Enum.GetValues<SkillSlot>().Select(slot =>
+                    $"{slot}: {player.Skills?.Supports(slot).FirstOrDefault()?.Name ?? "none"}"));
         }
 
         if (_hintLabel != null)

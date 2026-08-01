@@ -60,6 +60,10 @@ public partial class SaveBoundaryNode3D : Node
             EquippedWeaponId = _player.EquippedWeapon?.Id,
             EquippedWeapon = _player.EquippedWeapon,
             EquippedItemsBySlot = _player.EquippedItems.ToDictionary(pair => pair.Key, pair => pair.Value),
+            UnlockedSupportIds = _player.Skills?.UnlockedSupportIds?.ToArray()
+                ?? SkillLoadout.DefaultUnlockedSupportIds.ToArray(),
+            SupportIdBySkillSlot = _player.Skills?.SupportIdBySkillSlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
+                ?? new Dictionary<SkillSlot, string>(),
             CurrentAtlasMapId = _runSession?.CurrentAtlasMapId ?? "quiet-coast",
             PendingAtlasMapId = _runSession?.PendingAtlasMapId,
             AtlasUnlockedMapIds = _runSession?.Atlas?.State.UnlockedMapIds.ToArray()
@@ -94,6 +98,8 @@ public partial class SaveBoundaryNode3D : Node
                 targetEquipment,
                 state.RewardStats,
                 out var targetMaxHealth)
+            || _player.Skills == null
+            || !_player.Skills.CanRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot)
             || state.PlayerMaxHealth != targetMaxHealth
             || state.PlayerCurrentHealth < 0
             || state.PlayerCurrentHealth > targetMaxHealth
@@ -125,6 +131,10 @@ public partial class SaveBoundaryNode3D : Node
             }
 
             _player.SetRewardStats(state.RewardStats);
+            if (!_player.Skills.TryRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot))
+            {
+                throw new InvalidOperationException("saved 3D skill loadout is invalid");
+            }
             if (InjectFailureAfterRewardForTest)
             {
                 throw new InvalidOperationException("injected 3D restore failure");
@@ -213,6 +223,10 @@ public partial class SaveBoundaryNode3D : Node
             EquippedWeaponId = _player.EquippedWeapon?.Id,
             EquippedWeapon = _player.EquippedWeapon,
             EquippedItemsBySlot = _player.EquippedItems.ToDictionary(pair => pair.Key, pair => pair.Value),
+            UnlockedSupportIds = _player.Skills?.UnlockedSupportIds?.ToArray()
+                ?? SkillLoadout.DefaultUnlockedSupportIds.ToArray(),
+            SupportIdBySkillSlot = _player.Skills?.SupportIdBySkillSlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
+                ?? new Dictionary<SkillSlot, string>(),
             CurrentAtlasMapId = _runSession?.CurrentAtlasMapId ?? "quiet-coast",
             PendingAtlasMapId = _runSession?.PendingAtlasMapId,
             AtlasUnlockedMapIds = _runSession?.Atlas?.State.UnlockedMapIds.ToArray()
@@ -250,6 +264,10 @@ public partial class SaveBoundaryNode3D : Node
             }
 
             _player.SetRewardStats(state.RewardStats);
+            if (!_player.Skills.TryRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot))
+            {
+                throw new InvalidOperationException("could not restore skill loadout");
+            }
             if (_runSession != null && (_runSession.UsesLegacyPlanResolution
                 ? !_runSession.TryRestore(
                     state.RunSeed,

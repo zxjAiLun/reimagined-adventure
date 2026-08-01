@@ -41,9 +41,17 @@ text = "Equipment:"
 offset_left = 520.0
 offset_top = 300.0
 offset_right = 980.0
-offset_bottom = 520.0
+offset_bottom = 455.0
 theme_override_font_sizes/font_size = 16
 text = "Effective Stats"
+
+[node name="Supports" type="Label" parent="Panel"]
+offset_left = 520.0
+offset_top = 465.0
+offset_right = 980.0
+offset_bottom = 575.0
+theme_override_font_sizes/font_size = 15
+text = "Skill Supports:"
 
 [node name="Hint" type="Label" parent="Panel"]
 offset_left = 24.0

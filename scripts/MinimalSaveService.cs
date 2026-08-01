@@ -189,6 +189,8 @@ public sealed class MinimalSaveService
         public Item EquippedWeapon { get; set; }
         public Dictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; set; } = new();
         public int ForgeFragments { get; set; }
+        public List<string> UnlockedSupportIds { get; set; } = SkillLoadout.DefaultUnlockedSupportIds.ToList();
+        public Dictionary<SkillSlot, string> SupportIdBySkillSlot { get; set; } = new();
         public List<int> PassiveAllocatedIndices { get; set; } = new();
         public List<string> AtlasUnlockedMapIds { get; set; } = new();
         public List<string> AtlasCompletedMapIds { get; set; } = new();
@@ -224,6 +226,8 @@ public sealed class MinimalSaveService
                 EquippedWeapon = snapshot.EquippedWeapon,
                 EquippedItemsBySlot = snapshot.EquippedItemsBySlot.ToDictionary(pair => pair.Key, pair => pair.Value),
                 ForgeFragments = snapshot.ForgeFragments,
+                UnlockedSupportIds = snapshot.UnlockedSupportIds.ToList(),
+                SupportIdBySkillSlot = snapshot.SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value),
                 PassiveAllocatedIndices = snapshot.PassiveAllocatedIndices.ToList(),
                 AtlasUnlockedMapIds = snapshot.AtlasUnlockedMapIds.ToList(),
                 AtlasCompletedMapIds = snapshot.AtlasCompletedMapIds.ToList(),
@@ -261,6 +265,8 @@ public sealed class MinimalSaveService
                 EquippedWeapon = EquippedWeapon,
                 EquippedItemsBySlot = EquippedItemsBySlot ?? new Dictionary<EquipmentSlot, Item>(),
                 ForgeFragments = ForgeFragments,
+                UnlockedSupportIds = UnlockedSupportIds ?? SkillLoadout.DefaultUnlockedSupportIds.ToList(),
+                SupportIdBySkillSlot = SupportIdBySkillSlot ?? new Dictionary<SkillSlot, string>(),
                 PassiveAllocatedIndices = PassiveAllocatedIndices ?? new List<int>(),
                 AtlasUnlockedMapIds = AtlasUnlockedMapIds ?? new List<string>(),
                 AtlasCompletedMapIds = AtlasCompletedMapIds ?? new List<string>(),

@@ -31,6 +31,9 @@ public sealed class MinimalRunState
     public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; init; } =
         new Dictionary<EquipmentSlot, Item>();
     public int ForgeFragments { get; init; }
+    public IReadOnlyList<string> UnlockedSupportIds { get; init; } = SkillLoadout.DefaultUnlockedSupportIds;
+    public IReadOnlyDictionary<SkillSlot, string> SupportIdBySkillSlot { get; init; } =
+        new Dictionary<SkillSlot, string>();
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
@@ -75,6 +78,9 @@ public sealed class SaveSnapshot
     public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; init; } =
         new Dictionary<EquipmentSlot, Item>();
     public int ForgeFragments { get; init; }
+    public IReadOnlyList<string> UnlockedSupportIds { get; init; } = SkillLoadout.DefaultUnlockedSupportIds;
+    public IReadOnlyDictionary<SkillSlot, string> SupportIdBySkillSlot { get; init; } =
+        new Dictionary<SkillSlot, string>();
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
@@ -122,6 +128,9 @@ public sealed class SaveSnapshot
             EquippedWeapon = equippedWeapon,
             EquippedItemsBySlot = equippedItems,
             ForgeFragments = state.ForgeFragments,
+            UnlockedSupportIds = state.UnlockedSupportIds?.ToArray() ?? SkillLoadout.DefaultUnlockedSupportIds.ToArray(),
+            SupportIdBySkillSlot = state.SupportIdBySkillSlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
+                ?? new Dictionary<SkillSlot, string>(),
             PassiveAllocatedIndices = state.PassiveAllocatedIndices?.ToArray() ?? Array.Empty<int>(),
             AtlasUnlockedMapIds = state.AtlasUnlockedMapIds?.ToArray() ?? Array.Empty<string>(),
             AtlasCompletedMapIds = state.AtlasCompletedMapIds?.ToArray() ?? Array.Empty<string>(),
@@ -159,6 +168,8 @@ public sealed class SaveSnapshot
             EquippedWeapon = EquippedWeapon,
             EquippedItemsBySlot = EquippedItemsBySlot.ToDictionary(pair => pair.Key, pair => pair.Value),
             ForgeFragments = ForgeFragments,
+            UnlockedSupportIds = UnlockedSupportIds.ToArray(),
+            SupportIdBySkillSlot = SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value),
             PassiveAllocatedIndices = PassiveAllocatedIndices.ToArray(),
             AtlasUnlockedMapIds = AtlasUnlockedMapIds.ToArray(),
             AtlasCompletedMapIds = AtlasCompletedMapIds.ToArray(),
@@ -224,6 +235,7 @@ public sealed class SaveSnapshot
             || EquippedItemsBySlot.TryGetValue(EquipmentSlot.Weapon, out var mappedWeapon)
                 && (EquippedWeapon == null || mappedWeapon.Id != EquippedWeapon.Id)
             || EquippedItemsBySlot.Values.Any(item => InventoryItemIds.Contains(item.Id, StringComparer.Ordinal))
+            || !IsValidSkillLoadout(UnlockedSupportIds, SupportIdBySkillSlot)
             || PassiveAllocatedIndices == null
             || PassiveAllocatedIndices.Any(index => index < 0)
             || PassiveAllocatedIndices.Distinct().Count() != PassiveAllocatedIndices.Count
@@ -290,6 +302,38 @@ public sealed class SaveSnapshot
         try
         {
             stats.Validate();
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidSkillLoadout(
+        IReadOnlyList<string> unlockedSupportIds,
+        IReadOnlyDictionary<SkillSlot, string> supportIdBySkillSlot)
+    {
+        if (unlockedSupportIds == null
+            || supportIdBySkillSlot == null
+            || unlockedSupportIds.Any(string.IsNullOrWhiteSpace)
+            || unlockedSupportIds.Distinct(StringComparer.Ordinal).Count() != unlockedSupportIds.Count
+            || unlockedSupportIds.Any(supportId => SupportLibrary.Find(supportId) == null))
+        {
+            return false;
+        }
+
+        try
+        {
+            var loadout = new SkillLoadout(SkillLibrary.DefaultBar(), unlockedSupportIds);
+            foreach (var pair in supportIdBySkillSlot)
+            {
+                if (!Enum.IsDefined(pair.Key) || !loadout.TryAttach(pair.Key, pair.Value))
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
         catch (ArgumentException)

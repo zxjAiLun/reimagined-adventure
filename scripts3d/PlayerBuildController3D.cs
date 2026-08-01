@@ -17,6 +17,7 @@ public partial class PlayerBuildController3D : Node
     public bool IsOpen { get; private set; }
     public string SelectedItemId { get; private set; } = string.Empty;
     public RunCurrencyWallet Currency { get; } = new();
+    public SkillLoadout SkillLoadout => Player?.Skills?.Loadout;
 
     private bool _previousPaused;
     private bool _exiting;
@@ -28,6 +29,10 @@ public partial class PlayerBuildController3D : Node
         Screen = GetParent()?.GetNodeOrNull<InventoryScreenController3D>("InventoryScreen3D");
         Player.InventoryChanged += OnPlayerBuildChanged;
         Player.EquipmentChanged += OnPlayerBuildChanged;
+        if (Player.Skills != null)
+        {
+            Player.Skills.SkillLoadoutChanged += OnPlayerBuildChanged;
+        }
         SetProcessUnhandledInput(true);
         CallDeferred(nameof(BindScreen));
     }
@@ -39,6 +44,10 @@ public partial class PlayerBuildController3D : Node
         {
             Player.InventoryChanged -= OnPlayerBuildChanged;
             Player.EquipmentChanged -= OnPlayerBuildChanged;
+            if (Player.Skills != null)
+            {
+                Player.Skills.SkillLoadoutChanged -= OnPlayerBuildChanged;
+            }
         }
     }
 
@@ -130,6 +139,12 @@ public partial class PlayerBuildController3D : Node
         !string.IsNullOrWhiteSpace(SelectedItemId) && Player.TryEquipItem(SelectedItemId);
 
     public bool TryUnequip(EquipmentSlot slot) => Player.TryUnequip(slot);
+
+    public bool TryAttachSupport(SkillSlot slot, string supportId) =>
+        Player?.Skills?.TryAttachSupport(slot, supportId) == true;
+
+    public bool TryDetachSupport(SkillSlot slot) =>
+        Player?.Skills?.TryDetachSupport(slot) == true;
 
     public string CompareSelectedToSlot()
     {

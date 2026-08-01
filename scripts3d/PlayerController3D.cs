@@ -36,12 +36,17 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     public int SpreadShotDamage => SkillSupportMath.Damage(
         SkillLibrary.SpreadShot(),
         EffectiveStats);
+    public int LastSpreadProjectileCount { get; private set; }
+    public int LastSpreadProjectileDamage { get; private set; }
+    public float LastAreaRadius { get; private set; }
+    public int LastAreaDamage { get; private set; }
     public int ItemCount => _inventory.Count;
     public string EquippedWeaponName => _equipment.ItemInSlot(EquipmentSlot.Weapon)?.Name ?? "none";
     public IReadOnlyList<Item> Items => _inventory.Items;
     public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItems => _equipment.Items;
     public RunInventory Inventory => _inventory;
     public Equipment Equipment => _equipment;
+    public PlayerSkillController3D Skills => _skills;
     public int InventoryCapacity => _inventory.Capacity;
     public Item EquippedWeapon => _equipment.ItemInSlot(EquipmentSlot.Weapon);
 
@@ -150,6 +155,8 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
         var damage = SkillSupportMath.Damage(skill, EffectiveStats, supports);
         var projectileCount = SkillSupportMath.ProjectileCount(skill, EffectiveStats, supports);
+        LastSpreadProjectileCount = projectileCount;
+        LastSpreadProjectileDamage = damage;
         var spread = Mathf.DegToRad((float)SkillSupportMath.SpreadAngle(skill, supports));
         var halfSpread = spread * 0.5f;
         var step = projectileCount > 1 ? spread / (projectileCount - 1) : 0.0f;
@@ -192,6 +199,10 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
         var effect = areaEffectScene.Instantiate<SkillAreaEffect3D>();
         GetParent().AddChild(effect);
+        var radius = Mathf.Max(1.5f, SpatialScale3D.Distance(
+            SkillSupportMath.Radius(skill, EffectiveStats, supports)));
+        LastAreaRadius = radius;
+        LastAreaDamage = SkillSupportMath.Damage(skill, EffectiveStats, supports);
         effect.Configure(
             skill,
             targetPosition,
@@ -200,8 +211,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
                 skill.DamageType,
                 skill.Id,
                 CombatFaction.Player),
-            Mathf.Max(1.5f, SpatialScale3D.Distance(
-                SkillSupportMath.Radius(skill, EffectiveStats, supports))));
+            radius);
         return true;
     }
 
