@@ -158,6 +158,60 @@ public sealed class LootGenerator
         return item;
     }
 
+    public LootDropResult GenerateDrops(
+        ItemRollContext context,
+        LootDropProfile profile,
+        MapModifierStats? modifier = null,
+        Stats? rewardStats = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(profile);
+        profile.Validate();
+        context.Validate();
+        modifier ??= new MapModifierStats();
+        modifier.Validate();
+        rewardStats ??= Stats.Neutral;
+        rewardStats.Validate();
+
+        var quantityMultiplier = modifier.ItemQuantityMultiplier * rewardStats.ItemQuantityMultiplier;
+        var rarityMultiplier = context.RarityMultiplier * modifier.ItemRarityMultiplier;
+        if (!double.IsFinite(quantityMultiplier) || quantityMultiplier < 0.0
+            || !double.IsFinite(rarityMultiplier) || rarityMultiplier < 0.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(modifier), "Loot multipliers must be finite and non-negative.");
+        }
+
+        var itemLevelLong = (long)context.ItemLevel + modifier.ItemLevelBonus;
+        var itemLevel = itemLevelLong <= 1
+            ? 1
+            : itemLevelLong >= int.MaxValue ? int.MaxValue : (int)itemLevelLong;
+        var attempts = profile.MaximumItemDrops == 0
+            ? 0
+            : Math.Clamp((int)Math.Ceiling(profile.MaximumItemDrops * Math.Max(1.0, quantityMultiplier)), 1, profile.MaximumItemDrops);
+        var chance = Math.Clamp((int)Math.Round(profile.BaseDropChancePercent * quantityMultiplier), 0, 100);
+        var items = new List<Item>();
+        for (var index = 0; index < attempts; index++)
+        {
+            if (profile.GuaranteedItem && index == 0 || _random.Chance(chance))
+            {
+                items.Add(GenerateItemDrop(context with
+                {
+                    ItemLevel = itemLevel,
+                    RarityMultiplier = rarityMultiplier,
+                }));
+            }
+        }
+
+        var fragments = profile.ForgeFragmentAmount > 0
+            && _random.Chance(Math.Clamp(
+                (int)Math.Round(profile.ForgeFragmentChancePercent * quantityMultiplier),
+                0,
+                100))
+            ? profile.ForgeFragmentAmount
+            : 0;
+        return new LootDropResult(items, fragments);
+    }
+
     private ItemBaseDefinition ResolveBase(ItemRollContext context)
     {
         if (!string.IsNullOrWhiteSpace(context.ForcedBaseId))

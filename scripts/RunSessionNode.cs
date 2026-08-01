@@ -133,6 +133,26 @@ public partial class RunSessionNode : Node
         return _lootGenerator.GenerateWeaponDrop(Mathf.Max(1, itemLevel), boss);
     }
 
+    public Item GenerateItemDrop(ItemRollContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return _lootGenerator.GenerateItemDrop(context);
+    }
+
+    public LootDropResult GenerateDrops(
+        ItemRollContext context,
+        LootDropProfile profile,
+        Stats rewardStats = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(profile);
+        var mapModifier = _currentMapModifier?.Effects ?? new MapModifierStats();
+        var effectiveRewardStats = rewardStats
+            ?? _currentMap?.GetNodeOrNull<PlayerController3D>("Player3D")?.RewardStats
+            ?? Stats.Neutral;
+        return _lootGenerator.GenerateDrops(context, profile, mapModifier, effectiveRewardStats);
+    }
+
     public LootGenerator LootGenerator => _lootGenerator ?? throw new InvalidOperationException("RunSessionNode is not ready.");
     public LootGenerator CraftingGenerator => _craftingGenerator ?? throw new InvalidOperationException("RunSessionNode is not ready.");
 

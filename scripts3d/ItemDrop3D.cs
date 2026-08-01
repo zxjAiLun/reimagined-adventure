@@ -57,7 +57,9 @@ public partial class ItemDrop3D : Node3D
     {
         if (_label != null)
         {
-            _label.Text = Item?.Name ?? "DROP";
+            _label.Text = Item == null
+                ? "DROP"
+                : $"[{Item.RarityName}] {Item.Name}\n{Item.SlotName} · Item Level {Item.ItemLevel}";
             _label.Modulate = Item?.Rarity switch
             {
                 Rarity.Unique => new Color(1.0f, 0.55f, 0.18f),
