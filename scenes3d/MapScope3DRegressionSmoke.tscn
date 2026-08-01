@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/MapScope3DRegressionSmoke.cs" id="1_smoke"]
+[ext_resource type="PackedScene" path="res://scenes3d/TestArena3D.tscn" id="2_arena"]
+
+[node name="MapScope3DRegressionSmoke" type="Node"]
+script = ExtResource("1_smoke")
+
+[node name="MapA" parent="." instance=ExtResource("2_arena")]
+
+[node name="MapB" parent="." instance=ExtResource("2_arena")]

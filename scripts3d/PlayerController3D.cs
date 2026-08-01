@@ -50,6 +50,19 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     public int InventoryCapacity => _inventory.Capacity;
     public Item EquippedWeapon => _equipment.ItemInSlot(EquipmentSlot.Weapon);
 
+    public TestArena3D GetOwningMap()
+    {
+        for (var current = GetParent(); current != null; current = current.GetParent())
+        {
+            if (current is TestArena3D map)
+            {
+                return map;
+            }
+        }
+
+        return null;
+    }
+
     private readonly RunInventory _inventory = new(16);
     private readonly Equipment _equipment = new();
     private HealthComponent _health;
@@ -332,6 +345,11 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
                 continue;
             }
 
+            if (!drop.IsOwnedBy(this))
+            {
+                continue;
+            }
+
             var distanceSquared = HorizontalDistanceSquared(drop.GlobalPosition, GlobalPosition);
             if (distanceSquared <= nearestDistanceSquared)
             {
@@ -481,7 +499,13 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
             if (!Enum.IsDefined(pair.Key)
                 || pair.Value == null
                 || ids.Contains(pair.Value.Id)
+                || pair.Key != pair.Value.Slot
                 || !restoreEquipment.CanEquip(pair.Value, 1))
+            {
+                return false;
+            }
+
+            if (!ids.Add(pair.Value.Id))
             {
                 return false;
             }
