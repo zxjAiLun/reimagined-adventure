@@ -19,6 +19,8 @@ public partial class EnemyScaling3DRegressionSmoke : Node
     private readonly Dictionary<int, int> _bossSlamDamage = new();
     private readonly Dictionary<int, int> _bossSpearDamage = new();
     private readonly Dictionary<int, int> _dropLevels = new();
+    private readonly Dictionary<int, int> _actualDropCounts = new();
+    private readonly HashSet<string> _seenDropIds = new(StringComparer.Ordinal);
     private RunSessionNode _run;
     private TestArena3D _arena;
     private PlayerController3D _player;
@@ -37,6 +39,13 @@ public partial class EnemyScaling3DRegressionSmoke : Node
     private float _bossSlamPreparation;
     private float _bossSpearPreparation;
     private float _bossRecovery;
+    private FeralController3D _combatFeral;
+    private SpitterController3D _combatSpitter;
+    private BrimstoneColossusController3D _combatBoss;
+    private int _combatLevel;
+    private int _combatPhase;
+    private float _combatElapsed;
+    private readonly HashSet<int> _actualCombatLevels = new();
 
     private static readonly int[] Levels = [1, 2, 4];
 
@@ -69,6 +78,12 @@ public partial class EnemyScaling3DRegressionSmoke : Node
         {
             director.Enabled = false;
             director.ProcessMode = ProcessModeEnum.Disabled;
+        }
+
+        if (_combatPhase != 0)
+        {
+            TickActualCombat((float)delta);
+            return;
         }
 
         if (_nextLevelIndex >= Levels.Length)
@@ -224,7 +239,153 @@ public partial class EnemyScaling3DRegressionSmoke : Node
             enemy.SetPhysicsProcess(false);
         }
 
+        if (mapLevel == 1 || mapLevel == 4)
+        {
+            BeginActualCombat(mapLevel, feral, spitter, boss);
+            return true;
+        }
+
+        FinishLevelWithDrops(mapLevel, feral, spitter, boss, expectedDropLevel);
         return true;
+    }
+
+    private void BeginActualCombat(
+        int mapLevel,
+        FeralController3D feral,
+        SpitterController3D spitter,
+        BrimstoneColossusController3D boss)
+    {
+        _combatLevel = mapLevel;
+        _combatPhase = 1;
+        _combatElapsed = 0.0f;
+        _combatFeral = feral;
+        _combatSpitter = spitter;
+        _combatBoss = boss;
+        _player.ApplyRestoredHealth(_player.MaxHealth);
+        _player.GlobalPosition = Vector3.Zero;
+        feral.GlobalPosition = new Vector3(1.0f, 0.0f, 0.0f);
+        spitter.GlobalPosition = new Vector3(0.0f, 0.0f, 5.0f);
+        boss.GlobalPosition = new Vector3(2.0f, 0.0f, 0.0f);
+        feral.SetPhysicsProcess(true);
+    }
+
+    private void TickActualCombat(float delta)
+    {
+        _combatElapsed += delta;
+        if (_combatElapsed > 5.0f)
+        {
+            Fail($"map {_combatLevel} actual combat phase {_combatPhase} timed out");
+            return;
+        }
+
+        switch (_combatPhase)
+        {
+            case 1:
+                if (_combatFeral.ImpactCount > 0)
+                {
+                    if (_player.MaxHealth - _player.CurrentHealth != _combatFeral.AppliedPrimaryDamage)
+                    {
+                        Fail($"map {_combatLevel} Feral actual damage was {_player.MaxHealth - _player.CurrentHealth}, expected {_combatFeral.AppliedPrimaryDamage}");
+                        return;
+                    }
+
+                    _combatFeral.SetPhysicsProcess(false);
+                    _player.ApplyRestoredHealth(_player.MaxHealth);
+                    _combatElapsed = 0.0f;
+                    _combatPhase = 2;
+                    _combatSpitter.SetPhysicsProcess(true);
+                }
+
+                break;
+            case 2:
+                if (_combatSpitter.ProjectileShotCount > 0
+                    && _player.CurrentHealth < _player.MaxHealth)
+                {
+                    if (_player.MaxHealth - _player.CurrentHealth != _combatSpitter.AppliedPrimaryDamage)
+                    {
+                        Fail($"map {_combatLevel} Spitter actual damage was {_player.MaxHealth - _player.CurrentHealth}, expected {_combatSpitter.AppliedPrimaryDamage}");
+                        return;
+                    }
+
+                    _combatSpitter.SetPhysicsProcess(false);
+                    _player.ApplyRestoredHealth(_player.MaxHealth);
+                    _combatElapsed = 0.0f;
+                    _combatPhase = 3;
+                    _combatBoss.SetPhysicsProcess(true);
+                }
+
+                break;
+            case 3:
+                if (_combatBoss.MagmaSlamImpactCount > 0
+                    && _player.CurrentHealth < _player.MaxHealth)
+                {
+                    if (_player.MaxHealth - _player.CurrentHealth != _combatBoss.AppliedPrimaryDamage)
+                    {
+                        Fail($"map {_combatLevel} Boss actual damage was {_player.MaxHealth - _player.CurrentHealth}, expected {_combatBoss.AppliedPrimaryDamage}");
+                        return;
+                    }
+
+                    _combatBoss.SetPhysicsProcess(false);
+                    FinishLevelWithDrops(
+                        _combatLevel,
+                        _combatFeral,
+                        _combatSpitter,
+                        _combatBoss,
+                        _combatFeral.AppliedDropItemLevel);
+                    _actualCombatLevels.Add(_combatLevel);
+                    _combatFeral = null;
+                    _combatSpitter = null;
+                    _combatBoss = null;
+                    _combatPhase = 0;
+                    _combatElapsed = 0.0f;
+                }
+                break;
+        }
+    }
+
+    private void FinishLevelWithDrops(
+        int mapLevel,
+        FeralController3D feral,
+        SpitterController3D spitter,
+        BrimstoneColossusController3D boss,
+        int expectedDropLevel)
+    {
+        foreach (var enemy in new ICombatTarget[] { feral, spitter, boss })
+        {
+            if (enemy.IsAlive)
+            {
+                enemy.ApplyDamage(new DamageRequest(
+                    999999,
+                    DamageType.Physical,
+                    $"enemy_scaling_drop_map_{mapLevel}",
+                    CombatFaction.Player));
+            }
+        }
+
+        var actualDropCount = 0;
+        foreach (var node in GetTree().GetNodesInGroup("item_drops_3d"))
+        {
+            if (node is not ItemDrop3D drop || drop.Item == null || !_seenDropIds.Add(drop.Item.Id))
+            {
+                continue;
+            }
+
+            actualDropCount++;
+            if (drop.Item.ItemLevel != expectedDropLevel)
+            {
+                Fail($"map {mapLevel} actual drop item level was {drop.Item.ItemLevel}, expected {expectedDropLevel}");
+                return;
+            }
+        }
+
+        _actualDropCounts[mapLevel] = actualDropCount;
+        if (actualDropCount != 3)
+        {
+            Fail($"map {mapLevel} did not produce three actual scaled drops");
+            return;
+        }
+
+        return;
     }
 
     private T Spawn<T>(string scenePath, int mapLevel, int navigationLayers, bool isBoss, Vector3 position)
@@ -276,21 +437,55 @@ public partial class EnemyScaling3DRegressionSmoke : Node
             || _bossHealth.GetValueOrDefault(1) != 160
             || _bossHealth.GetValueOrDefault(2) != 200
             || _bossHealth.GetValueOrDefault(4) != 280
+            || _feralDamage.GetValueOrDefault(1) != 8
+            || _feralDamage.GetValueOrDefault(4) != 9
+            || _spitterDamage.GetValueOrDefault(1) != 4
+            || _spitterDamage.GetValueOrDefault(4) != 5
             || _feralDamage.GetValueOrDefault(4) != _feralDamage.GetValueOrDefault(1) + 1
             || _spitterDamage.GetValueOrDefault(4) != _spitterDamage.GetValueOrDefault(1) + 1
             || _bossSlamDamage.GetValueOrDefault(4) != _bossSlamDamage.GetValueOrDefault(1) + 1
             || _bossSpearDamage.GetValueOrDefault(4) != _bossSpearDamage.GetValueOrDefault(1) + 1
             || _dropLevels.GetValueOrDefault(1) != 1
             || _dropLevels.GetValueOrDefault(2) != 2
-            || _dropLevels.GetValueOrDefault(4) != 4)
+            || _dropLevels.GetValueOrDefault(4) != 4
+            || _actualDropCounts.GetValueOrDefault(1) != 3
+            || _actualDropCounts.GetValueOrDefault(2) != 3
+            || _actualDropCounts.GetValueOrDefault(4) != 3
+            || !_actualCombatLevels.Contains(1)
+            || !_actualCombatLevels.Contains(4)
+            || !FreshMapOneResourcesAreUnchanged())
         {
-            Fail("MapScaling values did not match the 1/2/4 contract");
+            Fail("MapScaling values or actual drop/resource isolation did not match the 1/2/4 contract");
             return;
         }
 
         _complete = true;
         GD.Print("ENEMY_SCALING_3D_REGRESSION_PASS hp=true damage=true drops=true context_once=true resource_isolated=true");
         GetTree().Quit();
+    }
+
+    private bool FreshMapOneResourcesAreUnchanged()
+    {
+        var feralScene = GD.Load<PackedScene>("res://scenes3d/Feral3D.tscn");
+        var spitterScene = GD.Load<PackedScene>("res://scenes3d/Spitter3D.tscn");
+        var bossScene = GD.Load<PackedScene>("res://scenes3d/BrimstoneColossus3D.tscn");
+        if (feralScene == null || spitterScene == null || bossScene == null)
+        {
+            return false;
+        }
+
+        var feral = feralScene.Instantiate<FeralController3D>();
+        var spitter = spitterScene.Instantiate<SpitterController3D>();
+        var boss = bossScene.Instantiate<BrimstoneColossusController3D>();
+        var unchanged = feral.GetNode<HealthComponent>("HealthComponent").MaxHealth == 40
+            && feral.ContactDamage == 8
+            && spitter.GetNode<HealthComponent>("HealthComponent").MaxHealth == 24
+            && spitter.ProjectileDamage == 4
+            && boss.GetNode<HealthComponent>("HealthComponent").MaxHealth == 160;
+        feral.Free();
+        spitter.Free();
+        boss.Free();
+        return unchanged;
     }
 
     private void Fail(string reason)

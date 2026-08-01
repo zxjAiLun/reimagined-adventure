@@ -510,7 +510,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         var drop = ItemDropScene.Instantiate<ItemDrop3D>();
         GetParent().AddChild(drop);
         drop.GlobalPosition = GlobalPosition;
-        drop.Configure(_runSession.GenerateWeaponDrop(_runSession.CurrentMapLevel, boss: true));
+        drop.Configure(_runSession.GenerateWeaponDrop(AppliedDropItemLevel, boss: true));
     }
 
     private void RefreshVisuals()
