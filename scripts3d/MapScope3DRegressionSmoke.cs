@@ -130,11 +130,16 @@ public partial class MapScope3DRegressionSmoke : Node
 
     private void DisableNavigationForScopeFixture(string mapPath)
     {
-        GetNodeOrNull<NavigationRegion3D>($"{mapPath}/SmallNavigationRegion3D")?.SetDeferred(
-            NavigationRegion3D.PropertyName.Enabled,
-            false);
-        GetNodeOrNull<NavigationRegion3D>($"{mapPath}/LargeNavigationRegion3D")?.SetDeferred(
-            NavigationRegion3D.PropertyName.Enabled,
-            false);
+        var smallRegion = GetNodeOrNull<NavigationRegion3D>($"{mapPath}/SmallNavigationRegion3D");
+        var largeRegion = GetNodeOrNull<NavigationRegion3D>($"{mapPath}/LargeNavigationRegion3D");
+        if (smallRegion != null)
+        {
+            smallRegion.Enabled = false;
+        }
+
+        if (largeRegion != null)
+        {
+            largeRegion.Enabled = false;
+        }
     }
 }
