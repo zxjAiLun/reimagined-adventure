@@ -97,13 +97,16 @@ public sealed class Item
                 throw new ArgumentException("Item contains duplicate affix class.", nameof(Affixes));
             }
 
-            var definition = AffixLibrary.Find(affix.Id);
-            if (definition != null
-                && (!definition.AllowedSlots.Contains(Slot)
-                    || definition.Tier != affix.Tier
-                    || ItemLevel < definition.MinimumItemLevel
-                    || definition.IsPrefix != affix.IsPrefix
-                    || !definition.Stats.EquivalentTo(affix.Stats)))
+            var definition = AffixLibrary.Find(affix.Id)
+                ?? throw new ArgumentException(
+                    $"Unknown affix '{affix.Id}'.",
+                    nameof(Affixes));
+            if (!string.Equals(definition.Name, affix.Name, StringComparison.Ordinal)
+                || !definition.AllowedSlots.Contains(Slot)
+                || definition.Tier != affix.Tier
+                || ItemLevel < definition.MinimumItemLevel
+                || definition.IsPrefix != affix.IsPrefix
+                || !definition.Stats.EquivalentTo(affix.Stats))
             {
                 throw new ArgumentException($"Affix '{affix.Id}' is not valid for this item.", nameof(Affixes));
             }

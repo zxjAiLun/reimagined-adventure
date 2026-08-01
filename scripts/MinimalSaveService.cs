@@ -104,6 +104,16 @@ public sealed class MinimalSaveService
             error = $"invalid save data: {exception.Message}";
             return false;
         }
+        catch (InvalidOperationException exception)
+        {
+            error = $"invalid save data: {exception.Message}";
+            return false;
+        }
+        catch (NullReferenceException exception)
+        {
+            error = $"invalid save data: {exception.Message}";
+            return false;
+        }
     }
 
     public void Delete()
@@ -266,23 +276,23 @@ public sealed class MinimalSaveService
                 EventRandomState = EventRandomState,
                 PlayerMaxHealth = PlayerMaxHealth,
                 PlayerCurrentHealth = PlayerCurrentHealth,
-                RewardStats = RewardStats ?? Stats.Neutral,
+                RewardStats = RewardStats,
                 ManaCharges = ManaCharges,
                 InventoryCount = InventoryCount,
-                InventoryItemIds = InventoryItemIds ?? new List<string>(),
+                InventoryItemIds = InventoryItemIds,
                 EquippedWeaponId = EquippedWeaponId,
-                InventoryItems = InventoryItems ?? new List<Item>(),
+                InventoryItems = InventoryItems,
                 EquippedWeapon = EquippedWeapon,
-                EquippedItemsBySlot = EquippedItemsBySlot ?? new Dictionary<EquipmentSlot, Item>(),
+                EquippedItemsBySlot = EquippedItemsBySlot,
                 ForgeFragments = ForgeFragments,
-                StashItems = StashItems ?? new List<Item>(),
+                StashItems = StashItems,
                 MapCompletePhase = resolvedPhase,
-                UnlockedSupportIds = UnlockedSupportIds ?? SkillLoadout.DefaultUnlockedSupportIds.ToList(),
-                SupportIdBySkillSlot = SupportIdBySkillSlot ?? new Dictionary<SkillSlot, string>(),
-                PassiveAllocatedIndices = PassiveAllocatedIndices ?? new List<int>(),
-                AtlasUnlockedMapIds = AtlasUnlockedMapIds ?? new List<string>(),
-                AtlasCompletedMapIds = AtlasCompletedMapIds ?? new List<string>(),
-                CurrentAtlasMapId = string.IsNullOrWhiteSpace(CurrentAtlasMapId) ? "quiet-coast" : CurrentAtlasMapId,
+                UnlockedSupportIds = UnlockedSupportIds,
+                SupportIdBySkillSlot = SupportIdBySkillSlot,
+                PassiveAllocatedIndices = PassiveAllocatedIndices,
+                AtlasUnlockedMapIds = AtlasUnlockedMapIds,
+                AtlasCompletedMapIds = AtlasCompletedMapIds,
+                CurrentAtlasMapId = CurrentAtlasMapId,
                 PendingAtlasMapId = PendingAtlasMapId,
                 RouteSelectionCount = RouteSelectionCount,
                 SelectedNextMapOption = SelectedNextMapOption,

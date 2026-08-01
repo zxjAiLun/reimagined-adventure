@@ -145,6 +145,110 @@ public sealed class SaveValidationTests
     }
 
     [Fact]
+    public void NullSaveCollectionsAreRejectedWithoutThrowing()
+    {
+        var malformed = new SaveSnapshot
+        {
+            InventoryItemIds = null!,
+            EquippedItemsBySlot = null!,
+            StashItems = null!,
+            SupportIdBySkillSlot = null!,
+        };
+
+        var exception = Record.Exception(() =>
+        {
+            Assert.False(malformed.TryValidate(out var error));
+            Assert.False(string.IsNullOrWhiteSpace(error));
+        });
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void EquipmentSlotMappingAndForgedAffixesAreRejected()
+    {
+        var generator = new LootGenerator(9912);
+        var ring = generator.GenerateItemDrop(new ItemRollContext(
+            1, LootSourceKind.Reward, EquipmentSlot.Ring, ForcedRarity: Rarity.Magic));
+        var mismatched = new SaveSnapshot
+        {
+            EquippedItemsBySlot = new Dictionary<EquipmentSlot, Item>
+            {
+                [EquipmentSlot.Armor] = ring,
+            },
+        };
+        Assert.False(mismatched.TryValidate(out _));
+
+        var baseDefinition = ItemBaseLibrary.Find("rustbound_blade")!;
+        var known = AffixLibrary.Find("tempered_t1")!;
+        var unknown = new Affix
+        {
+            Id = "arbitrary_power",
+            Name = "Arbitrary Power",
+            IsPrefix = true,
+            Tier = 1,
+            Stats = new Stats { DamageMultiplier = 100.0 },
+        };
+        var forged = new Item
+        {
+            Id = "forged_unknown_affix",
+            Name = "Forged Blade",
+            BaseId = baseDefinition.Id,
+            Slot = baseDefinition.Slot,
+            Rarity = Rarity.Magic,
+            ItemLevel = 1,
+            RequiredLevel = baseDefinition.RequiredLevel,
+            Stats = Stats.Combine(baseDefinition.ImplicitStats, unknown.Stats),
+            Affixes = [unknown],
+        };
+        Assert.Throws<ArgumentException>(() => forged.Validate());
+
+        var forgedName = new Affix
+        {
+            Id = known.Id,
+            Name = "Forged Name",
+            IsPrefix = known.IsPrefix,
+            Tier = known.Tier,
+            Stats = known.Stats,
+        };
+        var forgedMetadata = new Item
+        {
+            Id = "forged_affix_metadata",
+            Name = "Forged Blade",
+            BaseId = baseDefinition.Id,
+            Slot = baseDefinition.Slot,
+            Rarity = Rarity.Magic,
+            ItemLevel = 1,
+            RequiredLevel = baseDefinition.RequiredLevel,
+            Stats = Stats.Combine(baseDefinition.ImplicitStats, forgedName.Stats),
+            Affixes = [forgedName],
+        };
+        Assert.Throws<ArgumentException>(() => forgedMetadata.Validate());
+
+        var legacy = new Affix
+        {
+            Id = "tempered_edge",
+            Name = "Tempered Edge",
+            IsPrefix = true,
+            Tier = 1,
+            Stats = new Stats { DamageMultiplier = 1.10 },
+        };
+        var legacyItem = new Item
+        {
+            Id = "legacy_tempered_edge",
+            Name = "Legacy Blade",
+            BaseId = baseDefinition.Id,
+            Slot = baseDefinition.Slot,
+            Rarity = Rarity.Magic,
+            ItemLevel = 1,
+            RequiredLevel = baseDefinition.RequiredLevel,
+            Stats = Stats.Combine(baseDefinition.ImplicitStats, legacy.Stats),
+            Affixes = [legacy],
+        };
+        legacyItem.Validate();
+    }
+
+    [Fact]
     public void SupportLoadoutRoundTripsAndInvalidCompatibilityIsRejected()
     {
         var state = new MinimalRunState

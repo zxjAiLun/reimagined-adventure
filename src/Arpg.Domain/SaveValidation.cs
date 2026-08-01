@@ -199,6 +199,21 @@ public sealed class SaveSnapshot
 
     public bool TryValidate(out string error)
     {
+        if (RewardStats == null
+            || InventoryItemIds == null
+            || InventoryItems == null
+            || EquippedItemsBySlot == null
+            || StashItems == null
+            || UnlockedSupportIds == null
+            || SupportIdBySkillSlot == null
+            || PassiveAllocatedIndices == null
+            || AtlasUnlockedMapIds == null
+            || AtlasCompletedMapIds == null)
+        {
+            error = "save collections cannot be null";
+            return false;
+        }
+
         if (Magic != ExpectedMagic)
         {
             error = "invalid save magic";
@@ -220,7 +235,6 @@ public sealed class SaveSnapshot
         if (PlayerMaxHealth < 1
             || PlayerCurrentHealth < 0
             || PlayerCurrentHealth > PlayerMaxHealth
-            || RewardStats == null
             || !IsValidStats(RewardStats)
             || ManaCharges < 0
             || ManaCharges > MaxManaCharges
@@ -228,7 +242,6 @@ public sealed class SaveSnapshot
             || !Enum.IsDefined(MapCompletePhase)
             || MapCompletePhase != MapCompletePhase.RewardChoice
                 && (State != SaveRunState.MapComplete || !MapRewardChosen)
-            || StashItems == null
             || StashItems.Count > 24
             || StashItems.Any(item => item == null || !IsValidItem(item))
             || StashItems.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != StashItems.Count
@@ -236,12 +249,10 @@ public sealed class SaveSnapshot
                 || EquippedItemsBySlot.Values.Any(equipped => equipped.Id == item.Id))
             || InventoryCount < 0
             || InventoryCount > MaxInventoryCount
-            || InventoryItemIds == null
             || InventoryItemIds.Count != InventoryCount
             || InventoryItemIds.Any(string.IsNullOrWhiteSpace)
             || InventoryItemIds.Distinct(StringComparer.Ordinal).Count() != InventoryItemIds.Count
             || EquippedWeaponId != null && string.IsNullOrWhiteSpace(EquippedWeaponId)
-            || InventoryItems == null
             || InventoryItems.Count > MaxInventoryCount
             || InventoryItems.Any(item => item == null)
             || InventoryItems.Any(item => !IsValidItem(item))
@@ -251,19 +262,18 @@ public sealed class SaveSnapshot
             || EquippedWeapon != null
                 && (!IsValidItem(EquippedWeapon)
                     || EquippedWeaponId != EquippedWeapon.Id)
-            || EquippedItemsBySlot == null
-            || EquippedItemsBySlot.Any(pair => !Enum.IsDefined(pair.Key) || pair.Value == null || !IsValidItem(pair.Value))
+            || EquippedItemsBySlot.Any(pair => !Enum.IsDefined(pair.Key)
+                || pair.Value == null
+                || pair.Key != pair.Value.Slot
+                || !IsValidItem(pair.Value))
             || EquippedItemsBySlot.Values.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count()
                 != EquippedItemsBySlot.Count
             || EquippedItemsBySlot.TryGetValue(EquipmentSlot.Weapon, out var mappedWeapon)
                 && (EquippedWeapon == null || mappedWeapon.Id != EquippedWeapon.Id)
             || EquippedItemsBySlot.Values.Any(item => InventoryItemIds.Contains(item.Id, StringComparer.Ordinal))
             || !IsValidSkillLoadout(UnlockedSupportIds, SupportIdBySkillSlot)
-            || PassiveAllocatedIndices == null
             || PassiveAllocatedIndices.Any(index => index < 0)
             || PassiveAllocatedIndices.Distinct().Count() != PassiveAllocatedIndices.Count
-            || AtlasUnlockedMapIds == null
-            || AtlasCompletedMapIds == null
             || AtlasUnlockedMapIds.Any(string.IsNullOrWhiteSpace)
             || AtlasCompletedMapIds.Any(string.IsNullOrWhiteSpace)
             || AtlasUnlockedMapIds.Distinct(StringComparer.Ordinal).Count() != AtlasUnlockedMapIds.Count
