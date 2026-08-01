@@ -82,6 +82,14 @@ advance loot, crafting, or event RNG. Encounter spawn contexts consume the
 resolved effects before enemy `_Ready`, while the HUD presents the current
 modifier and its risk/reward text through run-session signals. Save/restore and
 same-map retries do not reroll the modifier.
+Stage 7 adds a deterministic encounter plan on top of the modifier plan.
+`resources/RunEncounterCatalog3D.tres` selects a validated, tiered encounter
+definition using an isolated encounter RNG namespace derived from the run seed,
+map level, and catalog version. The selected plan is applied to `TestArena3D`
+before its scene-tree ready phase, so every enemy receives the same encounter,
+wave, modifier, and seed context. The HUD presents the encounter, tier, wave,
+and active-enemy count, and the plan is cached across save/restore and map
+transitions without rerolls.
 
 ## Run the playable slice
 
@@ -119,7 +127,8 @@ dotnet test tests\Arpg.Domain.Tests\Arpg.Domain.Tests.csproj --no-restore -c Rel
 
 The Domain suite is split by system (`CombatMathTests`, `LootGeneratorTests`,
 `EquipmentTests`, `SkillSupportTests`, `MapScalingTests`, and
-`SaveValidationTests`) instead of one monolithic test file.
+`SaveValidationTests`, plus `EncounterSelectionTests`) instead of one
+monolithic test file.
 
 Godot smoke scenes are named `Milestone4Smoke.tscn` through
 `Milestone20ContentRuntimeSmoke.tscn`. The 3D contract smokes are
@@ -155,7 +164,12 @@ enemy instances retain their base resources after map-four scaling.
 selection, level filtering, invalid catalogs, and untouched RNG streams;
 `MapModifierRuntime3DRegressionSmoke.tscn` verifies all three shipped
 modifiers through real enemy contexts, damage results, drops, and cross-map
-resolution. CI runs 28 smoke scenes in total.
+resolution. `EncounterSelection3DRegressionSmoke.tscn` verifies deterministic
+tier/range selection, isolated encounter seeds, invalid catalogs, and untouched
+RNG streams. `EncounterPlanRuntime3DRegressionSmoke.tscn` verifies pre-ready
+plan application, cross-map identity, HUD/director binding, save stability,
+pause stability, and the shipped Quiet/Crossfire/Siege compositions. CI runs
+30 smoke scenes in total.
 
 ## Migration boundaries
 
