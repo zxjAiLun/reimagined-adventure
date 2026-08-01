@@ -15,8 +15,8 @@ public partial class MapScope3DRegressionSmoke : Node
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
-        DisableNavigationForScopeFixture("MapA");
-        DisableNavigationForScopeFixture("MapB");
+        CreateScopeMap("MapA");
+        CreateScopeMap("MapB");
     }
 
     public override void _Process(double delta)
@@ -128,10 +128,14 @@ public partial class MapScope3DRegressionSmoke : Node
         GetTree().Quit(1);
     }
 
-    private void DisableNavigationForScopeFixture(string mapPath)
+    private void CreateScopeMap(string mapName)
     {
-        var smallRegion = GetNodeOrNull<NavigationRegion3D>($"{mapPath}/SmallNavigationRegion3D");
-        var largeRegion = GetNodeOrNull<NavigationRegion3D>($"{mapPath}/LargeNavigationRegion3D");
+        var scene = GD.Load<PackedScene>("res://scenes3d/TestArena3D.tscn")
+            ?? throw new InvalidOperationException("TestArena3D scene is missing");
+        var map = scene.Instantiate<TestArena3D>();
+        map.Name = mapName;
+        var smallRegion = map.GetNodeOrNull<NavigationRegion3D>("SmallNavigationRegion3D");
+        var largeRegion = map.GetNodeOrNull<NavigationRegion3D>("LargeNavigationRegion3D");
         if (smallRegion != null)
         {
             smallRegion.Enabled = false;
@@ -141,5 +145,7 @@ public partial class MapScope3DRegressionSmoke : Node
         {
             largeRegion.Enabled = false;
         }
+
+        AddChild(map);
     }
 }
