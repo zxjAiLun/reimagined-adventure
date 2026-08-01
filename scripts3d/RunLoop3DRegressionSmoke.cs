@@ -113,6 +113,11 @@ public partial class RunLoop3DRegressionSmoke : Node
             _complete = true;
             GD.Print(
                 $"RUN_LOOP_3D_SPIKE_PASS map_complete=true reward=true next_map=true save_restore=true level={run.CurrentMapLevel} state_continuity=true rng_continuity=true");
+            // Flush Godot-managed arrays before the process exits; the managed wrapper
+            // finalizer must run while the native Godot runtime is still alive.
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
             GetTree().Quit();
             return;
         }

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="MapModifierResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/MapModifierResource.cs" id="1_modifier"]
+
+[resource]
+script = ExtResource("1_modifier")
+ModifierId = "volatile-hunt"
+DisplayName = "Volatile Hunt"
+RiskDescription = "Monsters deal increased damage"
+RewardDescription = "Drops gain +1 item level"
+MonsterDamageBonus = 2
+BossDamageMultiplier = 1.15
+ItemLevelBonus = 1

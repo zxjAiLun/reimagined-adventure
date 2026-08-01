@@ -4,6 +4,29 @@ public partial class TestArena3D : Node3D
 {
     public int MapLevel { get; set; } = 1;
     public bool UsesEncounterRuntime => GetParent() is RunSessionNode;
+    public RunMapPlan3D AppliedRunPlan { get; private set; }
+    public int RunPlanAppliedCount { get; private set; }
+
+    public void ConfigureBeforeReady(RunMapPlan3D plan)
+    {
+        if (plan == null)
+        {
+            throw new System.ArgumentNullException(nameof(plan));
+        }
+
+        if (RunPlanAppliedCount != 0)
+        {
+            throw new System.InvalidOperationException("TestArena3D run plan was already applied.");
+        }
+
+        plan.Validate();
+        MapLevel = plan.MapLevel;
+        var director = GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D")
+            ?? throw new System.InvalidOperationException("TestArena3D is missing EncounterDirector3D.");
+        director.DefinitionResource = plan.Encounter;
+        AppliedRunPlan = plan;
+        RunPlanAppliedCount = 1;
+    }
 
     public override void _Ready()
     {

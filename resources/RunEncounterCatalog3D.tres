@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="EncounterCatalogResource3D" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/EncounterCatalogResource3D.cs" id="1_catalog"]
+[ext_resource type="Script" path="res://scripts3d/EncounterCatalogEntryResource3D.cs" id="2_entry"]
+[ext_resource type="Resource" path="res://resources/encounters/QuietCoastSkirmish3D.tres" id="3_skirmish"]
+[ext_resource type="Resource" path="res://resources/encounters/CrossfireAdvance3D.tres" id="4_crossfire"]
+[ext_resource type="Resource" path="res://resources/encounters/SiegePressure3D.tres" id="5_siege"]
+
+[sub_resource type="Resource" id="Entry_skirmish"]
+script = ExtResource("2_entry")
+Definition = ExtResource("3_skirmish")
+DisplayName = "Quiet Coast Skirmish"
+EncounterTier = 1
+MinimumMapLevel = 1
+MaximumMapLevel = 3
+Weight = 3
+
+[sub_resource type="Resource" id="Entry_crossfire"]
+script = ExtResource("2_entry")
+Definition = ExtResource("4_crossfire")
+DisplayName = "Crossfire Advance"
+EncounterTier = 2
+MinimumMapLevel = 2
+MaximumMapLevel = 0
+Weight = 2
+
+[sub_resource type="Resource" id="Entry_siege"]
+script = ExtResource("2_entry")
+Definition = ExtResource("5_siege")
+DisplayName = "Siege Pressure"
+EncounterTier = 3
+MinimumMapLevel = 4
+MaximumMapLevel = 0
+Weight = 1
+
+[resource]
+script = ExtResource("1_catalog")
+CatalogVersion = 1
+Entries = [SubResource("Entry_skirmish"), SubResource("Entry_crossfire"), SubResource("Entry_siege")]

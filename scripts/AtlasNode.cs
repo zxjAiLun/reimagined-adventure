@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Arpg.Domain;
 using Godot;
 
@@ -18,11 +19,18 @@ public partial class AtlasNode : Node
 
     public AtlasState State => _state ?? throw new InvalidOperationException("AtlasNode is not ready.");
     public IReadOnlyList<AtlasMapDefinition> AvailableMaps => State.AvailableMaps;
+    public AtlasMapDefinition FindMap(string mapId) => State.Find(mapId);
+    public string CurrentMapId { get; set; } = "quiet-coast";
+    public string PendingMapId { get; set; } = string.Empty;
 
     public override void _Ready()
     {
         var definition = DefinitionResource?.ToDomain() ?? AtlasLibrary.MinimumSlice();
         _state = new AtlasState(definition);
+        if (State.Find(CurrentMapId) == null)
+        {
+            CurrentMapId = definition.Maps.First(map => map.PrerequisiteMapId == null).Id;
+        }
         AddToGroup("atlas");
     }
 

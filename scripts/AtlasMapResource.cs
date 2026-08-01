@@ -9,6 +9,8 @@ public partial class AtlasMapResource : Resource
     [Export] public int Tier { get; set; } = 1;
     [Export] public string PrerequisiteMapId { get; set; } = string.Empty;
     [Export] public string MapModifierId { get; set; } = "quiet-coast";
+    [Export] public string EncounterId { get; set; } = "quiet_coast_skirmish";
+    [Export] public string Description { get; set; } = string.Empty;
     [Export] public int ItemLevel { get; set; } = 1;
 
     public AtlasMapDefinition ToDomain()
@@ -20,6 +22,8 @@ public partial class AtlasMapResource : Resource
             Tier = Tier,
             PrerequisiteMapId = string.IsNullOrWhiteSpace(PrerequisiteMapId) ? null : PrerequisiteMapId,
             MapModifierId = MapModifierId,
+            EncounterId = EncounterId,
+            Description = Description,
             ItemLevel = ItemLevel,
         };
         map.Validate();

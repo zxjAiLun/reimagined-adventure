@@ -7,6 +7,7 @@ using Godot;
 public partial class EncounterDefinitionResource3D : Resource
 {
     [Export] public string EncounterId { get; set; } = "default_encounter";
+    [Export] public float InitialDelaySeconds { get; set; } = 0.5f;
     [Export] public Godot.Collections.Array<EncounterWaveResource3D> Waves { get; set; } = new();
 
     public bool IsValid(out string error)
@@ -15,6 +16,12 @@ public partial class EncounterDefinitionResource3D : Resource
         if (string.IsNullOrWhiteSpace(EncounterId))
         {
             error = "EncounterId is required.";
+            return false;
+        }
+
+        if (InitialDelaySeconds < 0.0f)
+        {
+            error = "InitialDelaySeconds cannot be negative.";
             return false;
         }
 

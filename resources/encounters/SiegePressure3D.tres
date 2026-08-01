@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="EncounterDefinitionResource3D" load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/EncounterDefinitionResource3D.cs" id="1_definition"]
+[ext_resource type="Script" path="res://scripts3d/EncounterWaveResource3D.cs" id="2_wave"]
+[ext_resource type="Script" path="res://scripts3d/EncounterSpawnEntryResource3D.cs" id="3_entry"]
+[ext_resource type="PackedScene" path="res://scenes3d/Feral3D.tscn" id="4_feral"]
+[ext_resource type="PackedScene" path="res://scenes3d/Spitter3D.tscn" id="5_spitter"]
+[ext_resource type="PackedScene" path="res://scenes3d/BrimstoneColossus3D.tscn" id="6_boss"]
+
+[sub_resource type="Resource" id="E1F"]
+script = ExtResource("3_entry")
+EnemyScene = ExtResource("4_feral")
+Count = 5
+SpawnPointId = "feral"
+NavigationLayers = 1
+[sub_resource type="Resource" id="E2F"]
+script = ExtResource("3_entry")
+EnemyScene = ExtResource("4_feral")
+Count = 3
+SpawnPointId = "mixed"
+NavigationLayers = 1
+[sub_resource type="Resource" id="E2S"]
+script = ExtResource("3_entry")
+EnemyScene = ExtResource("5_spitter")
+Count = 3
+SpawnPointId = "mixed"
+NavigationLayers = 1
+[sub_resource type="Resource" id="E3F"]
+script = ExtResource("3_entry")
+EnemyScene = ExtResource("4_feral")
+Count = 2
+SpawnPointId = "feral"
+NavigationLayers = 1
+[sub_resource type="Resource" id="E3S"]
+script = ExtResource("3_entry")
+EnemyScene = ExtResource("5_spitter")
+Count = 4
+SpawnPointId = "mixed"
+NavigationLayers = 1
+[sub_resource type="Resource" id="E4B"]
+script = ExtResource("3_entry")
+EnemyScene = ExtResource("6_boss")
+Count = 1
+SpawnPointId = "boss"
+NavigationLayers = 2
+
+[sub_resource type="Resource" id="W1"]
+script = ExtResource("2_wave")
+WaveId = "siege_vanguard"
+SpawnIntervalSeconds = 0.12
+IntermissionAfterSeconds = 0.5
+MaxAlive = 5
+Entries = [SubResource("E1F")]
+[sub_resource type="Resource" id="W2"]
+script = ExtResource("2_wave")
+WaveId = "siege_crossfire"
+SpawnIntervalSeconds = 0.12
+IntermissionAfterSeconds = 0.6
+MaxAlive = 6
+Entries = [SubResource("E2F"), SubResource("E2S")]
+[sub_resource type="Resource" id="W3"]
+script = ExtResource("2_wave")
+WaveId = "siege_pressure"
+SpawnIntervalSeconds = 0.1
+IntermissionAfterSeconds = 0.7
+MaxAlive = 6
+Entries = [SubResource("E3F"), SubResource("E3S")]
+[sub_resource type="Resource" id="W4"]
+script = ExtResource("2_wave")
+WaveId = "brimstone_colossus"
+SpawnIntervalSeconds = 0.0
+IntermissionAfterSeconds = 0.0
+MaxAlive = 1
+Entries = [SubResource("E4B")]
+
+[resource]
+script = ExtResource("1_definition")
+EncounterId = "siege_pressure"
+InitialDelaySeconds = 0.35
+Waves = [SubResource("W1"), SubResource("W2"), SubResource("W3"), SubResource("W4")]

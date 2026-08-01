@@ -13,11 +13,13 @@ public partial class GameFlowController3D : Node
     [Export] public string AtlasMapId { get; set; } = "quiet-coast-3d";
 
     public GameFlowState State { get; private set; } = GameFlowState.Playing;
+    public bool IsEncounterBindingReady => _encounterBound;
 
     private PlayerController3D _player;
     private BrimstoneColossusController3D _boss;
     private EncounterDirector3D _encounterDirector;
     private MapRewardNode3D _mapRewards;
+    private AtlasRouteChoiceController3D _routeChoice;
     private RunSessionNode _runSession;
     private Label _overlay;
     private bool _playerBound;
@@ -80,6 +82,11 @@ public partial class GameFlowController3D : Node
         if (_mapRewards == null)
         {
             _mapRewards = GetNodeOrNull<MapRewardNode3D>("../MapRewards3D");
+        }
+
+        if (_routeChoice == null)
+        {
+            _routeChoice = GetNodeOrNull<AtlasRouteChoiceController3D>("../AtlasRouteChoice3D");
         }
 
         if (_runSession == null)
@@ -145,7 +152,10 @@ public partial class GameFlowController3D : Node
             && @event.IsActionPressed("next_map", true)
             && _mapRewards?.HasChosen == true)
         {
-            if (_runSession?.LoadNextMap() == true)
+            var loaded = _routeChoice != null
+                ? _routeChoice.TryConfirm()
+                : _runSession?.LoadSelectedMap() == true;
+            if (loaded)
             {
                 GetViewport().SetInputAsHandled();
             }
@@ -228,6 +238,21 @@ public partial class GameFlowController3D : Node
     {
         if (State != GameFlowState.Playing || _player == null || !_player.IsAlive)
         {
+            return;
+        }
+
+        if (_runSession?.HasFormalAtlas == true
+            && !_runSession.UsesLegacyPlanResolution
+            && _runSession.Atlas.State.IsCompleted(_runSession.CurrentAtlasMapId))
+        {
+            return;
+        }
+
+        if (_runSession?.HasFormalAtlas == true
+            && !_runSession.UsesLegacyPlanResolution
+            && !_runSession.TryCompleteCurrentAtlasMap())
+        {
+            GD.PushError("Could not complete the current Atlas map.");
             return;
         }
 

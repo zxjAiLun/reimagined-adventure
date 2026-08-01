@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Arpg.Domain;
 using Godot;
 
@@ -9,6 +8,7 @@ public partial class CombatHud3DRegressionSmoke : Node
     private int _stage;
     private bool _complete;
     private int _baselineSpreadDamage;
+    private TestArena3D _arena;
 
     public override void _Ready() => ProcessMode = ProcessModeEnum.Always;
 
@@ -21,9 +21,8 @@ public partial class CombatHud3DRegressionSmoke : Node
         }
 
         var run = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
-        var arena = GetTree().GetNodesInGroup("arena_3d")
-            .OfType<TestArena3D>()
-            .LastOrDefault();
+        _arena = run?.CurrentMap3D;
+        var arena = _arena;
         var hud = arena?.GetNodeOrNull<CombatHudController3D>("HUD");
         var player = arena?.GetNodeOrNull<PlayerController3D>("Player3D");
         var skills = player?.GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
@@ -37,12 +36,14 @@ public partial class CombatHud3DRegressionSmoke : Node
         }
 
         var flowLabel = hud?.GetNodeOrNull<Label>("PlayerPanel/FlowState");
+        var modifierLabel = hud?.GetNodeOrNull<Label>("PlayerPanel/MapModifier");
         var primaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Primary");
         var secondaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Secondary");
         var utilityLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Utility");
         var movementLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Movement");
         if (run == null || arena == null || hud == null || player == null || skills == null
             || flow == null || rewards == null || boss == null || flowLabel == null
+            || modifierLabel == null
             || primaryLabel == null || secondaryLabel == null || utilityLabel == null
             || movementLabel == null)
         {
@@ -59,6 +60,8 @@ public partial class CombatHud3DRegressionSmoke : Node
             case 0:
                 if (hud.MapLevel != run.CurrentMapLevel
                     || hud.MapLevel != 1
+                    || hud.MapModifierId != run.CurrentMapModifierId
+                    || !modifierLabel.Text.Contains(run.CurrentMapModifier?.Name ?? "Quiet Coast")
                     || !hud.BossPanelVisible
                     || hud.BossCurrentHealth != boss.CurrentHealth
                     || flowLabel.Text != "State: Playing"
@@ -67,7 +70,7 @@ public partial class CombatHud3DRegressionSmoke : Node
                     || !utilityLabel.Text.Contains("Pulse")
                     || !movementLabel.Text.Contains("Dash"))
                 {
-                    Fail("initial HUD data is incorrect");
+                        Fail("initial HUD data is incorrect");
                     return;
                 }
 
@@ -174,11 +177,13 @@ public partial class CombatHud3DRegressionSmoke : Node
                     return;
                 }
 
-                var nextArena = GetTree().GetNodesInGroup("arena_3d")
-                    .OfType<TestArena3D>()
-                    .LastOrDefault();
+                var nextArena = run.CurrentMap3D;
                 var nextHud = nextArena?.GetNodeOrNull<CombatHudController3D>("HUD");
-                if (nextHud == null || nextHud.MapLevel != 2)
+                if (nextHud == null
+                    || nextHud.MapLevel != 2
+                    || nextHud.MapModifierId != run.CurrentMapModifierId
+                    || !nextHud.GetNode<Label>("PlayerPanel/MapModifier").Text.Contains(
+                        run.CurrentMapModifier?.Name ?? "Quiet Coast"))
                 {
                     if (_elapsed > 18.0)
                     {
@@ -190,6 +195,10 @@ public partial class CombatHud3DRegressionSmoke : Node
 
                 _complete = true;
                 GD.Print("COMBAT_HUD_3D_SPIKE_PASS player_hp=true max_hp_equipment=true skills=true cooldown=true boss_visible=true boss_hidden=true map_level=true signal_driven=true");
+                // Flush managed Godot wrappers before the native tree is torn down.
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
                 GetTree().Quit();
                 return;
         }

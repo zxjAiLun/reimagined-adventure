@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Arpg.Domain;
 using Godot;
 
 public enum EncounterDirectorState3D
@@ -30,6 +31,12 @@ public partial class EncounterDirector3D : Node
     [Signal]
     public delegate void BossSpawnedEventHandler(Node3D boss);
 
+    [Signal]
+    public delegate void WaveClearedEventHandler(int waveIndex, string waveId);
+
+    [Signal]
+    public delegate void ActiveEnemyCountChangedEventHandler(int activeEnemyCount);
+
     [Export] public EncounterDefinitionResource3D DefinitionResource { get; set; }
     [Export] public bool Enabled { get; set; } = true;
     [Export] public NodePath PlayerPath { get; set; } = new("../Player3D");
@@ -39,6 +46,7 @@ public partial class EncounterDirector3D : Node
     public EncounterDirectorState3D State { get; private set; } = EncounterDirectorState3D.Disabled;
     public bool IsOperational => Enabled && State != EncounterDirectorState3D.Disabled;
     public PlayerController3D Player => _player;
+    public string CurrentEncounterId => DefinitionResource?.EncounterId ?? string.Empty;
     public int CurrentWaveIndex { get; private set; } = -1;
     public int TotalWaveCount => _waves.Count;
     public int ActiveEnemyCount { get; private set; }
@@ -56,6 +64,7 @@ public partial class EncounterDirector3D : Node
     private readonly List<EncounterSpawnPoint3D> _spawnPoints = new();
     private readonly List<Node3D> _spawnedEnemies = new();
     private readonly HashSet<Node3D> _countedDead = new();
+    private readonly HashSet<int> _clearedWaves = new();
     private readonly HashSet<HealthComponent> _trackedHealth = new();
     private Node3D _enemyContainer;
     private PlayerController3D _player;
@@ -89,7 +98,7 @@ public partial class EncounterDirector3D : Node
 
         _waves.AddRange(DefinitionResource.Waves);
         State = EncounterDirectorState3D.Waiting;
-        _stateRemaining = _waves[0].StartDelaySeconds;
+        _stateRemaining = DefinitionResource.InitialDelaySeconds;
     }
 
     public override void _ExitTree()
@@ -105,6 +114,7 @@ public partial class EncounterDirector3D : Node
         _trackedHealth.Clear();
         _spawnedEnemies.Clear();
         _countedDead.Clear();
+        _clearedWaves.Clear();
     }
 
     public override void _PhysicsProcess(double delta)
@@ -208,6 +218,14 @@ public partial class EncounterDirector3D : Node
 
         if (CurrentWaveSpawnedCount >= CurrentWaveTargetCount && ActiveEnemyCount == 0)
         {
+            if (_clearedWaves.Add(CurrentWaveIndex))
+            {
+                EmitSignal(
+                    SignalName.WaveCleared,
+                    CurrentWaveIndex,
+                    wave.WaveId);
+            }
+
             if (CurrentWaveIndex + 1 >= _waves.Count)
             {
                 BeginWave(_waves.Count);
@@ -215,7 +233,7 @@ public partial class EncounterDirector3D : Node
             else
             {
                 State = EncounterDirectorState3D.Intermission;
-                _stateRemaining = _waves[CurrentWaveIndex].IntermissionSeconds;
+                _stateRemaining = _waves[CurrentWaveIndex].IntermissionAfterSeconds;
             }
         }
     }
@@ -236,19 +254,56 @@ public partial class EncounterDirector3D : Node
 
         var entry = wave.Entries[_entryIndex];
         var spawnPoint = ChooseSpawnPoint(entry.SpawnPointId, entry.NavigationLayers);
-        if (spawnPoint == null || entry.EnemyScene == null || _enemyContainer == null)
+        var runSession = MapRuntimeScope3D.FindRunSession(this);
+        if (spawnPoint == null || entry.EnemyScene == null || _enemyContainer == null || runSession == null || _player == null)
         {
             return false;
         }
 
         var enemy = entry.EnemyScene.Instantiate<Node3D>();
         enemy.Name = $"{entry.EnemyScene.ResourceName}_{CurrentWaveIndex + 1}_{CurrentWaveSpawnedCount + 1}";
-        _enemyContainer.AddChild(enemy);
-        enemy.GlobalPosition = new Vector3(
-            spawnPoint.GlobalPosition.X,
-            0.0f,
-            spawnPoint.GlobalPosition.Z);
-        ConfigureNavigationLayers(enemy, entry.NavigationLayers);
+        var mapLevel = runSession.CurrentMapLevel;
+        var modifier = runSession.CurrentMapModifier?.Effects ?? new MapModifierStats();
+        var dropItemLevel = runSession.CurrentMapPlan.DropItemLevel;
+        var context = new EnemySpawnContext3D(
+            runSession,
+            _player,
+            mapLevel,
+            DefinitionResource.EncounterId,
+            wave.WaveId,
+            CurrentWaveSpawnedCount + 1,
+            entry.NavigationLayers,
+            modifier,
+            dropItemLevel,
+            enemy is BrimstoneColossusController3D);
+        try
+        {
+            context.Validate();
+            ConfigureNavigationLayers(enemy, entry.NavigationLayers);
+            if (enemy is IEnemySpawnConfigurable3D configurable)
+            {
+                configurable.ConfigureBeforeReady(context);
+            }
+            else
+            {
+                GD.PushError($"Encounter enemy {enemy.Name} does not implement IEnemySpawnConfigurable3D.");
+                enemy.QueueFree();
+                return false;
+            }
+
+            _enemyContainer.AddChild(enemy);
+            enemy.GlobalPosition = new Vector3(
+                spawnPoint.GlobalPosition.X,
+                0.0f,
+                spawnPoint.GlobalPosition.Z);
+        }
+        catch (System.Exception exception)
+        {
+            GD.PushError($"Could not configure encounter enemy {enemy.Name}: {exception.Message}");
+            enemy.QueueFree();
+            return false;
+        }
+
         TrackEnemy(enemy);
         _entrySpawned++;
         CurrentWaveSpawnedCount++;
@@ -312,6 +367,7 @@ public partial class EncounterDirector3D : Node
         if (health.IsAlive)
         {
             ActiveEnemyCount++;
+            EmitSignal(SignalName.ActiveEnemyCountChanged, ActiveEnemyCount);
         }
         else
         {
@@ -337,6 +393,7 @@ public partial class EncounterDirector3D : Node
 
             _countedDead.Add(enemy);
             ActiveEnemyCount = Mathf.Max(0, ActiveEnemyCount - 1);
+            EmitSignal(SignalName.ActiveEnemyCountChanged, ActiveEnemyCount);
         }
     }
 }

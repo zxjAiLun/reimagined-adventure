@@ -16,9 +16,9 @@ Godot or GodotSharp.
 
 ## 3D product runtime
 
-`main` is the active product baseline and `product/encounter-runtime` is the
-current Stage 4 development branch. The 2D runtime under `scenes/` is
-retained only as a legacy behavioral reference. New product features target
+`main` is the stable milestone baseline and `dev` is the active development
+branch. The 2D runtime under `scenes/` is retained only as a legacy behavioral
+reference. New product features target
 `scenes3d/` and `scripts3d/`. Open
 `scenes3d/TestArena3D.tscn` for the playable preview, or open
 `scenes3d/RunShell3D.tscn` for the run-owned map shell.
@@ -73,6 +73,34 @@ three waves (4 Feral, 3 Feral + 2 Spitter, then 1 Brimstone Colossus), while
 the single `EncounterCompleted` signal consumed by `GameFlowController3D`.
 Production `RunShell3D` maps no longer contain static enemy nodes; old direct
 `TestArena3D` contract smokes create isolated legacy fixtures only.
+Stage 5/6 run progression now keeps Map Level growth in the run session and
+resolves one deterministic modifier per map from
+`resources/RunMapModifierCatalog3D.tres`. The initial 3D catalog contains
+Quiet Coast, Hardened Front, and Volatile Hunt. Modifier selection derives a
+separate seed from Run Seed, Map Level, and catalog version, so it does not
+advance loot, crafting, or event RNG. Encounter spawn contexts consume the
+resolved effects before enemy `_Ready`, while the HUD presents the current
+modifier and its risk/reward text through run-session signals. Save/restore and
+same-map retries do not reroll the modifier.
+Stage 7 adds a deterministic encounter plan on top of the modifier plan.
+`resources/RunEncounterCatalog3D.tres` selects a validated, tiered encounter
+definition using an isolated encounter RNG namespace derived from the run seed,
+map level, and catalog version. The selected plan is applied to `TestArena3D`
+before its scene-tree ready phase, so every enemy receives the same encounter,
+wave, modifier, and seed context. The HUD presents the encounter, tier, wave,
+and active-enemy count, and the plan is cached across save/restore and map
+transitions without rerolls.
+Stage 8 adds a run-owned Atlas route layer. `resources/RunAtlas3D.tres`
+contains the fixed Quiet Coast, Hardened Frontier, Volatile Rift, Brimstone
+Caldera, and Siege Gate routes. Completing a map through the real
+`EncounterCompleted` signal unlocks its valid next routes; an isolated Boss
+death does not complete the Atlas. After choosing the reward, keys `1`/`2`/`3`
+select a route and `N` confirms it. The route panel presents tier, modifier,
+encounter, description, and item level, while the selected route is persisted
+across Playing, MapComplete, reward, and pending-route save boundaries.
+The Stage 8 smokes execute Quiet/Crossfire/Siege through the real encounter
+director and verify one-shot wave/completion signals, old-map release,
+route-driven map plans, and deterministic Atlas save recovery.
 
 ## Run the playable slice
 
@@ -94,8 +122,8 @@ and key regression smokes remain part of CI.
 | E | Equip the newest weapon |
 | R | Restart after Game Over / Map Complete |
 
-The fixed arena contains a Hardened Front map modifier, a Loot Cache, Feral,
-Spitter, Brimstone Colossus, Atlas progression, and the three map rewards.
+The fixed arena contains a deterministic map modifier, a Loot Cache, Feral,
+Spitter, Brimstone Colossus, and the three map rewards.
 Boss death enters Map Complete and opens the reward choice; F is handled by one
 interaction controller, with map events taking priority over item drops. After
 choosing a reward, press N to enter the next map while keeping the run state.
@@ -110,7 +138,8 @@ dotnet test tests\Arpg.Domain.Tests\Arpg.Domain.Tests.csproj --no-restore -c Rel
 
 The Domain suite is split by system (`CombatMathTests`, `LootGeneratorTests`,
 `EquipmentTests`, `SkillSupportTests`, `MapScalingTests`, and
-`SaveValidationTests`) instead of one monolithic test file.
+`SaveValidationTests`, plus `EncounterSelectionTests`) instead of one
+monolithic test file.
 
 Godot smoke scenes are named `Milestone4Smoke.tscn` through
 `Milestone20ContentRuntimeSmoke.tscn`. The 3D contract smokes are
@@ -139,6 +168,24 @@ large-agent route, locked-attack, pressure-bound, and pause-freeze contracts.
 spawn counts, one-shot completion, and Map Complete.
 `EncounterLifecycle3DRegressionSmoke.tscn` verifies paused spawning is frozen
 and a next map receives a fresh director instance.
+`EnemyScaling3DRegressionSmoke.tscn` also runs real Feral, Spitter, and Boss
+damage paths, validates actual drop item levels, and confirms fresh map-one
+enemy instances retain their base resources after map-four scaling.
+`MapModifierSelection3DRegressionSmoke.tscn` verifies deterministic
+selection, level filtering, invalid catalogs, and untouched RNG streams;
+`MapModifierRuntime3DRegressionSmoke.tscn` verifies all three shipped
+modifiers through real enemy contexts, damage results, drops, and cross-map
+resolution. `EncounterSelection3DRegressionSmoke.tscn` verifies deterministic
+tier/range selection, isolated encounter seeds, invalid catalogs, and untouched
+RNG streams. `EncounterPlanRuntime3DRegressionSmoke.tscn` verifies pre-ready
+plan application, cross-map identity, HUD/director binding, save stability,
+pause stability, and the shipped Quiet/Crossfire/Siege compositions.
+`AtlasRouteChoice3DRegressionSmoke.tscn` verifies real encounter completion,
+GameOver completion guards, Map 1 → Map 2 → Map 3 → Map 4 route progression,
+Tier 3 eligibility filtering, route-driven map planning, and old-map release;
+`AtlasRouteSaveRecovery3DRegressionSmoke.tscn` verifies Playing, MapComplete
+before/after reward, pending-route, and next-map save boundaries without
+rerolling Atlas state or run RNG. CI runs 32 smoke scenes in total.
 
 ## Migration boundaries
 

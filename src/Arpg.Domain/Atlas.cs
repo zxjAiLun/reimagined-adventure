@@ -7,6 +7,8 @@ public sealed class AtlasMapDefinition
     public int Tier { get; init; } = 1;
     public string? PrerequisiteMapId { get; init; }
     public string MapModifierId { get; init; } = "quiet-coast";
+    public string EncounterId { get; init; } = "quiet_coast_skirmish";
+    public string Description { get; init; } = string.Empty;
     public int ItemLevel { get; init; } = 1;
 
     public void Validate()
@@ -31,10 +33,11 @@ public sealed class AtlasMapDefinition
             throw new ArgumentException("Atlas map modifier id is required.", nameof(MapModifierId));
         }
 
-        if (MapModifierLibrary.Find(MapModifierId) == null)
+        if (string.IsNullOrWhiteSpace(EncounterId))
         {
-            throw new ArgumentException($"Unknown map modifier '{MapModifierId}'.", nameof(MapModifierId));
+            throw new ArgumentException("Atlas map encounter id is required.", nameof(EncounterId));
         }
+
     }
 }
 
@@ -124,6 +127,8 @@ public sealed class AtlasState
 
     public bool IsCompleted(string? mapId) =>
         !string.IsNullOrWhiteSpace(mapId) && _completed.Contains(mapId);
+
+    public AtlasMapDefinition? Find(string? mapId) => _definition.Find(mapId);
 
     public bool TryUnlock(string mapId)
     {
@@ -235,6 +240,8 @@ public static class AtlasLibrary
                 Name = "Quiet Coast",
                 Tier = 1,
                 MapModifierId = "quiet-coast",
+                EncounterId = "quiet_coast_skirmish",
+                Description = "A quiet opening route with baseline danger.",
                 ItemLevel = 1,
             },
             new AtlasMapDefinition
@@ -244,6 +251,8 @@ public static class AtlasLibrary
                 Tier = 2,
                 PrerequisiteMapId = "quiet-coast",
                 MapModifierId = "hardened-front",
+                EncounterId = "crossfire_advance",
+                Description = "A fortified route where enemies endure more punishment.",
                 ItemLevel = 2,
             },
             new AtlasMapDefinition
@@ -253,6 +262,8 @@ public static class AtlasLibrary
                 Tier = 3,
                 PrerequisiteMapId = "hardened-frontier",
                 MapModifierId = "frenzied-march",
+                EncounterId = "siege_pressure",
+                Description = "A high-pressure route built around relentless waves.",
                 ItemLevel = 3,
             },
         ],

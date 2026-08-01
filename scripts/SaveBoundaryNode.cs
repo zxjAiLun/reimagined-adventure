@@ -64,6 +64,8 @@ public partial class SaveBoundaryNode : Node
             PassiveAllocatedIndices = passiveTree?.State.AllocatedIndices ?? Array.Empty<int>(),
             AtlasUnlockedMapIds = atlas?.State.UnlockedMapIds.ToArray() ?? Array.Empty<string>(),
             AtlasCompletedMapIds = atlas?.State.CompletedMapIds.ToArray() ?? Array.Empty<string>(),
+            CurrentAtlasMapId = atlas?.CurrentMapId ?? "quiet-coast",
+            PendingAtlasMapId = atlas?.PendingMapId,
         };
         return _service.TrySave(state, out error);
     }
@@ -115,6 +117,12 @@ public partial class SaveBoundaryNode : Node
                 && !atlas.TryRestore(state.AtlasUnlockedMapIds, state.AtlasCompletedMapIds))
             {
                 throw new InvalidOperationException("atlas restore unexpectedly failed");
+            }
+
+            if (atlas != null)
+            {
+                atlas.CurrentMapId = state.CurrentAtlasMapId;
+                atlas.PendingMapId = state.PendingAtlasMapId ?? string.Empty;
             }
 
             if (_runSession != null
@@ -170,6 +178,8 @@ public partial class SaveBoundaryNode : Node
             PassiveAllocatedIndices = passiveTree?.State.AllocatedIndices ?? Array.Empty<int>(),
             AtlasUnlockedMapIds = atlas?.State.UnlockedMapIds.ToArray() ?? Array.Empty<string>(),
             AtlasCompletedMapIds = atlas?.State.CompletedMapIds.ToArray() ?? Array.Empty<string>(),
+            CurrentAtlasMapId = atlas?.CurrentMapId ?? "quiet-coast",
+            PendingAtlasMapId = atlas?.PendingMapId,
         };
     }
 
@@ -187,6 +197,8 @@ public partial class SaveBoundaryNode : Node
         if (atlas != null)
         {
             atlas.TryRestore(previousState.AtlasUnlockedMapIds, previousState.AtlasCompletedMapIds);
+            atlas.CurrentMapId = previousState.CurrentAtlasMapId;
+            atlas.PendingMapId = previousState.PendingAtlasMapId ?? string.Empty;
         }
 
         _runSession?.TryRestore(

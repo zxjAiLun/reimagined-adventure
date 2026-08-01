@@ -190,6 +190,9 @@ public sealed class MinimalSaveService
         public List<int> PassiveAllocatedIndices { get; set; } = new();
         public List<string> AtlasUnlockedMapIds { get; set; } = new();
         public List<string> AtlasCompletedMapIds { get; set; } = new();
+        public string CurrentAtlasMapId { get; set; } = "quiet-coast";
+        public string PendingAtlasMapId { get; set; }
+        public int RouteSelectionCount { get; set; }
         public int SelectedNextMapOption { get; set; } = -1;
         public int SelectedMapRewardOption { get; set; } = -1;
         public bool NextMapOptionChosen { get; set; }
@@ -220,6 +223,9 @@ public sealed class MinimalSaveService
                 PassiveAllocatedIndices = snapshot.PassiveAllocatedIndices.ToList(),
                 AtlasUnlockedMapIds = snapshot.AtlasUnlockedMapIds.ToList(),
                 AtlasCompletedMapIds = snapshot.AtlasCompletedMapIds.ToList(),
+                CurrentAtlasMapId = snapshot.CurrentAtlasMapId,
+                PendingAtlasMapId = snapshot.PendingAtlasMapId,
+                RouteSelectionCount = snapshot.RouteSelectionCount,
                 SelectedNextMapOption = snapshot.SelectedNextMapOption,
                 SelectedMapRewardOption = snapshot.SelectedMapRewardOption,
                 NextMapOptionChosen = snapshot.NextMapOptionChosen,
@@ -252,6 +258,9 @@ public sealed class MinimalSaveService
                 PassiveAllocatedIndices = PassiveAllocatedIndices ?? new List<int>(),
                 AtlasUnlockedMapIds = AtlasUnlockedMapIds ?? new List<string>(),
                 AtlasCompletedMapIds = AtlasCompletedMapIds ?? new List<string>(),
+                CurrentAtlasMapId = string.IsNullOrWhiteSpace(CurrentAtlasMapId) ? "quiet-coast" : CurrentAtlasMapId,
+                PendingAtlasMapId = PendingAtlasMapId,
+                RouteSelectionCount = RouteSelectionCount,
                 SelectedNextMapOption = SelectedNextMapOption,
                 SelectedMapRewardOption = SelectedMapRewardOption,
                 NextMapOptionChosen = NextMapOptionChosen,

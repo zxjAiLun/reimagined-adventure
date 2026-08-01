@@ -16,6 +16,14 @@ public partial class CombatHudController3D : CanvasLayer
     public string EquippedWeaponText { get; private set; } = "none";
     public int SpreadShotDamage { get; private set; }
     public int MapLevel { get; private set; }
+    public string MapModifierId { get; private set; } = "quiet-coast";
+    public string MapModifierText { get; private set; } = "Map 1 — Quiet Coast\nNo modifier\nBaseline map rewards";
+    public string EncounterId { get; private set; } = "quiet_coast_skirmish";
+    public string EncounterText { get; private set; } = "Encounter: Quiet Coast Skirmish · Tier 1\nWave 0 / 3 · 0 enemies";
+    public int EncounterTier { get; private set; } = 1;
+    public int CurrentWaveNumber { get; private set; }
+    public int TotalWaveCount { get; private set; }
+    public int ActiveEnemyCount { get; private set; }
     public bool BossPanelVisible { get; private set; }
     public int BossCurrentHealth { get; private set; }
     public int BossMaxHealth { get; private set; }
@@ -36,6 +44,8 @@ public partial class CombatHudController3D : CanvasLayer
     private Label _mapLevelLabel;
     private Label _equipmentLabel;
     private Label _spreadDamageLabel;
+    private Label _mapModifierLabel;
+    private Label _encounterLabel;
     private Label _skillPrimary;
     private Label _skillSecondary;
     private Label _skillUtility;
@@ -84,6 +94,8 @@ public partial class CombatHudController3D : CanvasLayer
         _mapLevelLabel = GetNodeOrNull<Label>("PlayerPanel/MapLevel");
         _equipmentLabel = GetNodeOrNull<Label>("PlayerPanel/Equipment");
         _spreadDamageLabel = GetNodeOrNull<Label>("PlayerPanel/SpreadDamage");
+        _mapModifierLabel = GetNodeOrNull<Label>("PlayerPanel/MapModifier");
+        _encounterLabel = GetNodeOrNull<Label>("PlayerPanel/Encounter");
         _skillPrimary = GetNodeOrNull<Label>("SkillPanel/Primary");
         _skillSecondary = GetNodeOrNull<Label>("SkillPanel/Secondary");
         _skillUtility = GetNodeOrNull<Label>("SkillPanel/Utility");
@@ -148,7 +160,9 @@ public partial class CombatHudController3D : CanvasLayer
 
         if (_bound)
         {
+            BindDirectorSignals();
             TryBindBoss();
+            RefreshEncounter();
             return;
         }
 
@@ -158,11 +172,9 @@ public partial class CombatHudController3D : CanvasLayer
         _skills.CooldownsChanged += OnCooldownsChanged;
         _flow.StateChanged += OnFlowStateChanged;
         _runSession.MapLevelChanged += OnMapLevelChanged;
-        if (_encounterDirector?.IsOperational == true && !_directorBound)
-        {
-            _encounterDirector.BossSpawned += OnBossSpawned;
-            _directorBound = true;
-        }
+        _runSession.MapModifierResolved += OnMapModifierResolved;
+        _runSession.EncounterPlanResolved += OnEncounterPlanResolved;
+        BindDirectorSignals();
 
         _bound = true;
         TryBindBoss();
@@ -243,11 +255,17 @@ public partial class CombatHudController3D : CanvasLayer
         if (IsValid(_runSession))
         {
             _runSession.MapLevelChanged -= OnMapLevelChanged;
+            _runSession.MapModifierResolved -= OnMapModifierResolved;
+            _runSession.EncounterPlanResolved -= OnEncounterPlanResolved;
         }
 
         if (_directorBound && IsValid(_encounterDirector))
         {
             _encounterDirector.BossSpawned -= OnBossSpawned;
+            _encounterDirector.WaveStarted -= OnWaveStarted;
+            _encounterDirector.WaveCleared -= OnWaveCleared;
+            _encounterDirector.ActiveEnemyCountChanged -= OnActiveEnemyCountChanged;
+            _encounterDirector.EncounterCompleted -= OnEncounterCompleted;
         }
 
         UnbindBoss();
@@ -281,7 +299,29 @@ public partial class CombatHudController3D : CanvasLayer
 
     private void OnFlowStateChanged(int state) => RefreshFlowState();
 
-    private void OnMapLevelChanged(int mapLevel) => RefreshMapLevel();
+    private void OnMapLevelChanged(int mapLevel)
+    {
+        RefreshMapLevel();
+        RefreshMapModifier();
+        RefreshEncounter();
+    }
+
+    private void OnMapModifierResolved(string modifierId, int mapLevel) => RefreshMapModifier();
+
+    private void OnEncounterPlanResolved(string encounterId, int encounterTier, int mapLevel)
+    {
+        RefreshMapLevel();
+        RefreshMapModifier();
+        RefreshEncounter();
+    }
+
+    private void OnWaveStarted(int waveIndex, string waveId) => RefreshEncounter();
+
+    private void OnWaveCleared(int waveIndex, string waveId) => RefreshEncounter();
+
+    private void OnActiveEnemyCountChanged(int activeEnemyCount) => RefreshEncounter();
+
+    private void OnEncounterCompleted() => RefreshEncounter();
 
     private void RefreshAll()
     {
@@ -290,6 +330,8 @@ public partial class CombatHudController3D : CanvasLayer
         RefreshSkills();
         RefreshBoss();
         RefreshMapLevel();
+        RefreshMapModifier();
+        RefreshEncounter();
         RefreshFlowState();
     }
 
@@ -378,6 +420,56 @@ public partial class CombatHudController3D : CanvasLayer
         {
             _mapLevelLabel.Text = $"Map Level: {MapLevel}";
         }
+    }
+
+    private void RefreshMapModifier()
+    {
+        var modifier = _runSession?.CurrentMapModifier;
+        MapModifierId = modifier?.Id ?? "quiet-coast";
+        var displayName = modifier?.Name ?? "Quiet Coast";
+        var risk = modifier?.RiskDescription ?? "No modifier";
+        var reward = modifier?.RewardDescription ?? "Baseline map rewards";
+        MapModifierText = $"Map {MapLevel} — {displayName}\n{risk}\n{reward}";
+        if (IsValid(_mapModifierLabel))
+        {
+            _mapModifierLabel.Text = MapModifierText;
+        }
+    }
+
+    private void RefreshEncounter()
+    {
+        EncounterId = _encounterDirector?.CurrentEncounterId
+            ?? _runSession?.CurrentEncounterId
+            ?? string.Empty;
+        EncounterTier = _runSession?.CurrentEncounterTier ?? 1;
+        var displayName = _runSession?.CurrentEncounterDisplayName ?? EncounterId;
+        CurrentWaveNumber = _encounterDirector != null && _encounterDirector.CurrentWaveIndex >= 0
+            ? _encounterDirector.CurrentWaveIndex + 1
+            : 0;
+        TotalWaveCount = _encounterDirector?.TotalWaveCount
+            ?? _runSession?.CurrentEncounterDefinition?.Waves?.Count
+            ?? 0;
+        ActiveEnemyCount = _encounterDirector?.ActiveEnemyCount ?? 0;
+        EncounterText = $"Encounter: {displayName} · Tier {EncounterTier}\nWave {CurrentWaveNumber} / {TotalWaveCount} · {ActiveEnemyCount} enemies";
+        if (IsValid(_encounterLabel))
+        {
+            _encounterLabel.Text = EncounterText;
+        }
+    }
+
+    private void BindDirectorSignals()
+    {
+        if (_directorBound || _encounterDirector?.IsOperational != true)
+        {
+            return;
+        }
+
+        _encounterDirector.BossSpawned += OnBossSpawned;
+        _encounterDirector.WaveStarted += OnWaveStarted;
+        _encounterDirector.WaveCleared += OnWaveCleared;
+        _encounterDirector.ActiveEnemyCountChanged += OnActiveEnemyCountChanged;
+        _encounterDirector.EncounterCompleted += OnEncounterCompleted;
+        _directorBound = true;
     }
 
     private void RefreshFlowState()

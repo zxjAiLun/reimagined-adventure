@@ -87,7 +87,10 @@ public static class MapScaling
         ValidateMapLevel(mapLevel);
         ArgumentNullException.ThrowIfNull(modifier);
         modifier.Validate();
-        return baseDamage + (mapLevel - 1) / 3 + modifier.MonsterDamageBonus;
+        var scaledDamage = (long)baseDamage
+            + (mapLevel - 1L) / 3L
+            + modifier.MonsterDamageBonus;
+        return ClampToInt(scaledDamage);
     }
 
     public static int ItemLevel(int mapLevel, MapModifierStats modifier)
@@ -95,7 +98,8 @@ public static class MapScaling
         ValidateMapLevel(mapLevel);
         ArgumentNullException.ThrowIfNull(modifier);
         modifier.Validate();
-        return Math.Max(1, mapLevel + modifier.ItemLevelBonus);
+        var itemLevel = (long)mapLevel + modifier.ItemLevelBonus;
+        return Math.Max(1, ClampToInt(itemLevel));
     }
 
     public static int BossHp(int mapLevel, MapModifierStats modifier, BossScalingProfile boss)
@@ -132,7 +136,7 @@ public static class MapScaling
         ArgumentNullException.ThrowIfNull(boss);
         boss.Validate();
         return Math.Max(1, CeilingToInt(
-            (enemyDamage + boss.DamageBonus) * modifier.BossDamageMultiplier));
+            ((double)enemyDamage + boss.DamageBonus) * modifier.BossDamageMultiplier));
     }
 
     private static void ValidateMapLevel(int mapLevel)
@@ -159,5 +163,15 @@ public static class MapScaling
         }
 
         return value >= int.MaxValue ? int.MaxValue : (int)Math.Ceiling(value);
+    }
+
+    private static int ClampToInt(long value)
+    {
+        if (value <= 1)
+        {
+            return 1;
+        }
+
+        return value >= int.MaxValue ? int.MaxValue : (int)value;
     }
 }

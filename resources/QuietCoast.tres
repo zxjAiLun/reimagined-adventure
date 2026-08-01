@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MapModifierResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/MapModifierResource.cs" id="1_modifier"]
+
+[resource]
+script = ExtResource("1_modifier")
+ModifierId = "quiet-coast"
+DisplayName = "Quiet Coast"
+RiskDescription = "No modifier"
+RewardDescription = "Baseline map rewards"

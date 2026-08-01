@@ -84,7 +84,15 @@ jobs:
             "res://scenes3d/BossNavigation3DRegressionSmoke.tscn",
             "res://scenes3d/NavigationPressureBaseline3DRegressionSmoke.tscn",
             "res://scenes3d/EncounterDirector3DRegressionSmoke.tscn",
-            "res://scenes3d/EncounterLifecycle3DRegressionSmoke.tscn"
+            "res://scenes3d/EncounterLifecycle3DRegressionSmoke.tscn",
+            "res://scenes3d/EnemyScaling3DRegressionSmoke.tscn",
+            "res://scenes3d/RunProgression3DRegressionSmoke.tscn",
+            "res://scenes3d/MapModifierSelection3DRegressionSmoke.tscn",
+            "res://scenes3d/MapModifierRuntime3DRegressionSmoke.tscn",
+            "res://scenes3d/EncounterSelection3DRegressionSmoke.tscn",
+            "res://scenes3d/EncounterPlanRuntime3DRegressionSmoke.tscn",
+            "res://scenes3d/AtlasRouteChoice3DRegressionSmoke.tscn",
+            "res://scenes3d/AtlasRouteSaveRecovery3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"

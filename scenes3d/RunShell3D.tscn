@@ -1,10 +1,20 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/RunSessionNode.cs" id="1_run_session"]
 [ext_resource type="PackedScene" path="res://scenes3d/TestArena3D.tscn" id="2_map"]
+[ext_resource type="Resource" path="res://resources/RunMapModifierCatalog3D.tres" id="3_modifier_catalog"]
+[ext_resource type="Resource" path="res://resources/RunEncounterCatalog3D.tres" id="4_encounter_catalog"]
+[ext_resource type="Script" path="res://scripts/AtlasNode.cs" id="5_atlas_script"]
+[ext_resource type="Resource" path="res://resources/RunAtlas3D.tres" id="6_atlas_resource"]
 
 [node name="RunShell3D" type="Node"]
 script = ExtResource("1_run_session")
 RunSeed = 5573589318791800903
 MapLevel = 1
 MapScene = ExtResource("2_map")
+MapModifierCatalog = ExtResource("3_modifier_catalog")
+EncounterCatalog = ExtResource("4_encounter_catalog")
+
+[node name="Atlas3D" type="Node" parent="."]
+script = ExtResource("5_atlas_script")
+DefinitionResource = ExtResource("6_atlas_resource")

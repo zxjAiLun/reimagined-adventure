@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/TestArena3D.cs" id="1_arena"]
 [ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="2_camera_rig"]
@@ -15,6 +15,7 @@
 [ext_resource type="Resource" path="res://resources/DefaultEncounter3D.tres" id="16_encounter"]
 [ext_resource type="Script" path="res://scripts3d/EncounterSpawnPoint3D.cs" id="17_spawn_point"]
 [ext_resource type="Script" path="res://scripts3d/EnemyCrowdCoordinator3D.cs" id="18_crowd_coordinator"]
+[ext_resource type="PackedScene" path="res://scenes3d/AtlasRouteChoice3D.tscn" id="19_route"]
 
 [sub_resource type="Environment" id="Environment_arena"]
 background_mode = 1
@@ -165,6 +166,8 @@ script = ExtResource("9_flow")
 
 [node name="MapRewards3D" type="Node" parent="."]
 script = ExtResource("10_rewards")
+
+[node name="AtlasRouteChoice3D" parent="." instance=ExtResource("19_route")]
 
 [node name="SaveBoundary3D" type="Node" parent="."]
 script = ExtResource("11_save")
