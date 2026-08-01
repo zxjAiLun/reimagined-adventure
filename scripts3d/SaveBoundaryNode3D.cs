@@ -18,12 +18,14 @@ public partial class SaveBoundaryNode3D : Node
     private readonly MinimalSaveService _service = new();
     private PlayerController3D _player;
     private GameFlowController3D _flow;
+    private MapRewardNode3D _mapRewards;
     private RunSessionNode _runSession;
 
     public override void _Ready()
     {
         _player = GetNodeOrNull<PlayerController3D>("../Player3D");
         _flow = GetNodeOrNull<GameFlowController3D>("../GameFlow3D");
+        _mapRewards = GetNodeOrNull<MapRewardNode3D>("../MapRewards3D");
         _runSession = MapRuntimeScope3D.FindRunSession(this);
         AddToGroup("save_boundaries_3d");
     }
@@ -56,6 +58,19 @@ public partial class SaveBoundaryNode3D : Node
             InventoryItems = items,
             EquippedWeaponId = _player.EquippedWeapon?.Id,
             EquippedWeapon = _player.EquippedWeapon,
+            CurrentAtlasMapId = _runSession?.CurrentAtlasMapId ?? "quiet-coast",
+            PendingAtlasMapId = _runSession?.PendingAtlasMapId,
+            AtlasUnlockedMapIds = _runSession?.Atlas?.State.UnlockedMapIds.ToArray()
+                ?? Array.Empty<string>(),
+            AtlasCompletedMapIds = _runSession?.Atlas?.State.CompletedMapIds.ToArray()
+                ?? Array.Empty<string>(),
+            RouteSelectionCount = _runSession?.RouteSelectionCount ?? 0,
+            SelectedMapRewardOption = _flow?.State == GameFlowState.MapComplete
+                && _mapRewards?.HasChosen == true
+                ? _mapRewards.ChosenRewardIndex
+                : -1,
+            MapRewardChosen = _flow?.State == GameFlowState.MapComplete
+                && _mapRewards?.HasChosen == true,
         };
         return _service.TrySave(state, out error);
     }
@@ -79,8 +94,20 @@ public partial class SaveBoundaryNode3D : Node
             || state.PlayerMaxHealth != targetMaxHealth
             || state.PlayerCurrentHealth < 0
             || state.PlayerCurrentHealth > targetMaxHealth
-            || _runSession != null && !_runSession.CanRestore(
-                state.RunSeed, state.ItemSequence, state.MapLevel))
+            || _runSession != null && (_runSession.UsesLegacyPlanResolution
+                ? !_runSession.CanRestore(
+                    state.RunSeed,
+                    state.ItemSequence,
+                    state.MapLevel)
+                : !_runSession.CanRestore(
+                    state.RunSeed,
+                    state.ItemSequence,
+                    state.MapLevel,
+                    state.CurrentAtlasMapId,
+                    state.PendingAtlasMapId,
+                    state.AtlasUnlockedMapIds,
+                    state.AtlasCompletedMapIds,
+                    state.RouteSelectionCount)))
         {
             error = "saved 3D content cannot be applied to the current scene";
             return false;
@@ -100,13 +127,26 @@ public partial class SaveBoundaryNode3D : Node
                 throw new InvalidOperationException("injected 3D restore failure");
             }
 
-            if (_runSession != null && !_runSession.TryRestore(
+            if (_runSession != null && (_runSession.UsesLegacyPlanResolution
+                ? !_runSession.TryRestore(
                     state.RunSeed,
                     state.ItemSequence,
                     state.MapLevel,
                     state.LootRandomState,
                     state.CraftingRandomState,
-                    state.EventRandomState))
+                    state.EventRandomState)
+                : !_runSession.TryRestore(
+                    state.RunSeed,
+                    state.ItemSequence,
+                    state.MapLevel,
+                    state.LootRandomState,
+                    state.CraftingRandomState,
+                    state.EventRandomState,
+                    state.CurrentAtlasMapId,
+                    state.PendingAtlasMapId,
+                    state.AtlasUnlockedMapIds,
+                    state.AtlasCompletedMapIds,
+                    state.RouteSelectionCount)))
             {
                 throw new InvalidOperationException("saved 3D run session is invalid");
             }
@@ -115,6 +155,21 @@ public partial class SaveBoundaryNode3D : Node
             if (_flow != null && !_flow.RestoreState(ToGameFlowState(state.State)))
             {
                 throw new InvalidOperationException("saved 3D game flow is invalid");
+            }
+
+            if (_mapRewards != null && state.State == SaveRunState.MapComplete)
+            {
+                if (state.MapRewardChosen)
+                {
+                    if (!_mapRewards.TryRestoreChoice(state.SelectedMapRewardOption))
+                    {
+                        throw new InvalidOperationException("saved 3D reward choice is invalid");
+                    }
+                }
+                else
+                {
+                    _mapRewards.BeginChoice();
+                }
             }
 
             error = string.Empty;
@@ -154,6 +209,19 @@ public partial class SaveBoundaryNode3D : Node
             InventoryItems = items,
             EquippedWeaponId = _player.EquippedWeapon?.Id,
             EquippedWeapon = _player.EquippedWeapon,
+            CurrentAtlasMapId = _runSession?.CurrentAtlasMapId ?? "quiet-coast",
+            PendingAtlasMapId = _runSession?.PendingAtlasMapId,
+            AtlasUnlockedMapIds = _runSession?.Atlas?.State.UnlockedMapIds.ToArray()
+                ?? Array.Empty<string>(),
+            AtlasCompletedMapIds = _runSession?.Atlas?.State.CompletedMapIds.ToArray()
+                ?? Array.Empty<string>(),
+            RouteSelectionCount = _runSession?.RouteSelectionCount ?? 0,
+            SelectedMapRewardOption = _flow?.State == GameFlowState.MapComplete
+                && _mapRewards?.HasChosen == true
+                ? _mapRewards.ChosenRewardIndex
+                : -1,
+            MapRewardChosen = _flow?.State == GameFlowState.MapComplete
+                && _mapRewards?.HasChosen == true,
         };
     }
 
@@ -177,13 +245,26 @@ public partial class SaveBoundaryNode3D : Node
             }
 
             _player.SetRewardStats(state.RewardStats);
-            if (_runSession != null && !_runSession.TryRestore(
+            if (_runSession != null && (_runSession.UsesLegacyPlanResolution
+                ? !_runSession.TryRestore(
                     state.RunSeed,
                     state.ItemSequence,
                     state.MapLevel,
                     state.LootRandomState,
                     state.CraftingRandomState,
-                    state.EventRandomState))
+                    state.EventRandomState)
+                : !_runSession.TryRestore(
+                    state.RunSeed,
+                    state.ItemSequence,
+                    state.MapLevel,
+                    state.LootRandomState,
+                    state.CraftingRandomState,
+                    state.EventRandomState,
+                    state.CurrentAtlasMapId,
+                    state.PendingAtlasMapId,
+                    state.AtlasUnlockedMapIds,
+                    state.AtlasCompletedMapIds,
+                    state.RouteSelectionCount)))
             {
                 throw new InvalidOperationException("could not restore run session");
             }
@@ -192,6 +273,18 @@ public partial class SaveBoundaryNode3D : Node
             if (_flow != null && !_flow.RestoreState(ToGameFlowState(state.State)))
             {
                 throw new InvalidOperationException("could not restore game flow");
+            }
+
+            if (_mapRewards != null && state.State == SaveRunState.MapComplete)
+            {
+                if (state.MapRewardChosen)
+                {
+                    _mapRewards.TryRestoreChoice(state.SelectedMapRewardOption);
+                }
+                else
+                {
+                    _mapRewards.BeginChoice();
+                }
             }
 
             error = string.Empty;

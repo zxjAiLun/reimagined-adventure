@@ -19,8 +19,9 @@ public partial class MapRewardNode3D : Node
     public IReadOnlyList<MapRewardDefinition> Rewards => _rewards;
     public MapRewardDefinition ChosenReward { get; private set; }
     public bool HasChosen => _chosen;
+    public int ChosenRewardIndex { get; private set; } = -1;
     public string ChoiceText => _chosen
-        ? $"MAP COMPLETE\nReward: {ChosenReward?.Title}\nPress N for next map | R to replay"
+        ? $"MAP COMPLETE\nReward: {ChosenReward?.Title}\nChoose an Atlas route"
         : "MAP COMPLETE\nChoose reward: 1 / 2 / 3\n"
             + string.Join("\n", _rewards.Select((reward, index) => $"{index + 1}. {reward.Title}"));
 
@@ -38,6 +39,7 @@ public partial class MapRewardNode3D : Node
         _choiceActive = true;
         _chosen = false;
         ChosenReward = null;
+        ChosenRewardIndex = -1;
         RefreshOverlay();
     }
 
@@ -75,9 +77,26 @@ public partial class MapRewardNode3D : Node
         var cumulativeStats = reward.Apply(_player.RewardStats);
         _player.SetRewardStats(cumulativeStats);
         ChosenReward = reward;
+        ChosenRewardIndex = index;
         _chosen = true;
         _choiceActive = false;
         EmitSignal(SignalName.RewardChosen, reward.Id);
+        RefreshOverlay();
+        return true;
+    }
+
+    public bool TryRestoreChoice(int index)
+    {
+        if (index < 0 || index >= _rewards.Count)
+        {
+            return false;
+        }
+
+        ChosenReward = _rewards[index];
+        ChosenRewardIndex = index;
+        _chosen = true;
+        _choiceActive = false;
+        EmitSignal(SignalName.RewardChosen, ChosenReward.Id);
         RefreshOverlay();
         return true;
     }
