@@ -11,19 +11,33 @@ public partial class RunSessionNode : Node
     [Signal]
     public delegate void MapLevelChangedEventHandler(int mapLevel);
 
+    [Signal]
+    public delegate void MapModifierResolvedEventHandler(string modifierId, int mapLevel);
+
     [Export] public long RunSeed { get; set; } = (long)RandomService.DefaultSeed;
     [Export] public int MapLevel { get; set; } = 1;
     [Export] public PackedScene MapScene { get; set; }
+    [Export] public MapModifierCatalogResource3D MapModifierCatalog { get; set; }
 
     private RunSession _session;
     private LootGenerator _lootGenerator;
     private LootGenerator _craftingGenerator;
     private Node _currentMap;
     private bool _restoreNextMapState;
+    private MapModifierDefinition _currentMapModifier;
+    private int _resolvedModifierMapLevel;
+    private ulong _resolvedModifierRunSeed;
+    private int _resolvedModifierCatalogVersion;
+    private ulong _currentMapModifierSeed;
+    private int _mapModifierResolveCount;
 
     public RunSession Session => _session ?? throw new InvalidOperationException("RunSessionNode is not ready.");
     public int ItemSequence => Session.ItemSequence;
     public int CurrentMapLevel => Session.MapLevel;
+    public MapModifierDefinition CurrentMapModifier => _currentMapModifier;
+    public string CurrentMapModifierId => _currentMapModifier?.Id ?? "quiet-coast";
+    public ulong CurrentMapModifierSeed => _currentMapModifierSeed;
+    public int MapModifierResolveCount => _mapModifierResolveCount;
 
     public override void _Ready()
     {
@@ -44,6 +58,7 @@ public partial class RunSessionNode : Node
         _lootGenerator = Session.CreateLootGenerator();
         _craftingGenerator = Session.CreateCraftingGenerator();
         AddToGroup("run_sessions");
+        ResolveCurrentMapModifierIfNeeded();
         if (MapScene != null)
         {
             CallDeferred(nameof(InstantiateMap));
@@ -68,6 +83,7 @@ public partial class RunSessionNode : Node
         Session.Restore(runSeed, itemSequence, mapLevel, lootRandomState, craftingRandomState, eventRandomState);
         RunSeed = (long)runSeed;
         MapLevel = mapLevel;
+        ResolveCurrentMapModifierIfNeeded();
         EmitSignal(SignalName.MapLevelChanged, Session.MapLevel);
         return true;
     }
@@ -114,6 +130,7 @@ public partial class RunSessionNode : Node
             return false;
         }
 
+        ResolveCurrentMapModifierIfNeeded();
         EmitSignal(SignalName.MapLevelChanged, Session.MapLevel);
 
         _restoreNextMapState = true;
@@ -148,6 +165,46 @@ public partial class RunSessionNode : Node
             _restoreNextMapState = false;
             CallDeferred(nameof(ApplySavedStateToMap));
         }
+    }
+
+    private void ResolveCurrentMapModifierIfNeeded()
+    {
+        var catalogVersion = MapModifierCatalog?.CatalogVersion ?? 0;
+        if (_currentMapModifier != null
+            && _resolvedModifierMapLevel == Session.MapLevel
+            && _resolvedModifierRunSeed == Session.RunSeed
+            && _resolvedModifierCatalogVersion == catalogVersion)
+        {
+            return;
+        }
+
+        if (MapModifierCatalog == null)
+        {
+            _currentMapModifier = MapModifierLibrary.Find("quiet-coast")
+                ?? throw new InvalidOperationException("The neutral Quiet Coast modifier is missing.");
+            _currentMapModifierSeed = RandomService.DeriveSeed(Session.RunSeed, 1UL);
+        }
+        else
+        {
+            if (!MapModifierCatalog.IsValid(out var catalogError))
+            {
+                throw new InvalidOperationException($"Invalid map modifier catalog: {catalogError}");
+            }
+
+            var selection = MapModifierSelection.Select(
+                Session.RunSeed,
+                Session.MapLevel,
+                MapModifierCatalog.CatalogVersion,
+                MapModifierCatalog.ToDomainCandidates());
+            _currentMapModifier = MapModifierCatalog.ResolveDefinition(selection.ModifierId);
+            _currentMapModifierSeed = selection.SelectionSeed;
+        }
+
+        _resolvedModifierMapLevel = Session.MapLevel;
+        _resolvedModifierRunSeed = Session.RunSeed;
+        _resolvedModifierCatalogVersion = catalogVersion;
+        _mapModifierResolveCount++;
+        EmitSignal(SignalName.MapModifierResolved, CurrentMapModifierId, Session.MapLevel);
     }
 
     private void ApplySavedStateToMap()

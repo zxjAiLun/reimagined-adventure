@@ -391,7 +391,9 @@ public partial class RunProgression3DRegressionSmoke : Node
     {
         return appliedMapLevel == _run.CurrentMapLevel
             && appliedCount == 1
-            && dropLevel == _run.CurrentMapLevel
+            && dropLevel == MapScaling.ItemLevel(
+                _run.CurrentMapLevel,
+                _run.CurrentMapModifier?.Effects ?? new MapModifierStats())
             && ReferenceEquals(owningSession, _run)
             && ReferenceEquals(targetPlayer, _player);
     }

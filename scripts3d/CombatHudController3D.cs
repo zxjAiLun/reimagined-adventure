@@ -16,6 +16,8 @@ public partial class CombatHudController3D : CanvasLayer
     public string EquippedWeaponText { get; private set; } = "none";
     public int SpreadShotDamage { get; private set; }
     public int MapLevel { get; private set; }
+    public string MapModifierId { get; private set; } = "quiet-coast";
+    public string MapModifierText { get; private set; } = "Map 1 — Quiet Coast\nNo modifier\nBaseline map rewards";
     public bool BossPanelVisible { get; private set; }
     public int BossCurrentHealth { get; private set; }
     public int BossMaxHealth { get; private set; }
@@ -36,6 +38,7 @@ public partial class CombatHudController3D : CanvasLayer
     private Label _mapLevelLabel;
     private Label _equipmentLabel;
     private Label _spreadDamageLabel;
+    private Label _mapModifierLabel;
     private Label _skillPrimary;
     private Label _skillSecondary;
     private Label _skillUtility;
@@ -84,6 +87,7 @@ public partial class CombatHudController3D : CanvasLayer
         _mapLevelLabel = GetNodeOrNull<Label>("PlayerPanel/MapLevel");
         _equipmentLabel = GetNodeOrNull<Label>("PlayerPanel/Equipment");
         _spreadDamageLabel = GetNodeOrNull<Label>("PlayerPanel/SpreadDamage");
+        _mapModifierLabel = GetNodeOrNull<Label>("PlayerPanel/MapModifier");
         _skillPrimary = GetNodeOrNull<Label>("SkillPanel/Primary");
         _skillSecondary = GetNodeOrNull<Label>("SkillPanel/Secondary");
         _skillUtility = GetNodeOrNull<Label>("SkillPanel/Utility");
@@ -158,6 +162,7 @@ public partial class CombatHudController3D : CanvasLayer
         _skills.CooldownsChanged += OnCooldownsChanged;
         _flow.StateChanged += OnFlowStateChanged;
         _runSession.MapLevelChanged += OnMapLevelChanged;
+        _runSession.MapModifierResolved += OnMapModifierResolved;
         if (_encounterDirector?.IsOperational == true && !_directorBound)
         {
             _encounterDirector.BossSpawned += OnBossSpawned;
@@ -243,6 +248,7 @@ public partial class CombatHudController3D : CanvasLayer
         if (IsValid(_runSession))
         {
             _runSession.MapLevelChanged -= OnMapLevelChanged;
+            _runSession.MapModifierResolved -= OnMapModifierResolved;
         }
 
         if (_directorBound && IsValid(_encounterDirector))
@@ -283,6 +289,8 @@ public partial class CombatHudController3D : CanvasLayer
 
     private void OnMapLevelChanged(int mapLevel) => RefreshMapLevel();
 
+    private void OnMapModifierResolved(string modifierId, int mapLevel) => RefreshMapModifier();
+
     private void RefreshAll()
     {
         RefreshPlayerHealth();
@@ -290,6 +298,7 @@ public partial class CombatHudController3D : CanvasLayer
         RefreshSkills();
         RefreshBoss();
         RefreshMapLevel();
+        RefreshMapModifier();
         RefreshFlowState();
     }
 
@@ -377,6 +386,20 @@ public partial class CombatHudController3D : CanvasLayer
         if (IsValid(_mapLevelLabel))
         {
             _mapLevelLabel.Text = $"Map Level: {MapLevel}";
+        }
+    }
+
+    private void RefreshMapModifier()
+    {
+        var modifier = _runSession?.CurrentMapModifier;
+        MapModifierId = modifier?.Id ?? "quiet-coast";
+        var displayName = modifier?.Name ?? "Quiet Coast";
+        var risk = modifier?.RiskDescription ?? "No modifier";
+        var reward = modifier?.RewardDescription ?? "Baseline map rewards";
+        MapModifierText = $"Map {MapLevel} — {displayName}\n{risk}\n{reward}";
+        if (IsValid(_mapModifierLabel))
+        {
+            _mapModifierLabel.Text = MapModifierText;
         }
     }
 

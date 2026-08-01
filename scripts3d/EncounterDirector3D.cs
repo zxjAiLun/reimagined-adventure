@@ -246,7 +246,7 @@ public partial class EncounterDirector3D : Node
         var enemy = entry.EnemyScene.Instantiate<Node3D>();
         enemy.Name = $"{entry.EnemyScene.ResourceName}_{CurrentWaveIndex + 1}_{CurrentWaveSpawnedCount + 1}";
         var mapLevel = runSession.CurrentMapLevel;
-        var modifier = new MapModifierStats();
+        var modifier = runSession.CurrentMapModifier?.Effects ?? new MapModifierStats();
         var context = new EnemySpawnContext3D(
             runSession,
             _player,

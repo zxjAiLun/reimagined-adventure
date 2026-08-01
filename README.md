@@ -16,9 +16,9 @@ Godot or GodotSharp.
 
 ## 3D product runtime
 
-`main` is the active product baseline and `product/encounter-runtime` is the
-current Stage 4 development branch. The 2D runtime under `scenes/` is
-retained only as a legacy behavioral reference. New product features target
+`main` is the stable milestone baseline and `dev` is the active development
+branch. The 2D runtime under `scenes/` is retained only as a legacy behavioral
+reference. New product features target
 `scenes3d/` and `scripts3d/`. Open
 `scenes3d/TestArena3D.tscn` for the playable preview, or open
 `scenes3d/RunShell3D.tscn` for the run-owned map shell.
@@ -73,6 +73,15 @@ three waves (4 Feral, 3 Feral + 2 Spitter, then 1 Brimstone Colossus), while
 the single `EncounterCompleted` signal consumed by `GameFlowController3D`.
 Production `RunShell3D` maps no longer contain static enemy nodes; old direct
 `TestArena3D` contract smokes create isolated legacy fixtures only.
+Stage 5/6 run progression now keeps Map Level growth in the run session and
+resolves one deterministic modifier per map from
+`resources/RunMapModifierCatalog3D.tres`. The initial 3D catalog contains
+Quiet Coast, Hardened Front, and Volatile Hunt. Modifier selection derives a
+separate seed from Run Seed, Map Level, and catalog version, so it does not
+advance loot, crafting, or event RNG. Encounter spawn contexts consume the
+resolved effects before enemy `_Ready`, while the HUD presents the current
+modifier and its risk/reward text through run-session signals. Save/restore and
+same-map retries do not reroll the modifier.
 
 ## Run the playable slice
 
@@ -94,8 +103,8 @@ and key regression smokes remain part of CI.
 | E | Equip the newest weapon |
 | R | Restart after Game Over / Map Complete |
 
-The fixed arena contains a Hardened Front map modifier, a Loot Cache, Feral,
-Spitter, Brimstone Colossus, Atlas progression, and the three map rewards.
+The fixed arena contains a deterministic map modifier, a Loot Cache, Feral,
+Spitter, Brimstone Colossus, and the three map rewards.
 Boss death enters Map Complete and opens the reward choice; F is handled by one
 interaction controller, with map events taking priority over item drops. After
 choosing a reward, press N to enter the next map while keeping the run state.
@@ -139,6 +148,14 @@ large-agent route, locked-attack, pressure-bound, and pause-freeze contracts.
 spawn counts, one-shot completion, and Map Complete.
 `EncounterLifecycle3DRegressionSmoke.tscn` verifies paused spawning is frozen
 and a next map receives a fresh director instance.
+`EnemyScaling3DRegressionSmoke.tscn` also runs real Feral, Spitter, and Boss
+damage paths, validates actual drop item levels, and confirms fresh map-one
+enemy instances retain their base resources after map-four scaling.
+`MapModifierSelection3DRegressionSmoke.tscn` verifies deterministic
+selection, level filtering, invalid catalogs, and untouched RNG streams;
+`MapModifierRuntime3DRegressionSmoke.tscn` verifies all three shipped
+modifiers through real enemy contexts, damage results, drops, and cross-map
+resolution. CI runs 28 smoke scenes in total.
 
 ## Migration boundaries
 

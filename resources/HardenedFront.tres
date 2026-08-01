@@ -6,8 +6,8 @@
 script = ExtResource("1_neent")
 ModifierId = "hardened-front"
 DisplayName = "Hardened Front"
-RiskDescription = "Monsters have more life"
-RewardDescription = "Survival rewards are favored"
-MonsterHpMultiplier = 1.15
-ItemQuantityMultiplier = 1.05
-BossHpMultiplier = 1.05
+RiskDescription = "Monsters have increased health"
+RewardDescription = "Drops gain +1 item level"
+MonsterHpMultiplier = 1.25
+BossHpMultiplier = 1.15
+ItemLevelBonus = 1

@@ -37,12 +37,14 @@ public partial class CombatHud3DRegressionSmoke : Node
         }
 
         var flowLabel = hud?.GetNodeOrNull<Label>("PlayerPanel/FlowState");
+        var modifierLabel = hud?.GetNodeOrNull<Label>("PlayerPanel/MapModifier");
         var primaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Primary");
         var secondaryLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Secondary");
         var utilityLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Utility");
         var movementLabel = hud?.GetNodeOrNull<Label>("SkillPanel/Movement");
         if (run == null || arena == null || hud == null || player == null || skills == null
             || flow == null || rewards == null || boss == null || flowLabel == null
+            || modifierLabel == null
             || primaryLabel == null || secondaryLabel == null || utilityLabel == null
             || movementLabel == null)
         {
@@ -59,6 +61,8 @@ public partial class CombatHud3DRegressionSmoke : Node
             case 0:
                 if (hud.MapLevel != run.CurrentMapLevel
                     || hud.MapLevel != 1
+                    || hud.MapModifierId != run.CurrentMapModifierId
+                    || !modifierLabel.Text.Contains(run.CurrentMapModifier?.Name ?? "Quiet Coast")
                     || !hud.BossPanelVisible
                     || hud.BossCurrentHealth != boss.CurrentHealth
                     || flowLabel.Text != "State: Playing"
@@ -67,7 +71,7 @@ public partial class CombatHud3DRegressionSmoke : Node
                     || !utilityLabel.Text.Contains("Pulse")
                     || !movementLabel.Text.Contains("Dash"))
                 {
-                    Fail("initial HUD data is incorrect");
+                        Fail("initial HUD data is incorrect");
                     return;
                 }
 
@@ -178,7 +182,11 @@ public partial class CombatHud3DRegressionSmoke : Node
                     .OfType<TestArena3D>()
                     .LastOrDefault();
                 var nextHud = nextArena?.GetNodeOrNull<CombatHudController3D>("HUD");
-                if (nextHud == null || nextHud.MapLevel != 2)
+                if (nextHud == null
+                    || nextHud.MapLevel != 2
+                    || nextHud.MapModifierId != run.CurrentMapModifierId
+                    || !nextHud.GetNode<Label>("PlayerPanel/MapModifier").Text.Contains(
+                        run.CurrentMapModifier?.Name ?? "Quiet Coast"))
                 {
                     if (_elapsed > 18.0)
                     {
