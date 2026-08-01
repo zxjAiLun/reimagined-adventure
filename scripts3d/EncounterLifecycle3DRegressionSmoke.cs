@@ -271,6 +271,14 @@ public partial class EncounterLifecycle3DRegressionSmoke : Node
                     return;
                 }
 
+                if (enemy is SpitterController3D spitter
+                    && (!ReferenceEquals(spitter.RunSession, _run)
+                        || !ReferenceEquals(spitter.TargetPlayer, _secondPlayer)))
+                {
+                    Fail("second-map Spitter did not bind the owning RunSession and local Player");
+                    return;
+                }
+
                 var distance = enemy.GlobalPosition.DistanceTo(_secondPlayer.GlobalPosition);
                 if (distance + 0.001f < minimumDistance)
                 {
