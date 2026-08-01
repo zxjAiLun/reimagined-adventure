@@ -18,7 +18,7 @@ public enum BrimstoneColossusState3D
 /// 3D presentation adapter for the Domain Brimstone definition. Telegraphs
 /// are presentation-only; damage is applied once by the attack impact state.
 /// </summary>
-public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTarget
+public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTarget, IEnemySpawnConfigurable3D
 {
     [Export] public BossDefinitionResource DefinitionResource { get; set; }
     [Export] public float Radius { get; set; } = 1.2f;
@@ -52,6 +52,15 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public float SpearTelegraphLength { get; private set; }
     public AreaTelegraph3D ActiveSlamTelegraph => _activeSlamTelegraph;
     public LineTelegraph3D ActiveSpearTelegraph => _activeSpearTelegraph;
+    public int AppliedMapLevel { get; private set; } = 1;
+    public int AppliedMaxHealth { get; private set; }
+    public int AppliedPrimaryDamage { get; private set; }
+    public int AppliedSecondaryDamage { get; private set; }
+    public int AppliedDropItemLevel { get; private set; } = 1;
+    public string SpawnEncounterId { get; private set; } = string.Empty;
+    public string SpawnWaveId { get; private set; } = string.Empty;
+    public int SpawnOrdinal { get; private set; }
+    public int SpawnContextAppliedCount { get; private set; }
 
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
@@ -78,6 +87,63 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     private bool _deathHandled;
     private EnemyNavigation3D _navigation;
     private EnemyCrowdAgent3D _crowdAgent;
+    private EnemySpawnContext3D _spawnContext;
+    private bool _spawnContextApplied;
+
+    public void ConfigureBeforeReady(EnemySpawnContext3D context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (_spawnContextApplied)
+        {
+            throw new InvalidOperationException("Boss spawn context was already applied.");
+        }
+
+        context.Validate();
+        if (!context.IsBoss)
+        {
+            throw new InvalidOperationException("Brimstone Colossus requires a boss spawn context.");
+        }
+
+        var definition = DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus();
+        var health = GetNodeOrNull<HealthComponent>("HealthComponent")
+            ?? throw new InvalidOperationException("Brimstone Colossus is missing HealthComponent.");
+        var modifier = context.MapModifier;
+        var bossScaling = new BossScalingProfile
+        {
+            HpMultiplier = 1.0,
+            DamageBonus = 0,
+        };
+        var scaledHealth = MapScaling.BossHp(definition.MaxHealth, context.MapLevel, modifier, bossScaling);
+        var scaledSlamDamage = MapScaling.BossContactDamage(
+            definition.Attack(BossAttackKind.MagmaSlam).Damage,
+            context.MapLevel,
+            modifier,
+            bossScaling);
+        var scaledSpearDamage = MapScaling.BossContactDamage(
+            definition.Attack(BossAttackKind.FlameSpear).Damage,
+            context.MapLevel,
+            modifier,
+            bossScaling);
+        health.SetMaxHealth(scaledHealth);
+
+        var agent = GetNodeOrNull<NavigationAgent3D>("NavigationAgent3D");
+        if (agent != null)
+        {
+            agent.NavigationLayers = (uint)context.NavigationLayers;
+        }
+
+        _spawnContext = context;
+        _spawnContextApplied = true;
+        SpawnContextAppliedCount = 1;
+        AppliedMapLevel = context.MapLevel;
+        AppliedMaxHealth = scaledHealth;
+        AppliedPrimaryDamage = scaledSlamDamage;
+        AppliedSecondaryDamage = scaledSpearDamage;
+        AppliedDropItemLevel = context.DropItemLevel;
+        SpawnEncounterId = context.EncounterId;
+        SpawnWaveId = context.WaveId;
+        SpawnOrdinal = context.SpawnOrdinal;
+    }
 
     public override void _Ready()
     {
@@ -92,9 +158,18 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
-        _runSession = MapRuntimeScope3D.FindRunSession(this);
+        _runSession = _spawnContext?.RunSession ?? MapRuntimeScope3D.FindRunSession(this);
         ApplyDefinition(DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus());
-        FindPlayer();
+        if (!_spawnContextApplied)
+        {
+            AppliedMaxHealth = _health.MaxHealth;
+            AppliedPrimaryDamage = Mathf.RoundToInt(_slamDamage);
+            AppliedSecondaryDamage = Mathf.RoundToInt(_spearDamage);
+            SpawnOrdinal = 0;
+        }
+
+        _player = _spawnContext?.Player;
+        _player ??= MapRuntimeScope3D.FindPlayer(this);
         RefreshVisuals();
     }
 
@@ -448,14 +523,14 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _recoverySeconds = (float)definition.RecoverySeconds;
         var slam = definition.Attack(BossAttackKind.MagmaSlam);
         var spear = definition.Attack(BossAttackKind.FlameSpear);
-        _slamDamage = slam.Damage;
+        _slamDamage = _spawnContextApplied ? AppliedPrimaryDamage : slam.Damage;
         _slamPreparationSeconds = (float)slam.PreparationSeconds;
         _slamRadius = SpatialScale3D.Distance(slam.Radius);
         _slamRange = SpatialScale3D.Distance(slam.Range);
-        _spearDamage = spear.Damage;
+        _spearDamage = _spawnContextApplied ? AppliedSecondaryDamage : spear.Damage;
         _spearPreparationSeconds = (float)spear.PreparationSeconds;
         _spearRange = SpatialScale3D.Distance(spear.Range);
-        _health.SetMaxHealth(definition.MaxHealth);
+        _health.SetMaxHealth(_spawnContextApplied ? AppliedMaxHealth : definition.MaxHealth);
         _health.SetDefensiveStats(new Stats { FireResistance = definition.FireResistance });
     }
 }

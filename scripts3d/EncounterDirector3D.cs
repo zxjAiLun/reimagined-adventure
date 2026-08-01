@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Arpg.Domain;
 using Godot;
 
 public enum EncounterDirectorState3D
@@ -236,19 +237,55 @@ public partial class EncounterDirector3D : Node
 
         var entry = wave.Entries[_entryIndex];
         var spawnPoint = ChooseSpawnPoint(entry.SpawnPointId, entry.NavigationLayers);
-        if (spawnPoint == null || entry.EnemyScene == null || _enemyContainer == null)
+        var runSession = MapRuntimeScope3D.FindRunSession(this);
+        if (spawnPoint == null || entry.EnemyScene == null || _enemyContainer == null || runSession == null || _player == null)
         {
             return false;
         }
 
         var enemy = entry.EnemyScene.Instantiate<Node3D>();
         enemy.Name = $"{entry.EnemyScene.ResourceName}_{CurrentWaveIndex + 1}_{CurrentWaveSpawnedCount + 1}";
-        _enemyContainer.AddChild(enemy);
-        enemy.GlobalPosition = new Vector3(
-            spawnPoint.GlobalPosition.X,
-            0.0f,
-            spawnPoint.GlobalPosition.Z);
-        ConfigureNavigationLayers(enemy, entry.NavigationLayers);
+        var mapLevel = runSession.CurrentMapLevel;
+        var modifier = new MapModifierStats();
+        var context = new EnemySpawnContext3D(
+            runSession,
+            _player,
+            mapLevel,
+            DefinitionResource.EncounterId,
+            wave.WaveId,
+            CurrentWaveSpawnedCount + 1,
+            entry.NavigationLayers,
+            modifier,
+            MapScaling.ItemLevel(mapLevel, modifier),
+            enemy is BrimstoneColossusController3D);
+        try
+        {
+            context.Validate();
+            ConfigureNavigationLayers(enemy, entry.NavigationLayers);
+            if (enemy is IEnemySpawnConfigurable3D configurable)
+            {
+                configurable.ConfigureBeforeReady(context);
+            }
+            else
+            {
+                GD.PushError($"Encounter enemy {enemy.Name} does not implement IEnemySpawnConfigurable3D.");
+                enemy.QueueFree();
+                return false;
+            }
+
+            _enemyContainer.AddChild(enemy);
+            enemy.GlobalPosition = new Vector3(
+                spawnPoint.GlobalPosition.X,
+                0.0f,
+                spawnPoint.GlobalPosition.Z);
+        }
+        catch (System.Exception exception)
+        {
+            GD.PushError($"Could not configure encounter enemy {enemy.Name}: {exception.Message}");
+            enemy.QueueFree();
+            return false;
+        }
+
         TrackEnemy(enemy);
         _entrySpawned++;
         CurrentWaveSpawnedCount++;

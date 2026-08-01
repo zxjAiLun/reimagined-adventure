@@ -11,7 +11,7 @@ public enum FeralState3D
     Dead,
 }
 
-public partial class FeralController3D : CharacterBody3D, ICombatTarget
+public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemySpawnConfigurable3D
 {
     [Export] public float MoveSpeed { get; set; } = 2.4f;
     [Export] public float AttackRange { get; set; } = 1.25f;
@@ -37,6 +37,15 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     public RunSessionNode RunSession => _runSession;
     public PlayerController3D TargetPlayer => _player;
     public bool NavigationMovementSuppressed { get; set; }
+    public int AppliedMapLevel { get; private set; } = 1;
+    public int AppliedMaxHealth { get; private set; }
+    public int AppliedPrimaryDamage { get; private set; }
+    public int AppliedSecondaryDamage { get; private set; }
+    public int AppliedDropItemLevel { get; private set; } = 1;
+    public string SpawnEncounterId { get; private set; } = string.Empty;
+    public string SpawnWaveId { get; private set; } = string.Empty;
+    public int SpawnOrdinal { get; private set; }
+    public int SpawnContextAppliedCount { get; private set; }
 
     public void ResetForNavigationPressureTest(Vector3 position)
     {
@@ -67,6 +76,50 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
     private RunSessionNode _runSession;
     private EnemyNavigation3D _navigation;
     private EnemyCrowdAgent3D _crowdAgent;
+    private EnemySpawnContext3D _spawnContext;
+    private bool _spawnContextApplied;
+
+    public void ConfigureBeforeReady(EnemySpawnContext3D context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (_spawnContextApplied)
+        {
+            throw new InvalidOperationException("Feral spawn context was already applied.");
+        }
+
+        context.Validate();
+        if (context.IsBoss)
+        {
+            throw new InvalidOperationException("Feral cannot use a boss spawn context.");
+        }
+
+        var health = GetNodeOrNull<HealthComponent>("HealthComponent")
+            ?? throw new InvalidOperationException("Feral is missing HealthComponent.");
+        var baseHealth = health.MaxHealth;
+        var baseDamage = ContactDamage;
+        var scaledHealth = MapScaling.EnemyHp(baseHealth, context.MapLevel, context.MapModifier);
+        var scaledDamage = MapScaling.EnemyDamage(baseDamage, context.MapLevel, context.MapModifier);
+        health.SetMaxHealth(scaledHealth);
+        ContactDamage = scaledDamage;
+
+        var agent = GetNodeOrNull<NavigationAgent3D>("NavigationAgent3D");
+        if (agent != null)
+        {
+            agent.NavigationLayers = (uint)context.NavigationLayers;
+        }
+
+        _spawnContext = context;
+        _spawnContextApplied = true;
+        SpawnContextAppliedCount = 1;
+        AppliedMapLevel = context.MapLevel;
+        AppliedMaxHealth = scaledHealth;
+        AppliedPrimaryDamage = scaledDamage;
+        AppliedSecondaryDamage = 0;
+        AppliedDropItemLevel = context.DropItemLevel;
+        SpawnEncounterId = context.EncounterId;
+        SpawnWaveId = context.WaveId;
+        SpawnOrdinal = context.SpawnOrdinal;
+    }
 
     public override void _Ready()
     {
@@ -80,8 +133,17 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
-        _runSession = MapRuntimeScope3D.FindRunSession(this);
-        FindPlayer();
+        if (!_spawnContextApplied)
+        {
+            AppliedMaxHealth = _health.MaxHealth;
+            AppliedPrimaryDamage = ContactDamage;
+            AppliedSecondaryDamage = 0;
+            SpawnOrdinal = 0;
+        }
+
+        _runSession = _spawnContext?.RunSession ?? MapRuntimeScope3D.FindRunSession(this);
+        _player = _spawnContext?.Player;
+        _player ??= MapRuntimeScope3D.FindPlayer(this);
         RefreshVisuals();
     }
 
@@ -311,7 +373,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget
         var drop = ItemDropScene.Instantiate<ItemDrop3D>();
         GetParent().AddChild(drop);
         drop.GlobalPosition = GlobalPosition;
-        drop.Configure(_runSession.GenerateWeaponDrop(_runSession.CurrentMapLevel));
+        drop.Configure(_runSession.GenerateWeaponDrop(AppliedDropItemLevel));
     }
 
     private void RefreshVisuals()
