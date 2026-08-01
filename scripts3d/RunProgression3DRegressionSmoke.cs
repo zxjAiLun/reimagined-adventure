@@ -331,6 +331,11 @@ public partial class RunProgression3DRegressionSmoke : Node
 
         _stage = Stage.Complete;
         GD.Print("RUN_PROGRESSION_3D_REGRESSION_PASS levels=true scaling_context=true cumulative_rewards=true save_restore=true rng_continuity=true item_ids_unique=true pause_frozen=true");
+        // Flush Godot-managed arrays before the process exits; the managed wrapper
+        // finalizer must run while the native Godot runtime is still alive.
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         GetTree().Quit();
     }
 

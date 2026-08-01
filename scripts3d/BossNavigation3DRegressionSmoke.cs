@@ -514,6 +514,11 @@ public partial class BossNavigation3DRegressionSmoke : Node
         GD.Print(
             "BOSS_NAVIGATION_3D_PASS layers=true large_route=true small_narrow=true "
             + "slam_lock=true spear_lock=true pause=true resume=true death_unregister=true");
+        // Flush Godot-managed arrays before the process exits; the managed wrapper
+        // finalizer must run while the native Godot runtime is still alive.
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         GetTree().Quit(0);
     }
 

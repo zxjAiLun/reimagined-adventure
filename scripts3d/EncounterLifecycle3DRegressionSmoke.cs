@@ -340,6 +340,9 @@ public partial class EncounterLifecycle3DRegressionSmoke : Node
 
             _complete = true;
             GD.Print("ENCOUNTER_LIFECYCLE_3D_SPIKE_PASS pause_frozen=true map_transition=true local_player=true local_director=true local_flow=true old_map_released=true second_health_hud=true spawn_safety=true boss_hud=true level=2");
+            System.GC.Collect();
+            System.GC.WaitForPendingFinalizers();
+            System.GC.Collect();
             GetTree().Quit();
         }
     }

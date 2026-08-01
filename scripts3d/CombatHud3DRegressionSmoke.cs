@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Arpg.Domain;
 using Godot;
 
@@ -9,6 +8,7 @@ public partial class CombatHud3DRegressionSmoke : Node
     private int _stage;
     private bool _complete;
     private int _baselineSpreadDamage;
+    private TestArena3D _arena;
 
     public override void _Ready() => ProcessMode = ProcessModeEnum.Always;
 
@@ -21,9 +21,8 @@ public partial class CombatHud3DRegressionSmoke : Node
         }
 
         var run = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
-        var arena = GetTree().GetNodesInGroup("arena_3d")
-            .OfType<TestArena3D>()
-            .LastOrDefault();
+        _arena = run?.CurrentMap3D;
+        var arena = _arena;
         var hud = arena?.GetNodeOrNull<CombatHudController3D>("HUD");
         var player = arena?.GetNodeOrNull<PlayerController3D>("Player3D");
         var skills = player?.GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
@@ -178,9 +177,7 @@ public partial class CombatHud3DRegressionSmoke : Node
                     return;
                 }
 
-                var nextArena = GetTree().GetNodesInGroup("arena_3d")
-                    .OfType<TestArena3D>()
-                    .LastOrDefault();
+                var nextArena = run.CurrentMap3D;
                 var nextHud = nextArena?.GetNodeOrNull<CombatHudController3D>("HUD");
                 if (nextHud == null
                     || nextHud.MapLevel != 2
@@ -198,6 +195,10 @@ public partial class CombatHud3DRegressionSmoke : Node
 
                 _complete = true;
                 GD.Print("COMBAT_HUD_3D_SPIKE_PASS player_hp=true max_hp_equipment=true skills=true cooldown=true boss_visible=true boss_hidden=true map_level=true signal_driven=true");
+                // Flush managed Godot wrappers before the native tree is torn down.
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
                 GetTree().Quit();
                 return;
         }

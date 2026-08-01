@@ -90,6 +90,17 @@ before its scene-tree ready phase, so every enemy receives the same encounter,
 wave, modifier, and seed context. The HUD presents the encounter, tier, wave,
 and active-enemy count, and the plan is cached across save/restore and map
 transitions without rerolls.
+Stage 8 adds a run-owned Atlas route layer. `resources/RunAtlas3D.tres`
+contains the fixed Quiet Coast, Hardened Frontier, Volatile Rift, Brimstone
+Caldera, and Siege Gate routes. Completing a map through the real
+`EncounterCompleted` signal unlocks its valid next routes; an isolated Boss
+death does not complete the Atlas. After choosing the reward, keys `1`/`2`/`3`
+select a route and `N` confirms it. The route panel presents tier, modifier,
+encounter, description, and item level, while the selected route is persisted
+across Playing, MapComplete, reward, and pending-route save boundaries.
+The Stage 8 smokes execute Quiet/Crossfire/Siege through the real encounter
+director and verify one-shot wave/completion signals, old-map release,
+route-driven map plans, and deterministic Atlas save recovery.
 
 ## Run the playable slice
 
@@ -168,8 +179,12 @@ resolution. `EncounterSelection3DRegressionSmoke.tscn` verifies deterministic
 tier/range selection, isolated encounter seeds, invalid catalogs, and untouched
 RNG streams. `EncounterPlanRuntime3DRegressionSmoke.tscn` verifies pre-ready
 plan application, cross-map identity, HUD/director binding, save stability,
-pause stability, and the shipped Quiet/Crossfire/Siege compositions. CI runs
-30 smoke scenes in total.
+pause stability, and the shipped Quiet/Crossfire/Siege compositions.
+`AtlasRouteChoice3DRegressionSmoke.tscn` verifies real encounter completion,
+route selection/confirmation, route-driven map planning, and old-map release;
+`AtlasRouteSaveRecovery3DRegressionSmoke.tscn` verifies Playing, MapComplete
+before/after reward, pending-route, and next-map save boundaries without
+rerolling Atlas state or run RNG. CI runs 32 smoke scenes in total.
 
 ## Migration boundaries
 

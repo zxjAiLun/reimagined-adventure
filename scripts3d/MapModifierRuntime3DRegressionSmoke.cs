@@ -161,6 +161,11 @@ public partial class MapModifierRuntime3DRegressionSmoke : Node
         _complete = true;
         _run.MapModifierResolved -= OnMapModifierResolved;
         GD.Print("MAP_MODIFIER_RUNTIME_3D_REGRESSION_PASS three_modifiers=true real_damage=true real_drops=true cross_map=true");
+        // Flush Godot-managed arrays before the process exits; the managed wrapper
+        // finalizer must run while the native Godot runtime is still alive.
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         GetTree().Quit();
     }
 

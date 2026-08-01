@@ -1,0 +1,36 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/AtlasRouteChoiceController3D.cs" id="1_route"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_route"]
+bg_color = Color(0.03, 0.045, 0.09, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.32, 0.54, 0.78, 0.95)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="AtlasRouteChoice3D" type="CanvasLayer"]
+script = ExtResource("1_route")
+
+[node name="RoutePanel" type="Panel" parent="."]
+visible = false
+offset_left = 470.0
+offset_top = 150.0
+offset_right = 1130.0
+offset_bottom = 570.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_route")
+
+[node name="Options" type="Label" parent="RoutePanel"]
+offset_left = 22.0
+offset_top = 18.0
+offset_right = 638.0
+offset_bottom = 400.0
+theme_override_colors/font_color = Color(0.9, 0.94, 1, 1)
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 2
+text = "Choose next Atlas route"

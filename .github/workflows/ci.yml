@@ -90,7 +90,9 @@ jobs:
             "res://scenes3d/MapModifierSelection3DRegressionSmoke.tscn",
             "res://scenes3d/MapModifierRuntime3DRegressionSmoke.tscn",
             "res://scenes3d/EncounterSelection3DRegressionSmoke.tscn",
-            "res://scenes3d/EncounterPlanRuntime3DRegressionSmoke.tscn"
+            "res://scenes3d/EncounterPlanRuntime3DRegressionSmoke.tscn",
+            "res://scenes3d/AtlasRouteChoice3DRegressionSmoke.tscn",
+            "res://scenes3d/AtlasRouteSaveRecovery3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"
