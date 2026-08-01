@@ -1,39 +1,71 @@
 namespace Arpg.Domain;
 
+public enum LootSourceKind
+{
+    Feral,
+    Spitter,
+    Boss,
+    Reward,
+    Chest,
+    Crafting,
+}
+
 /// <summary>
-/// Deterministic first-slice equipment generator. It guarantees one weapon
-/// drop; drop chance, map scaling and full affix weighting come later.
+/// Complete deterministic input to one item roll. Map and encounter identity
+/// are carried for auditability and future source-specific pools; they never
+/// create another random stream.
+/// </summary>
+public sealed record ItemRollContext(
+    int ItemLevel,
+    LootSourceKind Source,
+    EquipmentSlot? ForcedSlot = null,
+    double RarityMultiplier = 1.0,
+    bool GuaranteedUnique = false,
+    string AtlasMapId = "",
+    string EncounterId = "",
+    Rarity? ForcedRarity = null,
+    string? ForcedBaseId = null)
+{
+    public void Validate()
+    {
+        if (ItemLevel < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(ItemLevel), "Item level must be positive.");
+        }
+
+        if (!Enum.IsDefined(Source))
+        {
+            throw new ArgumentOutOfRangeException(nameof(Source), Source, "Unknown loot source.");
+        }
+
+        if (ForcedSlot.HasValue && !Enum.IsDefined(ForcedSlot.Value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(ForcedSlot), ForcedSlot, "Unknown forced equipment slot.");
+        }
+
+        if (!double.IsFinite(RarityMultiplier) || RarityMultiplier < 0.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(RarityMultiplier), "Rarity multiplier must be finite and non-negative.");
+        }
+
+        if (ForcedRarity.HasValue && !Enum.IsDefined(ForcedRarity.Value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(ForcedRarity), ForcedRarity, "Unknown forced rarity.");
+        }
+
+        if (ForcedBaseId != null && string.IsNullOrWhiteSpace(ForcedBaseId))
+        {
+            throw new ArgumentException("Forced base id cannot be blank.", nameof(ForcedBaseId));
+        }
+    }
+}
+
+/// <summary>
+/// Deterministic item generator. Every roll consumes only the supplied random
+/// stream and the shared item identity source; no Godot or runtime RNG is used.
 /// </summary>
 public sealed class LootGenerator
 {
-    private static readonly Affix[] WeaponAffixes =
-    [
-        new Affix
-        {
-            Id = "tempered_edge",
-            Name = "Tempered Edge",
-            Tier = 1,
-            IsPrefix = true,
-            Stats = new Stats { DamageMultiplier = 1.10 },
-        },
-        new Affix
-        {
-            Id = "charged_string",
-            Name = "Charged String",
-            Tier = 1,
-            IsPrefix = false,
-            Stats = new Stats { ProjectileDamageMultiplier = 1.12 },
-        },
-        new Affix
-        {
-            Id = "molten_grip",
-            Name = "Molten Grip",
-            Tier = 1,
-            IsPrefix = false,
-            Stats = new Stats { FireDamageMultiplier = 1.14 },
-        },
-    ];
-
     private readonly RandomService _random;
     private readonly IItemIdSource _itemIdSource;
     private int _nextItemNumber;
@@ -50,36 +82,56 @@ public sealed class LootGenerator
         _itemIdSource = itemIdSource ?? throw new ArgumentNullException(nameof(itemIdSource));
     }
 
-    public Item GenerateWeaponDrop(int itemLevel = 1, bool boss = false)
+    public Item GenerateItemDrop(ItemRollContext context)
     {
-        if (itemLevel < 1)
+        ArgumentNullException.ThrowIfNull(context);
+        context.Validate();
+
+        var baseDefinition = ResolveBase(context);
+        var rarity = RollRarity(context);
+        var affixes = RollAffixes(baseDefinition.Slot, context.ItemLevel, rarity);
+        var itemStats = baseDefinition.ImplicitStats;
+        if (rarity == Rarity.Unique)
         {
-            throw new ArgumentOutOfRangeException(nameof(itemLevel), "Item level must be positive.");
+            itemStats = Stats.Combine(itemStats, baseDefinition.UniqueStats);
         }
 
-        var baseIndex = boss
-            ? 2
-            : _random.WeightedChoiceIndex([5, 3, 2]);
-        var baseDefinition = ItemBaseLibrary.AllWeapons[baseIndex];
-        var affix = WeaponAffixes[_random.NextIndex(WeaponAffixes.Length)];
-        var itemStats = Stats.Combine(baseDefinition.ImplicitStats, affix.Stats);
-        var rarity = boss ? Rarity.Unique : (_random.Chance(35) ? Rarity.Magic : Rarity.Normal);
-        var name = boss ? "Colossus's Brand" : $"{baseDefinition.Name} of {affix.Name}";
+        foreach (var affix in affixes)
+        {
+            itemStats = Stats.Combine(itemStats, affix.Stats);
+        }
 
         var item = new Item
         {
             Id = NextItemId(),
-            Name = name,
+            Name = BuildName(baseDefinition, rarity, affixes),
             BaseId = baseDefinition.Id,
             Slot = baseDefinition.Slot,
             Rarity = rarity,
-            ItemLevel = itemLevel,
+            ItemLevel = context.ItemLevel,
             RequiredLevel = baseDefinition.RequiredLevel,
             Stats = itemStats,
-            Affixes = [affix],
+            Affixes = affixes,
         };
         item.Validate();
         return item;
+    }
+
+    /// <summary>
+    /// Compatibility API for the original vertical slice. It intentionally
+    /// produces a Magic weapon so old callers that expect one affix remain
+    /// valid while new content uses <see cref="GenerateItemDrop"/>.
+    /// </summary>
+    public Item GenerateWeaponDrop(int itemLevel = 1, bool boss = false)
+    {
+        return GenerateItemDrop(new ItemRollContext(
+            itemLevel,
+            boss ? LootSourceKind.Boss : LootSourceKind.Feral,
+            EquipmentSlot.Weapon,
+            RarityMultiplier: 1.0,
+            GuaranteedUnique: boss,
+            ForcedRarity: boss ? null : Rarity.Magic,
+            ForcedBaseId: boss ? "brimstone_brand" : null));
     }
 
     public Item GenerateWeaponDropForBase(
@@ -87,39 +139,128 @@ public sealed class LootGenerator
         int itemLevel = 1,
         string? disallowedItemId = null)
     {
-        if (itemLevel < 1)
+        var item = GenerateItemDrop(new ItemRollContext(
+            itemLevel,
+            LootSourceKind.Crafting,
+            EquipmentSlot.Weapon,
+            ForcedRarity: Rarity.Magic,
+            ForcedBaseId: baseId));
+        while (item.Id == disallowedItemId)
         {
-            throw new ArgumentOutOfRangeException(nameof(itemLevel), "Item level must be positive.");
+            item = GenerateItemDrop(new ItemRollContext(
+                itemLevel,
+                LootSourceKind.Crafting,
+                EquipmentSlot.Weapon,
+                ForcedRarity: Rarity.Magic,
+                ForcedBaseId: baseId));
         }
 
-        var baseDefinition = ItemBaseLibrary.Find(baseId)
-            ?? throw new ArgumentException($"Unknown weapon base '{baseId}'.", nameof(baseId));
-        if (baseDefinition.Slot != EquipmentSlot.Weapon)
-        {
-            throw new ArgumentException($"Item base '{baseId}' is not a weapon.", nameof(baseId));
-        }
-
-        var itemId = NextItemId();
-        while (itemId == disallowedItemId)
-        {
-            itemId = NextItemId();
-        }
-
-        var affix = WeaponAffixes[_random.NextIndex(WeaponAffixes.Length)];
-        var item = new Item
-        {
-            Id = itemId,
-            Name = $"{baseDefinition.Name} of {affix.Name}",
-            BaseId = baseDefinition.Id,
-            Slot = baseDefinition.Slot,
-            Rarity = _random.Chance(35) ? Rarity.Magic : Rarity.Normal,
-            ItemLevel = itemLevel,
-            RequiredLevel = baseDefinition.RequiredLevel,
-            Stats = Stats.Combine(baseDefinition.ImplicitStats, affix.Stats),
-            Affixes = [affix],
-        };
-        item.Validate();
         return item;
+    }
+
+    private ItemBaseDefinition ResolveBase(ItemRollContext context)
+    {
+        if (!string.IsNullOrWhiteSpace(context.ForcedBaseId))
+        {
+            var forced = ItemBaseLibrary.Find(context.ForcedBaseId)
+                ?? throw new ArgumentException($"Unknown forced item base '{context.ForcedBaseId}'.", nameof(context));
+            if (context.ForcedSlot.HasValue && forced.Slot != context.ForcedSlot.Value)
+            {
+                throw new ArgumentException("Forced base and forced slot do not match.", nameof(context));
+            }
+
+            return forced;
+        }
+
+        var candidates = context.ForcedSlot.HasValue
+            ? ItemBaseLibrary.ForSlot(context.ForcedSlot.Value)
+            : ItemBaseLibrary.All;
+        if (candidates.Count == 0)
+        {
+            throw new InvalidOperationException("No item base is available for the requested slot.");
+        }
+
+        return candidates[_random.NextIndex(candidates.Count)];
+    }
+
+    private Rarity RollRarity(ItemRollContext context)
+    {
+        if (context.GuaranteedUnique)
+        {
+            return Rarity.Unique;
+        }
+
+        if (context.ForcedRarity.HasValue)
+        {
+            return context.ForcedRarity.Value;
+        }
+
+        var minimum = context.Source == LootSourceKind.Boss ? Rarity.Rare : Rarity.Normal;
+        var normalWeight = minimum > Rarity.Normal ? 0 : 60;
+        var magicWeight = minimum > Rarity.Magic ? 0 : Math.Max(0, (int)Math.Round(30.0 * context.RarityMultiplier));
+        var rareWeight = Math.Max(1, (int)Math.Round(10.0 * Math.Max(1.0, context.RarityMultiplier)));
+        var choice = _random.WeightedChoiceIndex([normalWeight, magicWeight, rareWeight]);
+        return choice switch
+        {
+            0 => Rarity.Normal,
+            1 => Rarity.Magic,
+            _ => Rarity.Rare,
+        };
+    }
+
+    private IReadOnlyList<Affix> RollAffixes(EquipmentSlot slot, int itemLevel, Rarity rarity)
+    {
+        if (rarity is Rarity.Normal or Rarity.Unique)
+        {
+            return Array.Empty<Affix>();
+        }
+
+        var prefixes = AffixLibrary.Candidates(slot, itemLevel, isPrefix: true);
+        var suffixes = AffixLibrary.Candidates(slot, itemLevel, isPrefix: false);
+        if (rarity == Rarity.Magic)
+        {
+            var candidates = prefixes.Concat(suffixes).ToArray();
+            return candidates.Length == 0
+                ? Array.Empty<Affix>()
+                : [Choose(candidates).Roll()];
+        }
+
+        if (prefixes.Count == 0 || suffixes.Count == 0)
+        {
+            throw new InvalidOperationException($"No complete rare affix pool is available for slot {slot}.");
+        }
+
+        return [Choose(prefixes).Roll(), Choose(suffixes).Roll()];
+    }
+
+    private AffixDefinition Choose(IReadOnlyList<AffixDefinition> candidates)
+    {
+        var weights = candidates.Select(candidate => candidate.Weight).ToArray();
+        return candidates[_random.WeightedChoiceIndex(weights)];
+    }
+
+    private static string BuildName(
+        ItemBaseDefinition baseDefinition,
+        Rarity rarity,
+        IReadOnlyList<Affix> affixes)
+    {
+        if (rarity == Rarity.Unique)
+        {
+            return baseDefinition.UniqueName ?? baseDefinition.Name;
+        }
+
+        if (affixes.Count == 0)
+        {
+            return baseDefinition.Name;
+        }
+
+        var prefix = affixes.FirstOrDefault(affix => affix.IsPrefix);
+        var suffix = affixes.FirstOrDefault(affix => !affix.IsPrefix);
+        return prefix != null && suffix != null
+            ? $"{prefix.Name} {baseDefinition.Name} {suffix.Name}"
+            : prefix != null
+                ? $"{prefix.Name} {baseDefinition.Name}"
+                : $"{baseDefinition.Name} {suffix!.Name}";
     }
 
     private string NextItemId()
