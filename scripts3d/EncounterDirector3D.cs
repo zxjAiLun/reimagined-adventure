@@ -89,7 +89,7 @@ public partial class EncounterDirector3D : Node
 
         _waves.AddRange(DefinitionResource.Waves);
         State = EncounterDirectorState3D.Waiting;
-        _stateRemaining = _waves[0].StartDelaySeconds;
+        _stateRemaining = DefinitionResource.InitialDelaySeconds;
     }
 
     public override void _ExitTree()
@@ -215,7 +215,7 @@ public partial class EncounterDirector3D : Node
             else
             {
                 State = EncounterDirectorState3D.Intermission;
-                _stateRemaining = _waves[CurrentWaveIndex].IntermissionSeconds;
+                _stateRemaining = _waves[CurrentWaveIndex].IntermissionAfterSeconds;
             }
         }
     }

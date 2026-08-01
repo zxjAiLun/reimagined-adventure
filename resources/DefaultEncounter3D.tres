@@ -38,31 +38,29 @@ NavigationLayers = 2
 [sub_resource type="Resource" id="Wave_1"]
 script = ExtResource("2_wave")
 WaveId = "feral_assault"
-StartDelaySeconds = 0.5
 SpawnIntervalSeconds = 0.18
-IntermissionSeconds = 0.6
+IntermissionAfterSeconds = 0.6
 MaxAlive = 4
 Entries = [SubResource("Entry_wave_1_feral")]
 
 [sub_resource type="Resource" id="Wave_2"]
 script = ExtResource("2_wave")
 WaveId = "mixed_pressure"
-StartDelaySeconds = 0.2
 SpawnIntervalSeconds = 0.2
-IntermissionSeconds = 0.8
+IntermissionAfterSeconds = 0.8
 MaxAlive = 5
 Entries = [SubResource("Entry_wave_2_feral"), SubResource("Entry_wave_2_spitter")]
 
 [sub_resource type="Resource" id="Wave_3"]
 script = ExtResource("2_wave")
 WaveId = "brimstone_colossus"
-StartDelaySeconds = 0.4
 SpawnIntervalSeconds = 0.0
-IntermissionSeconds = 0.0
+IntermissionAfterSeconds = 0.0
 MaxAlive = 1
 Entries = [SubResource("Entry_wave_3_boss")]
 
 [resource]
 script = ExtResource("1_definition")
 EncounterId = "quiet_coast_default"
+InitialDelaySeconds = 0.5
 Waves = [SubResource("Wave_1"), SubResource("Wave_2"), SubResource("Wave_3")]

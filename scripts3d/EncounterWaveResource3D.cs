@@ -8,9 +8,8 @@ using Godot;
 public partial class EncounterWaveResource3D : Resource
 {
     [Export] public string WaveId { get; set; } = "wave";
-    [Export] public float StartDelaySeconds { get; set; } = 0.4f;
     [Export] public float SpawnIntervalSeconds { get; set; } = 0.35f;
-    [Export] public float IntermissionSeconds { get; set; } = 0.5f;
+    [Export] public float IntermissionAfterSeconds { get; set; } = 0.5f;
     [Export] public int MaxAlive { get; set; } = 6;
     [Export] public Godot.Collections.Array<EncounterSpawnEntryResource3D> Entries { get; set; } = new();
 
@@ -40,7 +39,7 @@ public partial class EncounterWaveResource3D : Resource
             return false;
         }
 
-        if (StartDelaySeconds < 0.0f || SpawnIntervalSeconds < 0.0f || IntermissionSeconds < 0.0f)
+        if (SpawnIntervalSeconds < 0.0f || IntermissionAfterSeconds < 0.0f)
         {
             error = "Wave timing values cannot be negative.";
             return false;
