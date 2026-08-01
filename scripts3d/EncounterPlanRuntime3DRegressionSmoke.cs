@@ -17,6 +17,7 @@ public partial class EncounterPlanRuntime3DRegressionSmoke : Node
         WaitingForMapTwo,
         MapTwo,
         Paused,
+        ForcedExecution,
         Complete,
     }
 
@@ -44,6 +45,11 @@ public partial class EncounterPlanRuntime3DRegressionSmoke : Node
     private ulong _savedCraftingState;
     private ulong _savedEventState;
     private bool _complete;
+    private TestArena3D _forcedArena;
+    private EncounterDirector3D _forcedDirector;
+    private int _forcedIndex;
+    private readonly Dictionary<int, int> _forcedWaveStarted = new();
+    private readonly Dictionary<int, int> _forcedWaveCleared = new();
 
     public override void _Ready()
     {
@@ -84,6 +90,9 @@ public partial class EncounterPlanRuntime3DRegressionSmoke : Node
                 break;
             case Stage.Paused:
                 TickPaused();
+                break;
+            case Stage.ForcedExecution:
+                TickForcedExecution();
                 break;
         }
 
@@ -234,15 +243,165 @@ public partial class EncounterPlanRuntime3DRegressionSmoke : Node
         }
 
         _flow.RestoreState(GameFlowState.Playing);
-        _stage = Stage.Complete;
-        if (!VerifyForcedCompositions())
+        _director.ProcessMode = ProcessModeEnum.Disabled;
+        _director.Enabled = false;
+        _forcedIndex = 0;
+        _stage = Stage.ForcedExecution;
+        _stageElapsed = 0.0;
+        BeginForcedEncounter();
+    }
+
+    private void BeginForcedEncounter()
+    {
+        if (_forcedIndex >= 3)
+        {
+            _stage = Stage.Complete;
+            _complete = true;
+            GD.Print("ENCOUNTER_PLAN_RUNTIME_3D_REGRESSION_PASS pre_ready=true map_transition=true hud=true save_stable=true pause_stable=true forced_composition=true");
+            // Flush Godot-managed arrays before the process exits; the managed wrapper
+            // finalizer must run while the native Godot runtime is still alive.
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            GetTree().Quit();
+            return;
+        }
+
+        var paths = new[]
+        {
+            "res://resources/encounters/QuietCoastSkirmish3D.tres",
+            "res://resources/encounters/CrossfireAdvance3D.tres",
+            "res://resources/encounters/SiegePressure3D.tres",
+        };
+        var tiers = new[] { 1, 2, 3 };
+        var definition = GD.Load<EncounterDefinitionResource3D>(paths[_forcedIndex]);
+        var arenaScene = GD.Load<PackedScene>("res://scenes3d/TestArena3D.tscn");
+        if (definition == null || arenaScene == null)
+        {
+            Fail($"forced encounter resources could not load index={_forcedIndex}");
+            return;
+        }
+
+        _forcedArena = arenaScene.Instantiate<TestArena3D>();
+        var encounterSeed = RandomService.DeriveSeed(
+            _run.CurrentEncounterSeed,
+            (ulong)(_forcedIndex + 11));
+        var forcedPlan = new RunMapPlan3D(
+            _run,
+            _run.CurrentMapLevel,
+            _run.CurrentMapModifier,
+            _run.CurrentMapModifierSeed,
+            definition,
+            definition.EncounterId,
+            definition.EncounterId,
+            tiers[_forcedIndex],
+            encounterSeed,
+            string.Empty,
+            string.Empty,
+            0,
+            Math.Max(1, MapScaling.ItemLevel(
+                _run.CurrentMapLevel,
+                _run.CurrentMapModifier?.Effects ?? new MapModifierStats())));
+        try
+        {
+            _forcedArena.ConfigureBeforeReady(forcedPlan);
+            _run.AddChild(_forcedArena);
+        }
+        catch (Exception exception)
+        {
+            Fail($"forced encounter setup failed: {exception.Message}");
+            return;
+        }
+
+        _forcedDirector = _forcedArena.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
+        var forcedFlow = _forcedArena.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        if (_forcedDirector == null || forcedFlow == null)
+        {
+            Fail("forced encounter arena was missing director or flow");
+            return;
+        }
+
+        forcedFlow.ProcessMode = ProcessModeEnum.Disabled;
+        _forcedDirector.ProcessMode = ProcessModeEnum.Always;
+        _forcedDirector.SetPhysicsProcess(true);
+        _forcedDirector.WaveStarted += OnForcedWaveStarted;
+        _forcedDirector.WaveCleared += OnForcedWaveCleared;
+        _forcedWaveStarted.Clear();
+        _forcedWaveCleared.Clear();
+    }
+
+    private void TickForcedExecution()
+    {
+        if (_forcedDirector == null || !GodotObject.IsInstanceValid(_forcedDirector))
+        {
+            Fail("forced encounter director disappeared");
+            return;
+        }
+
+        KillForcedActiveEnemies();
+        if (!_forcedDirector.IsEncounterComplete())
         {
             return;
         }
 
-        _complete = true;
-        GD.Print("ENCOUNTER_PLAN_RUNTIME_3D_REGRESSION_PASS pre_ready=true map_transition=true hud=true save_stable=true pause_stable=true forced_composition=true");
-        GetTree().Quit();
+        var definition = _forcedDirector.DefinitionResource;
+        var exactSignals = _forcedWaveStarted.Count == definition.Waves.Count
+            && _forcedWaveCleared.Count == definition.Waves.Count
+            && _forcedWaveStarted.Values.All(value => value == 1)
+            && _forcedWaveCleared.Values.All(value => value == 1);
+        if (!exactSignals
+            || _forcedDirector.ActiveEnemyCount != 0
+            || _forcedDirector.EncounterCompletedCount != 1
+            || _forcedDirector.SpawnedEnemyCount != definition.Waves.Sum(wave => wave.TotalSpawnCount)
+            || _forcedDirector.SpawnedBossCount != 1
+            || !definition.Waves.Last().Entries.Any(entry => entry.EnemyScene.ResourcePath.Contains("Brimstone")))
+        {
+            Fail($"forced encounter execution was not exact id={definition.EncounterId} started={_forcedWaveStarted.Count} cleared={_forcedWaveCleared.Count} spawned={_forcedDirector.SpawnedEnemyCount} active={_forcedDirector.ActiveEnemyCount}");
+            return;
+        }
+
+        _forcedDirector.WaveStarted -= OnForcedWaveStarted;
+        _forcedDirector.WaveCleared -= OnForcedWaveCleared;
+        _forcedDirector.ProcessMode = ProcessModeEnum.Disabled;
+        _forcedArena.QueueFree();
+        _forcedArena = null;
+        _forcedDirector = null;
+        _forcedIndex++;
+        CallDeferred(nameof(BeginForcedEncounter));
+    }
+
+    private void KillForcedActiveEnemies()
+    {
+        var request = new DamageRequest(
+            999999,
+            DamageType.Physical,
+            "encounter_plan_forced_smoke",
+            CombatFaction.Player);
+        foreach (var enemy in _forcedDirector.GetActiveEnemies().ToArray())
+        {
+            switch (enemy)
+            {
+                case FeralController3D feral:
+                    feral.ApplyDamage(request);
+                    break;
+                case SpitterController3D spitter:
+                    spitter.ApplyDamage(request);
+                    break;
+                case BrimstoneColossusController3D boss:
+                    boss.ApplyDamage(request);
+                    break;
+            }
+        }
+    }
+
+    private void OnForcedWaveStarted(int waveIndex, string waveId)
+    {
+        _forcedWaveStarted[waveIndex] = _forcedWaveStarted.GetValueOrDefault(waveIndex) + 1;
+    }
+
+    private void OnForcedWaveCleared(int waveIndex, string waveId)
+    {
+        _forcedWaveCleared[waveIndex] = _forcedWaveCleared.GetValueOrDefault(waveIndex) + 1;
     }
 
     private bool VerifyPlanAndHud()
@@ -315,91 +474,6 @@ public partial class EncounterPlanRuntime3DRegressionSmoke : Node
                     break;
             }
         }
-    }
-
-    private static bool VerifyForcedCompositions()
-    {
-        return VerifyComposition(
-            "res://resources/encounters/QuietCoastSkirmish3D.tres",
-            3,
-            10,
-            7,
-            2,
-            1,
-            5)
-            && VerifyComposition(
-                "res://resources/encounters/CrossfireAdvance3D.tres",
-                4,
-                15,
-                10,
-                4,
-                1,
-                6)
-            && VerifyComposition(
-                "res://resources/encounters/SiegePressure3D.tres",
-                4,
-                18,
-                10,
-                7,
-                1,
-                6);
-    }
-
-    private static bool VerifyComposition(
-        string resourcePath,
-        int waveCount,
-        int totalCount,
-        int feralCount,
-        int spitterCount,
-        int bossCount,
-        int maxAlive)
-    {
-        var definition = GD.Load<EncounterDefinitionResource3D>(resourcePath);
-        var maximumAlive = 0;
-        foreach (var wave in definition?.Waves ?? new Godot.Collections.Array<EncounterWaveResource3D>())
-        {
-            maximumAlive = Mathf.Max(maximumAlive, wave.MaxAlive);
-        }
-
-        var definitionError = string.Empty;
-        var valid = definition != null && definition.IsValid(out definitionError);
-
-        if (!valid
-            || definition.Waves.Count != waveCount
-            || maximumAlive > maxAlive
-            || definition.Waves.Last().Entries.Any(entry => !entry.EnemyScene.ResourcePath.Contains("Brimstone")))
-        {
-            return false;
-        }
-
-        var feral = 0;
-        var spitter = 0;
-        var boss = 0;
-        foreach (var wave in definition.Waves)
-        {
-            foreach (var entry in wave.Entries)
-            {
-                var path = entry.EnemyScene.ResourcePath;
-                if (path.Contains("Feral"))
-                {
-                    feral += entry.Count;
-                }
-                else if (path.Contains("Spitter"))
-                {
-                    spitter += entry.Count;
-                }
-                else if (path.Contains("Brimstone"))
-                {
-                    boss += entry.Count;
-                }
-            }
-        }
-
-        var matches = definition.Waves.Sum(wave => wave.TotalSpawnCount) == totalCount
-            && feral == feralCount
-            && spitter == spitterCount
-            && boss == bossCount;
-        return matches;
     }
 
     private void Fail(string reason)

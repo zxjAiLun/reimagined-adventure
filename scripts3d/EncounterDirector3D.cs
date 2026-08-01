@@ -264,6 +264,7 @@ public partial class EncounterDirector3D : Node
         enemy.Name = $"{entry.EnemyScene.ResourceName}_{CurrentWaveIndex + 1}_{CurrentWaveSpawnedCount + 1}";
         var mapLevel = runSession.CurrentMapLevel;
         var modifier = runSession.CurrentMapModifier?.Effects ?? new MapModifierStats();
+        var dropItemLevel = runSession.CurrentMapPlan.DropItemLevel;
         var context = new EnemySpawnContext3D(
             runSession,
             _player,
@@ -273,7 +274,7 @@ public partial class EncounterDirector3D : Node
             CurrentWaveSpawnedCount + 1,
             entry.NavigationLayers,
             modifier,
-            MapScaling.ItemLevel(mapLevel, modifier),
+            dropItemLevel,
             enemy is BrimstoneColossusController3D);
         try
         {
