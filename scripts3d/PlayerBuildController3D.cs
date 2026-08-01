@@ -209,7 +209,7 @@ public partial class PlayerBuildController3D : Node
 
     private bool CanManageBuild()
     {
-        var flow = Player?.GetParent<Node3D>()?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        var flow = Player?.GetParent()?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
         return flow == null || flow.State != GameFlowState.GameOver;
     }
 }
