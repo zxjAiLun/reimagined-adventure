@@ -96,6 +96,12 @@ public partial class Isometric3DRegressionSmoke : Node
                 return;
             }
 
+            if (!_player.TryAddItem(CreateProjectileDamageWeapon()))
+            {
+                Fail("could not add deterministic projectile damage weapon");
+                return;
+            }
+
             var equipped = _player.TryEquipNewestWeapon();
             var damageAfterEquipment = _player.SpreadShotDamage;
             var equipmentPass = equipped && damageAfterEquipment > _damageBeforeEquipment;
@@ -155,5 +161,27 @@ public partial class Isometric3DRegressionSmoke : Node
         _stage = -1;
         GD.PrintErr($"ISOMETRIC_3D_SPIKE_FAIL {reason}");
         GetTree().Quit(1);
+    }
+
+    private static Item CreateProjectileDamageWeapon()
+    {
+        var baseDefinition = ItemBaseLibrary.Find("hunter_bow")
+            ?? throw new InvalidOperationException("hunter_bow test base is missing");
+        var affixDefinition = AffixLibrary.Find("charged_string")
+            ?? throw new InvalidOperationException("charged_string test affix is missing");
+        var affix = affixDefinition.Roll();
+        var item = new Item
+        {
+            Id = "isometric_projectile_damage_weapon",
+            Name = $"{affix.Name} {baseDefinition.Name}",
+            BaseId = baseDefinition.Id,
+            Slot = baseDefinition.Slot,
+            Rarity = Rarity.Magic,
+            RequiredLevel = baseDefinition.RequiredLevel,
+            Stats = Stats.Combine(baseDefinition.ImplicitStats, affix.Stats),
+            Affixes = [affix],
+        };
+        item.Validate();
+        return item;
     }
 }
