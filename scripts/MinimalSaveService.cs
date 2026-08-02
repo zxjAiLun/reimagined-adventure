@@ -191,6 +191,7 @@ public sealed class MinimalSaveService
         public int PlayerMaxHealth { get; set; } = 100;
         public int PlayerCurrentHealth { get; set; } = 100;
         public Stats RewardStats { get; set; } = Stats.Neutral;
+        public int TotalExperience { get; set; }
         public int ManaCharges { get; set; } = SaveSnapshot.MaxManaCharges;
         public int InventoryCount { get; set; }
         public List<string> InventoryItemIds { get; set; } = new();
@@ -204,6 +205,7 @@ public sealed class MinimalSaveService
         public List<string> UnlockedSupportIds { get; set; } = SkillLoadout.DefaultUnlockedSupportIds.ToList();
         public Dictionary<SkillSlot, string> SupportIdBySkillSlot { get; set; } = new();
         public List<int> PassiveAllocatedIndices { get; set; } = new();
+        public List<string> AllocatedPassiveNodeIds { get; set; } = new();
         public List<string> AtlasUnlockedMapIds { get; set; } = new();
         public List<string> AtlasCompletedMapIds { get; set; } = new();
         public string CurrentAtlasMapId { get; set; } = "quiet-coast";
@@ -230,6 +232,7 @@ public sealed class MinimalSaveService
                 PlayerMaxHealth = snapshot.PlayerMaxHealth,
                 PlayerCurrentHealth = snapshot.PlayerCurrentHealth,
                 RewardStats = snapshot.RewardStats,
+                TotalExperience = snapshot.TotalExperience,
                 ManaCharges = snapshot.ManaCharges,
                 InventoryCount = snapshot.InventoryCount,
                 InventoryItemIds = snapshot.InventoryItemIds.ToList(),
@@ -243,6 +246,7 @@ public sealed class MinimalSaveService
                 UnlockedSupportIds = snapshot.UnlockedSupportIds.ToList(),
                 SupportIdBySkillSlot = snapshot.SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value),
                 PassiveAllocatedIndices = snapshot.PassiveAllocatedIndices.ToList(),
+                AllocatedPassiveNodeIds = snapshot.AllocatedPassiveNodeIds.ToList(),
                 AtlasUnlockedMapIds = snapshot.AtlasUnlockedMapIds.ToList(),
                 AtlasCompletedMapIds = snapshot.AtlasCompletedMapIds.ToList(),
                 CurrentAtlasMapId = snapshot.CurrentAtlasMapId,
@@ -263,6 +267,31 @@ public sealed class MinimalSaveService
                 NextMapOptionChosen,
                 PendingAtlasMapId,
                 MapCompletePhase);
+            var allocatedPassiveNodeIds = AllocatedPassiveNodeIds?.ToList() ?? new List<string>();
+            var legacyPassiveIndices = PassiveAllocatedIndices?.ToList() ?? new List<int>();
+            if (allocatedPassiveNodeIds.Count == 0 && legacyPassiveIndices.Count > 0)
+            {
+                if (!PassiveTreeLibrary.TryMigrateLegacyIndices(
+                        legacyPassiveIndices,
+                        TotalExperience,
+                        out var migratedNodeIds,
+                        out _))
+                {
+                    throw new ArgumentException("legacy passive allocation exceeds experience or is invalid.");
+                }
+
+                allocatedPassiveNodeIds = migratedNodeIds.ToList();
+            }
+            else if (allocatedPassiveNodeIds.Count > 0 && legacyPassiveIndices.Count > 0)
+            {
+                if (!PassiveTreeLibrary.TryMapLegacyIndices(legacyPassiveIndices, out var legacyNodeIds)
+                    || !allocatedPassiveNodeIds.ToHashSet(StringComparer.Ordinal)
+                        .SetEquals(legacyNodeIds))
+                {
+                    throw new ArgumentException("stable and legacy passive allocations do not match.");
+                }
+            }
+
             return new SaveSnapshot
             {
                 Magic = Magic,
@@ -277,6 +306,7 @@ public sealed class MinimalSaveService
                 PlayerMaxHealth = PlayerMaxHealth,
                 PlayerCurrentHealth = PlayerCurrentHealth,
                 RewardStats = RewardStats,
+                TotalExperience = TotalExperience,
                 ManaCharges = ManaCharges,
                 InventoryCount = InventoryCount,
                 InventoryItemIds = InventoryItemIds,
@@ -290,6 +320,7 @@ public sealed class MinimalSaveService
                 UnlockedSupportIds = UnlockedSupportIds,
                 SupportIdBySkillSlot = SupportIdBySkillSlot,
                 PassiveAllocatedIndices = PassiveAllocatedIndices,
+                AllocatedPassiveNodeIds = allocatedPassiveNodeIds,
                 AtlasUnlockedMapIds = AtlasUnlockedMapIds,
                 AtlasCompletedMapIds = AtlasCompletedMapIds,
                 CurrentAtlasMapId = CurrentAtlasMapId,

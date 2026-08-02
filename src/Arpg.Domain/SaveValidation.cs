@@ -23,6 +23,7 @@ public sealed class MinimalRunState
     public int PlayerMaxHealth { get; init; } = 100;
     public int PlayerCurrentHealth { get; init; } = 100;
     public Stats RewardStats { get; init; } = Stats.Neutral;
+    public int TotalExperience { get; init; }
     public int ManaCharges { get; init; } = SaveSnapshot.MaxManaCharges;
     public IReadOnlyList<string> InventoryItemIds { get; init; } = Array.Empty<string>();
     public string? EquippedWeaponId { get; init; }
@@ -37,6 +38,7 @@ public sealed class MinimalRunState
     public IReadOnlyDictionary<SkillSlot, string> SupportIdBySkillSlot { get; init; } =
         new Dictionary<SkillSlot, string>();
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<string> AllocatedPassiveNodeIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
     public string CurrentAtlasMapId { get; init; } = "quiet-coast";
@@ -71,6 +73,7 @@ public sealed class SaveSnapshot
     public int PlayerMaxHealth { get; init; } = 100;
     public int PlayerCurrentHealth { get; init; } = 100;
     public Stats RewardStats { get; init; } = Stats.Neutral;
+    public int TotalExperience { get; init; }
     public int ManaCharges { get; init; } = MaxManaCharges;
     public int InventoryCount { get; init; }
     public IReadOnlyList<string> InventoryItemIds { get; init; } = Array.Empty<string>();
@@ -86,6 +89,7 @@ public sealed class SaveSnapshot
     public IReadOnlyDictionary<SkillSlot, string> SupportIdBySkillSlot { get; init; } =
         new Dictionary<SkillSlot, string>();
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<string> AllocatedPassiveNodeIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
     public string CurrentAtlasMapId { get; init; } = "quiet-coast";
@@ -130,6 +134,7 @@ public sealed class SaveSnapshot
             PlayerMaxHealth = state.PlayerMaxHealth,
             PlayerCurrentHealth = state.PlayerCurrentHealth,
             RewardStats = state.RewardStats,
+            TotalExperience = state.TotalExperience,
             ManaCharges = state.ManaCharges,
             InventoryCount = itemIds.Length,
             InventoryItemIds = itemIds,
@@ -144,6 +149,7 @@ public sealed class SaveSnapshot
             SupportIdBySkillSlot = state.SupportIdBySkillSlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
                 ?? new Dictionary<SkillSlot, string>(),
             PassiveAllocatedIndices = state.PassiveAllocatedIndices?.ToArray() ?? Array.Empty<int>(),
+            AllocatedPassiveNodeIds = state.AllocatedPassiveNodeIds?.ToArray() ?? Array.Empty<string>(),
             AtlasUnlockedMapIds = state.AtlasUnlockedMapIds?.ToArray() ?? Array.Empty<string>(),
             AtlasCompletedMapIds = state.AtlasCompletedMapIds?.ToArray() ?? Array.Empty<string>(),
             CurrentAtlasMapId = state.CurrentAtlasMapId,
@@ -173,6 +179,7 @@ public sealed class SaveSnapshot
             PlayerMaxHealth = PlayerMaxHealth,
             PlayerCurrentHealth = PlayerCurrentHealth,
             RewardStats = RewardStats,
+            TotalExperience = TotalExperience,
             ManaCharges = ManaCharges,
             InventoryItemIds = InventoryItemIds.ToArray(),
             EquippedWeaponId = EquippedWeaponId,
@@ -185,6 +192,7 @@ public sealed class SaveSnapshot
             UnlockedSupportIds = UnlockedSupportIds.ToArray(),
             SupportIdBySkillSlot = SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value),
             PassiveAllocatedIndices = PassiveAllocatedIndices.ToArray(),
+            AllocatedPassiveNodeIds = AllocatedPassiveNodeIds.ToArray(),
             AtlasUnlockedMapIds = AtlasUnlockedMapIds.ToArray(),
             AtlasCompletedMapIds = AtlasCompletedMapIds.ToArray(),
             CurrentAtlasMapId = CurrentAtlasMapId,
@@ -207,6 +215,7 @@ public sealed class SaveSnapshot
             || UnlockedSupportIds == null
             || SupportIdBySkillSlot == null
             || PassiveAllocatedIndices == null
+            || AllocatedPassiveNodeIds == null
             || AtlasUnlockedMapIds == null
             || AtlasCompletedMapIds == null)
         {
@@ -245,6 +254,7 @@ public sealed class SaveSnapshot
         if (PlayerMaxHealth < 1
             || PlayerCurrentHealth < 0
             || PlayerCurrentHealth > PlayerMaxHealth
+            || TotalExperience < 0
             || !IsValidStats(RewardStats)
             || ManaCharges < 0
             || ManaCharges > MaxManaCharges
@@ -284,6 +294,13 @@ public sealed class SaveSnapshot
             || !IsValidSkillLoadout(UnlockedSupportIds, SupportIdBySkillSlot)
             || PassiveAllocatedIndices.Any(index => index < 0)
             || PassiveAllocatedIndices.Distinct().Count() != PassiveAllocatedIndices.Count
+            || AllocatedPassiveNodeIds.Any(string.IsNullOrWhiteSpace)
+            || AllocatedPassiveNodeIds.Distinct(StringComparer.Ordinal).Count() != AllocatedPassiveNodeIds.Count
+            || AllocatedPassiveNodeIds.Count > 0
+                && !PassiveTreeLibrary.TryValidateStableAllocation(
+                    AllocatedPassiveNodeIds,
+                    TotalExperience,
+                    out _)
             || AtlasUnlockedMapIds.Any(string.IsNullOrWhiteSpace)
             || AtlasCompletedMapIds.Any(string.IsNullOrWhiteSpace)
             || AtlasUnlockedMapIds.Distinct(StringComparer.Ordinal).Count() != AtlasUnlockedMapIds.Count

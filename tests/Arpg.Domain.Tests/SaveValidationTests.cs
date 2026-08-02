@@ -166,6 +166,30 @@ public sealed class SaveValidationTests
     }
 
     [Fact]
+    public void StablePassiveAllocationRoundTripsOnlyWhenExperienceCoversItsCost()
+    {
+        var state = new MinimalRunState
+        {
+            TotalExperience = 130,
+            AllocatedPassiveNodeIds = ["sharpened-bolt", "rapid-fire"],
+        };
+
+        var snapshot = SaveSnapshot.Capture(state);
+        var restored = snapshot.Restore();
+
+        Assert.Equal(130, restored.TotalExperience);
+        Assert.Equal(["sharpened-bolt", "rapid-fire"], restored.AllocatedPassiveNodeIds);
+
+        var invalid = new SaveSnapshot
+        {
+            TotalExperience = 50,
+            AllocatedPassiveNodeIds = ["sharpened-bolt", "rapid-fire"],
+        };
+        Assert.False(invalid.TryValidate(out var error));
+        Assert.NotEmpty(error);
+    }
+
+    [Fact]
     public void NullSaveCollectionsAreRejectedWithoutThrowing()
     {
         var malformed = new SaveSnapshot

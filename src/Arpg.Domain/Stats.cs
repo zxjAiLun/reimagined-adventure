@@ -13,12 +13,16 @@ public sealed class Stats
     public double MoveSpeedMultiplier { get; init; } = 1.0;
     public double DamageMultiplier { get; init; } = 1.0;
     public double AttackSpeedMultiplier { get; init; } = 1.0;
+    public double CooldownRecoveryMultiplier { get; init; } = 1.0;
     public double PickupRangeMultiplier { get; init; } = 1.0;
     public double ProjectileDamageMultiplier { get; init; } = 1.0;
     public double AreaDamageMultiplier { get; init; } = 1.0;
     public double AreaRadiusMultiplier { get; init; } = 1.0;
     public int Armor { get; init; }
     public int ProjectileCountBonus { get; init; }
+    public int AilmentChanceBonus { get; init; }
+    public double AilmentDurationMultiplier { get; init; } = 1.0;
+    public double DamageOverTimeMultiplier { get; init; } = 1.0;
     public double LifeFlaskEffectMultiplier { get; init; } = 1.0;
     public double ItemQuantityMultiplier { get; init; } = 1.0;
     public double IncomingDamageMultiplier { get; init; } = 1.0;
@@ -51,6 +55,7 @@ public sealed class Stats
         ValidateMultiplier(nameof(MoveSpeedMultiplier), MoveSpeedMultiplier);
         ValidateMultiplier(nameof(DamageMultiplier), DamageMultiplier);
         ValidateMultiplier(nameof(AttackSpeedMultiplier), AttackSpeedMultiplier);
+        ValidateMultiplier(nameof(CooldownRecoveryMultiplier), CooldownRecoveryMultiplier);
         ValidateMultiplier(nameof(PickupRangeMultiplier), PickupRangeMultiplier);
         ValidateMultiplier(nameof(ProjectileDamageMultiplier), ProjectileDamageMultiplier);
         ValidateMultiplier(nameof(AreaDamageMultiplier), AreaDamageMultiplier);
@@ -58,6 +63,13 @@ public sealed class Stats
         ValidateMultiplier(nameof(LifeFlaskEffectMultiplier), LifeFlaskEffectMultiplier);
         ValidateMultiplier(nameof(ItemQuantityMultiplier), ItemQuantityMultiplier);
         ValidateMultiplier(nameof(IncomingDamageMultiplier), IncomingDamageMultiplier);
+        if (AilmentChanceBonus < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(AilmentChanceBonus), "Ailment chance bonus cannot be negative.");
+        }
+
+        ValidateMultiplier(nameof(AilmentDurationMultiplier), AilmentDurationMultiplier);
+        ValidateMultiplier(nameof(DamageOverTimeMultiplier), DamageOverTimeMultiplier);
         ValidateMultiplier(nameof(PhysicalDamageMultiplier), PhysicalDamageMultiplier);
         ValidateMultiplier(nameof(FireDamageMultiplier), FireDamageMultiplier);
         ValidateMultiplier(nameof(ColdDamageMultiplier), ColdDamageMultiplier);
@@ -78,12 +90,16 @@ public sealed class Stats
             MoveSpeedMultiplier = baseStats.MoveSpeedMultiplier * bonus.MoveSpeedMultiplier,
             DamageMultiplier = baseStats.DamageMultiplier * bonus.DamageMultiplier,
             AttackSpeedMultiplier = baseStats.AttackSpeedMultiplier * bonus.AttackSpeedMultiplier,
+            CooldownRecoveryMultiplier = baseStats.CooldownRecoveryMultiplier * bonus.CooldownRecoveryMultiplier,
             PickupRangeMultiplier = baseStats.PickupRangeMultiplier * bonus.PickupRangeMultiplier,
             ProjectileDamageMultiplier = baseStats.ProjectileDamageMultiplier * bonus.ProjectileDamageMultiplier,
             AreaDamageMultiplier = baseStats.AreaDamageMultiplier * bonus.AreaDamageMultiplier,
             AreaRadiusMultiplier = baseStats.AreaRadiusMultiplier * bonus.AreaRadiusMultiplier,
             Armor = baseStats.Armor + bonus.Armor,
             ProjectileCountBonus = baseStats.ProjectileCountBonus + bonus.ProjectileCountBonus,
+            AilmentChanceBonus = baseStats.AilmentChanceBonus + bonus.AilmentChanceBonus,
+            AilmentDurationMultiplier = baseStats.AilmentDurationMultiplier * bonus.AilmentDurationMultiplier,
+            DamageOverTimeMultiplier = baseStats.DamageOverTimeMultiplier * bonus.DamageOverTimeMultiplier,
             LifeFlaskEffectMultiplier = baseStats.LifeFlaskEffectMultiplier * bonus.LifeFlaskEffectMultiplier,
             ItemQuantityMultiplier = baseStats.ItemQuantityMultiplier * bonus.ItemQuantityMultiplier,
             IncomingDamageMultiplier = baseStats.IncomingDamageMultiplier * bonus.IncomingDamageMultiplier,
@@ -106,12 +122,16 @@ public sealed class Stats
             && MoveSpeedMultiplier == other.MoveSpeedMultiplier
             && DamageMultiplier == other.DamageMultiplier
             && AttackSpeedMultiplier == other.AttackSpeedMultiplier
+            && CooldownRecoveryMultiplier == other.CooldownRecoveryMultiplier
             && PickupRangeMultiplier == other.PickupRangeMultiplier
             && ProjectileDamageMultiplier == other.ProjectileDamageMultiplier
             && AreaDamageMultiplier == other.AreaDamageMultiplier
             && AreaRadiusMultiplier == other.AreaRadiusMultiplier
             && Armor == other.Armor
             && ProjectileCountBonus == other.ProjectileCountBonus
+            && AilmentChanceBonus == other.AilmentChanceBonus
+            && AilmentDurationMultiplier == other.AilmentDurationMultiplier
+            && DamageOverTimeMultiplier == other.DamageOverTimeMultiplier
             && LifeFlaskEffectMultiplier == other.LifeFlaskEffectMultiplier
             && ItemQuantityMultiplier == other.ItemQuantityMultiplier
             && IncomingDamageMultiplier == other.IncomingDamageMultiplier
