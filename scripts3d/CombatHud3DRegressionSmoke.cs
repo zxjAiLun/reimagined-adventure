@@ -103,7 +103,7 @@ public partial class CombatHud3DRegressionSmoke : Node
                 return;
 
             case 2:
-                if (hud.PlayerMaxHealth != 110
+                if (hud.PlayerMaxHealth != 115
                     || hud.PlayerMaxHealth != player.MaxHealth
                     || hud.EquippedWeaponText == "none"
                     || hud.SpreadShotDamage == _baselineSpreadDamage)
@@ -246,16 +246,26 @@ public partial class CombatHud3DRegressionSmoke : Node
             throw new InvalidOperationException("brimstone_brand test base is missing");
         }
 
+        var maxHpAffixDefinition = AffixLibrary.Find("stalwart_t1")
+            ?? throw new InvalidOperationException("stalwart_t1 test affix is missing");
+        var projectileAffixDefinition = AffixLibrary.Find("hunt_t1")
+            ?? throw new InvalidOperationException("hunt_t1 test affix is missing");
+        var maxHpAffix = maxHpAffixDefinition.Roll();
+        var projectileAffix = projectileAffixDefinition.Roll();
+
         var item = new Item
         {
             Id = "combat_hud_vitality_weapon",
-            Name = "Combat HUD Vitality Blade",
+            Name = $"{maxHpAffix.Name} {baseDefinition.Name} {projectileAffix.Name}",
             BaseId = baseDefinition.Id,
             Slot = baseDefinition.Slot,
-            Rarity = Rarity.Unique,
+            ItemLevel = 1,
+            Rarity = Rarity.Rare,
             RequiredLevel = baseDefinition.RequiredLevel,
-            Stats = Stats.Combine(baseDefinition.ImplicitStats, baseDefinition.UniqueStats),
-            Affixes = Array.Empty<Affix>(),
+            Stats = Stats.Combine(
+                Stats.Combine(baseDefinition.ImplicitStats, maxHpAffix.Stats),
+                projectileAffix.Stats),
+            Affixes = [maxHpAffix, projectileAffix],
         };
         item.Validate();
         return item;
