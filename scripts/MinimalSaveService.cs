@@ -104,6 +104,16 @@ public sealed class MinimalSaveService
             error = $"invalid save data: {exception.Message}";
             return false;
         }
+        catch (InvalidOperationException exception)
+        {
+            error = $"invalid save data: {exception.Message}";
+            return false;
+        }
+        catch (NullReferenceException exception)
+        {
+            error = $"invalid save data: {exception.Message}";
+            return false;
+        }
     }
 
     public void Delete()
@@ -187,6 +197,12 @@ public sealed class MinimalSaveService
         public string EquippedWeaponId { get; set; }
         public List<Item> InventoryItems { get; set; } = new();
         public Item EquippedWeapon { get; set; }
+        public Dictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; set; } = new();
+        public int ForgeFragments { get; set; }
+        public List<Item> StashItems { get; set; } = new();
+        public MapCompletePhase MapCompletePhase { get; set; } = MapCompletePhase.RewardChoice;
+        public List<string> UnlockedSupportIds { get; set; } = SkillLoadout.DefaultUnlockedSupportIds.ToList();
+        public Dictionary<SkillSlot, string> SupportIdBySkillSlot { get; set; } = new();
         public List<int> PassiveAllocatedIndices { get; set; } = new();
         public List<string> AtlasUnlockedMapIds { get; set; } = new();
         public List<string> AtlasCompletedMapIds { get; set; } = new();
@@ -220,6 +236,12 @@ public sealed class MinimalSaveService
                 EquippedWeaponId = snapshot.EquippedWeaponId,
                 InventoryItems = snapshot.InventoryItems.ToList(),
                 EquippedWeapon = snapshot.EquippedWeapon,
+                EquippedItemsBySlot = snapshot.EquippedItemsBySlot.ToDictionary(pair => pair.Key, pair => pair.Value),
+                ForgeFragments = snapshot.ForgeFragments,
+                StashItems = snapshot.StashItems.ToList(),
+                MapCompletePhase = snapshot.MapCompletePhase,
+                UnlockedSupportIds = snapshot.UnlockedSupportIds.ToList(),
+                SupportIdBySkillSlot = snapshot.SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value),
                 PassiveAllocatedIndices = snapshot.PassiveAllocatedIndices.ToList(),
                 AtlasUnlockedMapIds = snapshot.AtlasUnlockedMapIds.ToList(),
                 AtlasCompletedMapIds = snapshot.AtlasCompletedMapIds.ToList(),
@@ -235,6 +257,12 @@ public sealed class MinimalSaveService
 
         public SaveSnapshot ToSnapshot()
         {
+            var resolvedPhase = SaveSnapshot.ResolveMapCompletePhase(
+                State,
+                MapRewardChosen,
+                NextMapOptionChosen,
+                PendingAtlasMapId,
+                MapCompletePhase);
             return new SaveSnapshot
             {
                 Magic = Magic,
@@ -248,17 +276,23 @@ public sealed class MinimalSaveService
                 EventRandomState = EventRandomState,
                 PlayerMaxHealth = PlayerMaxHealth,
                 PlayerCurrentHealth = PlayerCurrentHealth,
-                RewardStats = RewardStats ?? Stats.Neutral,
+                RewardStats = RewardStats,
                 ManaCharges = ManaCharges,
                 InventoryCount = InventoryCount,
-                InventoryItemIds = InventoryItemIds ?? new List<string>(),
+                InventoryItemIds = InventoryItemIds,
                 EquippedWeaponId = EquippedWeaponId,
-                InventoryItems = InventoryItems ?? new List<Item>(),
+                InventoryItems = InventoryItems,
                 EquippedWeapon = EquippedWeapon,
-                PassiveAllocatedIndices = PassiveAllocatedIndices ?? new List<int>(),
-                AtlasUnlockedMapIds = AtlasUnlockedMapIds ?? new List<string>(),
-                AtlasCompletedMapIds = AtlasCompletedMapIds ?? new List<string>(),
-                CurrentAtlasMapId = string.IsNullOrWhiteSpace(CurrentAtlasMapId) ? "quiet-coast" : CurrentAtlasMapId,
+                EquippedItemsBySlot = EquippedItemsBySlot,
+                ForgeFragments = ForgeFragments,
+                StashItems = StashItems,
+                MapCompletePhase = resolvedPhase,
+                UnlockedSupportIds = UnlockedSupportIds,
+                SupportIdBySkillSlot = SupportIdBySkillSlot,
+                PassiveAllocatedIndices = PassiveAllocatedIndices,
+                AtlasUnlockedMapIds = AtlasUnlockedMapIds,
+                AtlasCompletedMapIds = AtlasCompletedMapIds,
+                CurrentAtlasMapId = CurrentAtlasMapId,
                 PendingAtlasMapId = PendingAtlasMapId,
                 RouteSelectionCount = RouteSelectionCount,
                 SelectedNextMapOption = SelectedNextMapOption,

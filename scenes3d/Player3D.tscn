@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/PlayerController3D.cs" id="1_player"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
@@ -12,6 +12,8 @@
 [ext_resource type="Script" path="res://scripts3d/DamageFeedbackSource3D.cs" id="10_damage_source"]
 [ext_resource type="Script" path="res://scripts3d/HitFlash3D.cs" id="11_hit_flash"]
 [ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="12_death_feedback"]
+[ext_resource type="Script" path="res://scripts3d/PlayerBuildController3D.cs" id="13_build"]
+[ext_resource type="PackedScene" path="res://scenes3d/InventoryScreen3D.tscn" id="14_inventory_screen"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.55
@@ -77,3 +79,8 @@ script = ExtResource("7_aim")
 script = ExtResource("8_skills")
 AreaEffectScene = ExtResource("5_area")
 SkillBarResource = ExtResource("9_skill_bar")
+
+[node name="PlayerBuildController3D" type="Node" parent="."]
+script = ExtResource("13_build")
+
+[node name="InventoryScreen3D" parent="." instance=ExtResource("14_inventory_screen")]

@@ -11,3 +11,4 @@ RewardDescription = "Drops gain +1 item level"
 MonsterDamageBonus = 2
 BossDamageMultiplier = 1.15
 ItemLevelBonus = 1
+ItemRarityMultiplier = 1.75

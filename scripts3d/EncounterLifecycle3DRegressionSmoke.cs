@@ -113,7 +113,8 @@ public partial class EncounterLifecycle3DRegressionSmoke : Node
                 return;
             }
 
-            if (!_run.LoadNextMap())
+            var build = _firstArena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+            if (build == null || !build.TryCompleteBuildForTest() || !_run.LoadNextMap())
             {
                 Fail("next-map transition was rejected");
                 return;

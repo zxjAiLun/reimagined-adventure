@@ -28,6 +28,14 @@ public sealed class MinimalRunState
     public string? EquippedWeaponId { get; init; }
     public IReadOnlyList<Item> InventoryItems { get; init; } = Array.Empty<Item>();
     public Item? EquippedWeapon { get; init; }
+    public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; init; } =
+        new Dictionary<EquipmentSlot, Item>();
+    public int ForgeFragments { get; init; }
+    public IReadOnlyList<Item> StashItems { get; init; } = Array.Empty<Item>();
+    public MapCompletePhase MapCompletePhase { get; init; } = MapCompletePhase.RewardChoice;
+    public IReadOnlyList<string> UnlockedSupportIds { get; init; } = SkillLoadout.DefaultUnlockedSupportIds;
+    public IReadOnlyDictionary<SkillSlot, string> SupportIdBySkillSlot { get; init; } =
+        new Dictionary<SkillSlot, string>();
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
@@ -49,7 +57,7 @@ public sealed class SaveSnapshot
     public const uint ExpectedMagic = 0x4D415247U;
     public const int CurrentVersion = 1;
     public const int MaxManaCharges = 3;
-    public const int MaxInventoryCount = 8;
+    public const int MaxInventoryCount = 16;
 
     public uint Magic { get; init; } = ExpectedMagic;
     public int Version { get; init; } = CurrentVersion;
@@ -69,6 +77,14 @@ public sealed class SaveSnapshot
     public string? EquippedWeaponId { get; init; }
     public IReadOnlyList<Item> InventoryItems { get; init; } = Array.Empty<Item>();
     public Item? EquippedWeapon { get; init; }
+    public IReadOnlyDictionary<EquipmentSlot, Item> EquippedItemsBySlot { get; init; } =
+        new Dictionary<EquipmentSlot, Item>();
+    public int ForgeFragments { get; init; }
+    public IReadOnlyList<Item> StashItems { get; init; } = Array.Empty<Item>();
+    public MapCompletePhase MapCompletePhase { get; init; } = MapCompletePhase.RewardChoice;
+    public IReadOnlyList<string> UnlockedSupportIds { get; init; } = SkillLoadout.DefaultUnlockedSupportIds;
+    public IReadOnlyDictionary<SkillSlot, string> SupportIdBySkillSlot { get; init; } =
+        new Dictionary<SkillSlot, string>();
     public IReadOnlyList<int> PassiveAllocatedIndices { get; init; } = Array.Empty<int>();
     public IReadOnlyList<string> AtlasUnlockedMapIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> AtlasCompletedMapIds { get; init; } = Array.Empty<string>();
@@ -87,8 +103,21 @@ public sealed class SaveSnapshot
         var itemIds = inventoryItems.Length > 0
             ? inventoryItems.Select(item => item.Id).ToArray()
             : state.InventoryItemIds?.ToArray() ?? Array.Empty<string>();
-        var equippedWeapon = state.EquippedWeapon;
+        var equippedItems = state.EquippedItemsBySlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
+            ?? new Dictionary<EquipmentSlot, Item>();
+        if (state.EquippedWeapon != null && !equippedItems.ContainsKey(EquipmentSlot.Weapon))
+        {
+            equippedItems[EquipmentSlot.Weapon] = state.EquippedWeapon;
+        }
+
+        var equippedWeapon = equippedItems.GetValueOrDefault(EquipmentSlot.Weapon);
         var equippedWeaponId = equippedWeapon?.Id ?? state.EquippedWeaponId;
+        var mapCompletePhase = ResolveMapCompletePhase(
+            state.State,
+            state.MapRewardChosen,
+            state.NextMapOptionChosen,
+            state.PendingAtlasMapId,
+            state.MapCompletePhase);
         var snapshot = new SaveSnapshot
         {
             State = state.State,
@@ -107,6 +136,13 @@ public sealed class SaveSnapshot
             EquippedWeaponId = equippedWeaponId,
             InventoryItems = inventoryItems,
             EquippedWeapon = equippedWeapon,
+            EquippedItemsBySlot = equippedItems,
+            ForgeFragments = state.ForgeFragments,
+            StashItems = state.StashItems?.ToArray() ?? Array.Empty<Item>(),
+            MapCompletePhase = mapCompletePhase,
+            UnlockedSupportIds = state.UnlockedSupportIds?.ToArray() ?? SkillLoadout.DefaultUnlockedSupportIds.ToArray(),
+            SupportIdBySkillSlot = state.SupportIdBySkillSlot?.ToDictionary(pair => pair.Key, pair => pair.Value)
+                ?? new Dictionary<SkillSlot, string>(),
             PassiveAllocatedIndices = state.PassiveAllocatedIndices?.ToArray() ?? Array.Empty<int>(),
             AtlasUnlockedMapIds = state.AtlasUnlockedMapIds?.ToArray() ?? Array.Empty<string>(),
             AtlasCompletedMapIds = state.AtlasCompletedMapIds?.ToArray() ?? Array.Empty<string>(),
@@ -142,6 +178,12 @@ public sealed class SaveSnapshot
             EquippedWeaponId = EquippedWeaponId,
             InventoryItems = InventoryItems.ToArray(),
             EquippedWeapon = EquippedWeapon,
+            EquippedItemsBySlot = EquippedItemsBySlot.ToDictionary(pair => pair.Key, pair => pair.Value),
+            ForgeFragments = ForgeFragments,
+            StashItems = StashItems.ToArray(),
+            MapCompletePhase = MapCompletePhase,
+            UnlockedSupportIds = UnlockedSupportIds.ToArray(),
+            SupportIdBySkillSlot = SupportIdBySkillSlot.ToDictionary(pair => pair.Key, pair => pair.Value),
             PassiveAllocatedIndices = PassiveAllocatedIndices.ToArray(),
             AtlasUnlockedMapIds = AtlasUnlockedMapIds.ToArray(),
             AtlasCompletedMapIds = AtlasCompletedMapIds.ToArray(),
@@ -157,6 +199,21 @@ public sealed class SaveSnapshot
 
     public bool TryValidate(out string error)
     {
+        if (RewardStats == null
+            || InventoryItemIds == null
+            || InventoryItems == null
+            || EquippedItemsBySlot == null
+            || StashItems == null
+            || UnlockedSupportIds == null
+            || SupportIdBySkillSlot == null
+            || PassiveAllocatedIndices == null
+            || AtlasUnlockedMapIds == null
+            || AtlasCompletedMapIds == null)
+        {
+            error = "save collections cannot be null";
+            return false;
+        }
+
         if (Magic != ExpectedMagic)
         {
             error = "invalid save magic";
@@ -178,18 +235,24 @@ public sealed class SaveSnapshot
         if (PlayerMaxHealth < 1
             || PlayerCurrentHealth < 0
             || PlayerCurrentHealth > PlayerMaxHealth
-            || RewardStats == null
             || !IsValidStats(RewardStats)
             || ManaCharges < 0
             || ManaCharges > MaxManaCharges
+            || ForgeFragments < 0
+            || !Enum.IsDefined(MapCompletePhase)
+            || MapCompletePhase != MapCompletePhase.RewardChoice
+                && (State != SaveRunState.MapComplete || !MapRewardChosen)
+            || StashItems.Count > 24
+            || StashItems.Any(item => item == null || !IsValidItem(item))
+            || StashItems.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != StashItems.Count
+            || StashItems.Any(item => InventoryItemIds.Contains(item.Id, StringComparer.Ordinal)
+                || EquippedItemsBySlot.Values.Any(equipped => equipped.Id == item.Id))
             || InventoryCount < 0
             || InventoryCount > MaxInventoryCount
-            || InventoryItemIds == null
             || InventoryItemIds.Count != InventoryCount
             || InventoryItemIds.Any(string.IsNullOrWhiteSpace)
             || InventoryItemIds.Distinct(StringComparer.Ordinal).Count() != InventoryItemIds.Count
             || EquippedWeaponId != null && string.IsNullOrWhiteSpace(EquippedWeaponId)
-            || InventoryItems == null
             || InventoryItems.Count > MaxInventoryCount
             || InventoryItems.Any(item => item == null)
             || InventoryItems.Any(item => !IsValidItem(item))
@@ -199,11 +262,18 @@ public sealed class SaveSnapshot
             || EquippedWeapon != null
                 && (!IsValidItem(EquippedWeapon)
                     || EquippedWeaponId != EquippedWeapon.Id)
-            || PassiveAllocatedIndices == null
+            || EquippedItemsBySlot.Any(pair => !Enum.IsDefined(pair.Key)
+                || pair.Value == null
+                || pair.Key != pair.Value.Slot
+                || !IsValidItem(pair.Value))
+            || EquippedItemsBySlot.Values.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count()
+                != EquippedItemsBySlot.Count
+            || EquippedItemsBySlot.TryGetValue(EquipmentSlot.Weapon, out var mappedWeapon)
+                && (EquippedWeapon == null || mappedWeapon.Id != EquippedWeapon.Id)
+            || EquippedItemsBySlot.Values.Any(item => InventoryItemIds.Contains(item.Id, StringComparer.Ordinal))
+            || !IsValidSkillLoadout(UnlockedSupportIds, SupportIdBySkillSlot)
             || PassiveAllocatedIndices.Any(index => index < 0)
             || PassiveAllocatedIndices.Distinct().Count() != PassiveAllocatedIndices.Count
-            || AtlasUnlockedMapIds == null
-            || AtlasCompletedMapIds == null
             || AtlasUnlockedMapIds.Any(string.IsNullOrWhiteSpace)
             || AtlasCompletedMapIds.Any(string.IsNullOrWhiteSpace)
             || AtlasUnlockedMapIds.Distinct(StringComparer.Ordinal).Count() != AtlasUnlockedMapIds.Count
@@ -247,6 +317,25 @@ public sealed class SaveSnapshot
 
     private static bool ValidOption(int value) => value >= -1 && value < 3;
 
+    public static MapCompletePhase ResolveMapCompletePhase(
+        SaveRunState state,
+        bool mapRewardChosen,
+        bool nextMapOptionChosen,
+        string? pendingAtlasMapId,
+        MapCompletePhase phase)
+    {
+        if (state != SaveRunState.MapComplete
+            || !mapRewardChosen
+            || phase != MapCompletePhase.RewardChoice)
+        {
+            return phase;
+        }
+
+        return nextMapOptionChosen || !string.IsNullOrWhiteSpace(pendingAtlasMapId)
+            ? MapCompletePhase.RouteChoice
+            : MapCompletePhase.BuildManagement;
+    }
+
     private static bool IsValidItem(Item item)
     {
         try
@@ -265,6 +354,38 @@ public sealed class SaveSnapshot
         try
         {
             stats.Validate();
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidSkillLoadout(
+        IReadOnlyList<string> unlockedSupportIds,
+        IReadOnlyDictionary<SkillSlot, string> supportIdBySkillSlot)
+    {
+        if (unlockedSupportIds == null
+            || supportIdBySkillSlot == null
+            || unlockedSupportIds.Any(string.IsNullOrWhiteSpace)
+            || unlockedSupportIds.Distinct(StringComparer.Ordinal).Count() != unlockedSupportIds.Count
+            || unlockedSupportIds.Any(supportId => SupportLibrary.Find(supportId) == null))
+        {
+            return false;
+        }
+
+        try
+        {
+            var loadout = new SkillLoadout(SkillLibrary.DefaultBar(), unlockedSupportIds);
+            foreach (var pair in supportIdBySkillSlot)
+            {
+                if (!Enum.IsDefined(pair.Key) || !loadout.TryAttach(pair.Key, pair.Value))
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
         catch (ArgumentException)

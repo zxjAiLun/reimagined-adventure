@@ -152,7 +152,11 @@ public partial class EncounterPlanRuntime3DRegressionSmoke : Node
 
         var oldArena = _arena;
         var reward = _arena.GetNodeOrNull<MapRewardNode3D>("MapRewards3D");
-        if (reward == null || !reward.TryChooseReward(0))
+        var build = _arena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+        if (reward == null
+            || build == null
+            || !reward.TryChooseReward(0)
+            || !build.TryCompleteBuildForTest())
         {
             Fail("Map 1 reward could not be selected");
             return;

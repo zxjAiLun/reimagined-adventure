@@ -11,6 +11,10 @@ public sealed class Equipment
         return _equipped.GetValueOrDefault(slot);
     }
 
+    public bool ContainsItemId(string? itemId) =>
+        !string.IsNullOrWhiteSpace(itemId)
+        && _equipped.Values.Any(item => item.Id == itemId);
+
     public bool CanEquip(Item item, int playerLevel = 1)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -49,6 +53,16 @@ public sealed class Equipment
         _equipped.TryGetValue(item.Slot, out var replaced);
         _equipped[item.Slot] = item;
         return replaced;
+    }
+
+    public Item? Unequip(EquipmentSlot slot)
+    {
+        if (!_equipped.Remove(slot, out var item))
+        {
+            return null;
+        }
+
+        return item;
     }
 
     public Stats CombinedStats()

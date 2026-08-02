@@ -32,6 +32,12 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     [Export] public PackedScene TelegraphScene { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
 
+    /// <summary>
+    /// Compatibility hook for the deterministic scaling smoke. Production
+    /// deaths use LootDropProfiles.Spitter below.
+    /// </summary>
+    public bool ForceGuaranteedDropForTest { get; set; }
+
     public CombatFaction Faction => CombatFaction.Enemy;
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
     public int MaxHealth => _health?.MaxHealth ?? 0;
@@ -442,10 +448,33 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
             return;
         }
 
-        var drop = ItemDropScene.Instantiate<ItemDrop3D>();
+        if (ForceGuaranteedDropForTest)
+        {
+            SpawnDropItem(_runSession.GenerateWeaponDrop(AppliedDropItemLevel));
+            return;
+        }
+
+        var result = _runSession.GenerateDrops(
+            new ItemRollContext(AppliedDropItemLevel, LootSourceKind.Spitter),
+            LootDropProfiles.Spitter);
+        _runSession.TryAwardForgeFragments(result.ForgeFragments);
+        foreach (var item in result.Items)
+        {
+            SpawnDropItem(item);
+        }
+    }
+
+    private void SpawnDropItem(Item item)
+    {
+        var drop = ItemDropScene?.Instantiate<ItemDrop3D>();
+        if (drop == null || GetParent() == null)
+        {
+            return;
+        }
+
         GetParent().AddChild(drop);
         drop.GlobalPosition = GlobalPosition;
-        drop.Configure(_runSession.GenerateWeaponDrop(AppliedDropItemLevel));
+        drop.Configure(item);
     }
 
     private void RefreshVisuals()

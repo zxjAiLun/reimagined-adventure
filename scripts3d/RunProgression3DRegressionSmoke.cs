@@ -167,6 +167,13 @@ public partial class RunProgression3DRegressionSmoke : Node
         }
 
         _rewardAChosen = true;
+        var build = _arena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+        if (build == null || !build.TryCompleteBuildForTest())
+        {
+            Fail("Map 1 build intermission could not complete");
+            return;
+        }
+
         if (_player.RewardStats.DamageMultiplier != 1.20)
         {
             Fail($"Map 1 Reward A was not applied exactly once damage={_player.RewardStats.DamageMultiplier}");
@@ -281,6 +288,13 @@ public partial class RunProgression3DRegressionSmoke : Node
         }
 
         _rewardBChosen = true;
+        var build = _arena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+        if (build == null || !build.TryCompleteBuildForTest())
+        {
+            Fail("Map 2 build intermission could not complete");
+            return;
+        }
+
         _expectedReward = _player.RewardStats;
         _expectedHealthAfterSave = _player.CurrentHealth;
         _expectedLootState = _run.Session.LootRandom.State;

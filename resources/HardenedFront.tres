@@ -11,3 +11,4 @@ RewardDescription = "Drops gain +1 item level"
 MonsterHpMultiplier = 1.25
 BossHpMultiplier = 1.15
 ItemLevelBonus = 1
+ItemQuantityMultiplier = 1.25

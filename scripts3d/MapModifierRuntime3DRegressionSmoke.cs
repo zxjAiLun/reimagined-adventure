@@ -391,6 +391,18 @@ public partial class MapModifierRuntime3DRegressionSmoke : Node
         {
             context.Validate();
             enemy.ConfigureBeforeReady(context);
+            switch (enemy)
+            {
+                case FeralController3D feral:
+                    feral.ForceGuaranteedDropForTest = true;
+                    break;
+                case SpitterController3D spitter:
+                    spitter.ForceGuaranteedDropForTest = true;
+                    break;
+                case BrimstoneColossusController3D boss:
+                    boss.ForceGuaranteedDropForTest = true;
+                    break;
+            }
             _enemyContainer.AddChild(enemy);
             enemy.GlobalPosition = position;
             return enemy;

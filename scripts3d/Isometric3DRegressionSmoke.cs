@@ -32,6 +32,7 @@ public partial class Isometric3DRegressionSmoke : Node
     {
         _player = GetNode<PlayerController3D>("Arena3D/Player3D");
         _feral = GetNode<FeralController3D>("Arena3D/Feral3D");
+        _feral.ForceGuaranteedDropForTest = true;
         _targeting = _player.GetNode<MouseGroundTargeting3D>("MouseGroundTargeting3D");
         _aim = _player.GetNode<PlayerAim3D>("PlayerAim3D");
         _skills = _player.GetNode<PlayerSkillController3D>("PlayerSkillController3D");

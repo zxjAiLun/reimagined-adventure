@@ -173,7 +173,10 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
             return;
         }
 
+        var firstBuild = _firstArena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
         if (!_rewards.TryChooseReward(0)
+            || firstBuild == null
+            || !firstBuild.TryCompleteBuildForTest()
             || !_route.ChoiceActive
             || _route.OptionCount != 2
             || _route.TryConfirm())
@@ -274,7 +277,10 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
             return;
         }
 
-        if (!_rewards.HasChosen && !_rewards.TryChooseReward(0))
+        var secondBuild = _secondArena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+        if ((!_rewards.HasChosen && !_rewards.TryChooseReward(0))
+            || secondBuild == null
+            || !secondBuild.TryCompleteBuildForTest())
         {
             Fail("Map 2 reward could not be selected");
             return;
@@ -372,7 +378,10 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
             return;
         }
 
-        if (!_rewards.HasChosen && !_rewards.TryChooseReward(0))
+        var thirdBuild = _thirdArena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+        if ((!_rewards.HasChosen && !_rewards.TryChooseReward(0))
+            || thirdBuild == null
+            || !thirdBuild.TryCompleteBuildForTest())
         {
             Fail("Map 3 reward could not be selected");
             return;
@@ -723,7 +732,10 @@ public partial class AtlasRouteChoice3DRegressionSmoke
             return;
         }
 
-        if (!_rewards.TryChooseReward(0))
+        var build = _firstArena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+        if (!_rewards.TryChooseReward(0)
+            || build == null
+            || !build.TryCompleteBuildForTest())
         {
             Fail("reward selection failed after recovery");
             return;

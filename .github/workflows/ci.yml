@@ -74,6 +74,9 @@ jobs:
             "res://scenes3d/GameOver3DRegressionSmoke.tscn",
             "res://scenes3d/GreyboxStress3DRegressionSmoke.tscn",
             "res://scenes3d/SaveRecovery3DRegressionSmoke.tscn",
+            "res://scenes3d/InventoryEquipment3DRegressionSmoke.tscn",
+            "res://scenes3d/LootEconomy3DRegressionSmoke.tscn",
+            "res://scenes3d/SkillLoadout3DRegressionSmoke.tscn",
             "res://scenes3d/CombatHud3DRegressionSmoke.tscn",
             "res://scenes3d/CombatTelegraphs3DRegressionSmoke.tscn",
             "res://scenes3d/CombatHitFeedback3DRegressionSmoke.tscn",
@@ -92,7 +95,11 @@ jobs:
             "res://scenes3d/EncounterSelection3DRegressionSmoke.tscn",
             "res://scenes3d/EncounterPlanRuntime3DRegressionSmoke.tscn",
             "res://scenes3d/AtlasRouteChoice3DRegressionSmoke.tscn",
-            "res://scenes3d/AtlasRouteSaveRecovery3DRegressionSmoke.tscn"
+            "res://scenes3d/AtlasRouteSaveRecovery3DRegressionSmoke.tscn",
+            "res://scenes3d/BuildIntermission3DRegressionSmoke.tscn",
+            "res://scenes3d/BuildcraftSaveRecovery3DRegressionSmoke.tscn",
+            "res://scenes3d/MalformedSave3DRegressionSmoke.tscn",
+            "res://scenes3d/MapScope3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"

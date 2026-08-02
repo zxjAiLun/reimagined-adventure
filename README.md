@@ -120,6 +120,12 @@ and key regression smokes remain part of CI.
 | Space | Dash |
 | F | Pick up the nearest drop |
 | E | Equip the newest weapon |
+| I | Open/close the build inventory during Map Complete |
+| X | Unequip the first occupied slot during Build Management |
+| T | Move the selected item between Inventory and Stash |
+| C | Reforge the selected item |
+| O / P | Attach / detach the Primary Volley support |
+| B | Complete Build Management and open route choice |
 | R | Restart after Game Over / Map Complete |
 
 The fixed arena contains a deterministic map modifier, a Loot Cache, Feral,
@@ -185,7 +191,13 @@ GameOver completion guards, Map 1 → Map 2 → Map 3 → Map 4 route progressio
 Tier 3 eligibility filtering, route-driven map planning, and old-map release;
 `AtlasRouteSaveRecovery3DRegressionSmoke.tscn` verifies Playing, MapComplete
 before/after reward, pending-route, and next-map save boundaries without
-rerolling Atlas state or run RNG. CI runs 32 smoke scenes in total.
+rerolling Atlas state or run RNG.
+`BuildIntermission3DRegressionSmoke.tscn` drives the formal build input path
+for equip/unequip, bidirectional stash transfer, reforge, support changes, UI
+labels, and build completion; `MalformedSave3DRegressionSmoke.tscn` verifies
+file-level null-collection and malformed-JSON rejection without live-state
+mutation; `MapScope3DRegressionSmoke.tscn` verifies overlapping-map drop
+ownership and local build-flow access. CI runs 39 smoke scenes in total.
 
 ## Migration boundaries
 

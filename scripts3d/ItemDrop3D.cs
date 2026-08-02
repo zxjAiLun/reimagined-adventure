@@ -5,6 +5,8 @@ using Godot;
 public partial class ItemDrop3D : Node3D
 {
     public Item Item { get; private set; }
+    public TestArena3D OwningMap { get; private set; }
+    public RunSessionNode RunSession { get; private set; }
 
     private Label3D _label;
     private MeshInstance3D _visual;
@@ -13,6 +15,7 @@ public partial class ItemDrop3D : Node3D
 
     public override void _Ready()
     {
+        ResolveMapScope();
         AddToGroup("item_drops_3d");
         _label = GetNodeOrNull<Label3D>("Label");
         _visual = GetNodeOrNull<MeshInstance3D>("Visual");
@@ -24,13 +27,17 @@ public partial class ItemDrop3D : Node3D
     {
         ArgumentNullException.ThrowIfNull(item);
         item.Validate();
+        ResolveMapScope();
         Item = item;
         RefreshVisuals();
     }
 
     public bool TryCollect(PlayerController3D player)
     {
-        if (Item == null || player == null || !IsInstanceValid(this))
+        if (Item == null
+            || player == null
+            || !IsInstanceValid(this)
+            || !IsOwnedBy(player))
         {
             return false;
         }
@@ -42,6 +49,13 @@ public partial class ItemDrop3D : Node3D
 
         QueueFree();
         return true;
+    }
+
+    public bool IsOwnedBy(PlayerController3D player)
+    {
+        return player != null
+            && OwningMap != null
+            && ReferenceEquals(OwningMap, player.GetOwningMap());
     }
 
     public override void _Process(double delta)
@@ -57,13 +71,28 @@ public partial class ItemDrop3D : Node3D
     {
         if (_label != null)
         {
-            _label.Text = Item?.Name ?? "DROP";
+            _label.Text = Item == null
+                ? "DROP"
+                : $"[{Item.RarityName}] {Item.Name}\n{Item.SlotName} · Item Level {Item.ItemLevel}";
             _label.Modulate = Item?.Rarity switch
             {
                 Rarity.Unique => new Color(1.0f, 0.55f, 0.18f),
                 Rarity.Magic => new Color(0.35f, 0.65f, 1.0f),
                 _ => new Color(0.85f, 0.9f, 0.98f),
             };
+        }
+    }
+
+    private void ResolveMapScope()
+    {
+        for (var current = GetParent(); current != null; current = current.GetParent())
+        {
+            if (current is TestArena3D map)
+            {
+                OwningMap = map;
+                RunSession = MapRuntimeScope3D.FindRunSession(map);
+                return;
+            }
         }
     }
 }
