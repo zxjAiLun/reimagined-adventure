@@ -1,7 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Arpg.Domain;
 using Godot;
+
+public enum BuildPanelMode
+{
+    Inventory,
+    Stash,
+    Supports,
+    Passives,
+}
 
 /// <summary>
 /// Build-facing adapter. Domain inventory/equipment remain authoritative;
@@ -15,23 +24,35 @@ public partial class PlayerBuildController3D : Node
     public PlayerController3D Player { get; private set; }
     public InventoryScreenController3D Screen { get; private set; }
     public bool IsOpen { get; private set; }
+    public BuildPanelMode PanelMode { get; private set; } = BuildPanelMode.Inventory;
     public string SelectedItemId { get; private set; } = string.Empty;
+    public string SelectedPassiveNodeId { get; private set; } = string.Empty;
     public RunCurrencyWallet Currency { get; } = new();
     public SkillLoadout SkillLoadout => Player?.Skills?.Loadout;
+    public RunSessionNode RunSession => _runSession;
+    public IReadOnlyList<PassiveNodeDefinition> PassiveNodes =>
+        _runSession?.PassiveTree.Nodes ?? Array.Empty<PassiveNodeDefinition>();
 
     private bool _previousPaused;
     private bool _exiting;
+    private RunSessionNode _runSession;
 
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
         Player = GetParent<PlayerController3D>();
+        _runSession = MapRuntimeScope3D.FindRunSession(this);
         Screen = GetParent()?.GetNodeOrNull<InventoryScreenController3D>("InventoryScreen3D");
         Player.InventoryChanged += OnPlayerBuildChanged;
         Player.EquipmentChanged += OnPlayerBuildChanged;
         if (Player.Skills != null)
         {
             Player.Skills.SkillLoadoutChanged += OnPlayerBuildChanged;
+        }
+        if (_runSession != null)
+        {
+            _runSession.CharacterProgressionChanged += OnProgressionChanged;
+            _runSession.PassiveAllocationChanged += OnPassiveAllocationChanged;
         }
         SetProcessUnhandledInput(true);
         CallDeferred(nameof(BindScreen));
@@ -48,6 +69,11 @@ public partial class PlayerBuildController3D : Node
             {
                 Player.Skills.SkillLoadoutChanged -= OnPlayerBuildChanged;
             }
+        }
+        if (_runSession != null)
+        {
+            _runSession.CharacterProgressionChanged -= OnProgressionChanged;
+            _runSession.PassiveAllocationChanged -= OnPassiveAllocationChanged;
         }
     }
 
@@ -73,19 +99,43 @@ public partial class PlayerBuildController3D : Node
             return;
         }
 
-        if (@event.IsActionPressed("equip_item", true))
+        if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.V)
+        {
+            TogglePassivePanel();
+            GetViewport().SetInputAsHandled();
+        }
+        else if (PanelMode == BuildPanelMode.Passives
+            && @event is InputEventKey passiveKey
+            && passiveKey.Pressed
+            && !passiveKey.Echo
+            && passiveKey.Keycode == Key.G)
+        {
+            TryAllocateSelectedPassive();
+            GetViewport().SetInputAsHandled();
+        }
+        else if (@event.IsActionPressed("equip_item", true))
         {
             TryEquipSelected();
             GetViewport().SetInputAsHandled();
         }
-        else if (@event is InputEventKey key && key.Pressed && !key.Echo)
+        else if (@event is InputEventKey inputKey && inputKey.Pressed && !inputKey.Echo)
         {
-            if (key.Keycode == Key.Up)
+            if (PanelMode == BuildPanelMode.Passives && inputKey.Keycode == Key.Up)
+            {
+                SelectPassiveRelative(-1);
+                GetViewport().SetInputAsHandled();
+            }
+            else if (PanelMode == BuildPanelMode.Passives && inputKey.Keycode == Key.Down)
+            {
+                SelectPassiveRelative(1);
+                GetViewport().SetInputAsHandled();
+            }
+            else if (inputKey.Keycode == Key.Up)
             {
                 SelectRelative(-1);
                 GetViewport().SetInputAsHandled();
             }
-            else if (key.Keycode == Key.Down)
+            else if (inputKey.Keycode == Key.Down)
             {
                 SelectRelative(1);
                 GetViewport().SetInputAsHandled();
@@ -102,8 +152,10 @@ public partial class PlayerBuildController3D : Node
 
         _previousPaused = GetTree().Paused;
         IsOpen = true;
+        PanelMode = BuildPanelMode.Inventory;
         GetTree().Paused = true;
         EnsureSelection();
+        EnsurePassiveSelection();
         Screen?.ShowBuild(this);
         EmitSignal(SignalName.BuildChanged);
         return true;
@@ -117,6 +169,7 @@ public partial class PlayerBuildController3D : Node
         }
 
         IsOpen = false;
+        PanelMode = BuildPanelMode.Inventory;
         Screen?.HideBuild();
         GetTree().Paused = _previousPaused;
         EmitSignal(SignalName.BuildChanged);
@@ -145,6 +198,39 @@ public partial class PlayerBuildController3D : Node
 
     public bool TryDetachSupport(SkillSlot slot) =>
         Player?.Skills?.TryDetachSupport(slot) == true;
+
+    public void TogglePassivePanel()
+    {
+        if (!IsOpen)
+        {
+            return;
+        }
+
+        PanelMode = PanelMode == BuildPanelMode.Passives
+            ? BuildPanelMode.Inventory
+            : BuildPanelMode.Passives;
+        EnsurePassiveSelection();
+        EmitSignal(SignalName.BuildChanged);
+    }
+
+    public bool TryAllocateSelectedPassive()
+    {
+        if (!IsOpen
+            || PanelMode != BuildPanelMode.Passives
+            || _runSession == null
+            || string.IsNullOrWhiteSpace(SelectedPassiveNodeId))
+        {
+            return false;
+        }
+
+        var allocated = _runSession.TryAllocatePassive(SelectedPassiveNodeId);
+        if (allocated)
+        {
+            EmitSignal(SignalName.BuildChanged);
+        }
+
+        return allocated;
+    }
 
     public string CompareSelectedToSlot()
     {
@@ -180,6 +266,17 @@ public partial class PlayerBuildController3D : Node
         EmitSignal(SignalName.BuildChanged);
     }
 
+    private void OnProgressionChanged(int level, int totalExperience, int unspentPoints)
+    {
+        EmitSignal(SignalName.BuildChanged);
+    }
+
+    private void OnPassiveAllocationChanged(string nodeId)
+    {
+        EnsurePassiveSelection();
+        EmitSignal(SignalName.BuildChanged);
+    }
+
     private void EnsureSelection()
     {
         if (Player?.Items.Count == 0)
@@ -205,6 +302,35 @@ public partial class PlayerBuildController3D : Node
         var next = (current + delta + Player.Items.Count) % Player.Items.Count;
         SelectedItemId = Player.Items[next].Id;
         EmitSignal(SignalName.BuildChanged);
+    }
+
+    private void SelectPassiveRelative(int delta)
+    {
+        if (PassiveNodes.Count == 0)
+        {
+            SelectedPassiveNodeId = string.Empty;
+            return;
+        }
+
+        var current = PassiveNodes.ToList().FindIndex(node => node.Id == SelectedPassiveNodeId);
+        current = Math.Max(0, current);
+        var next = (current + delta + PassiveNodes.Count) % PassiveNodes.Count;
+        SelectedPassiveNodeId = PassiveNodes[next].Id;
+        EmitSignal(SignalName.BuildChanged);
+    }
+
+    private void EnsurePassiveSelection()
+    {
+        if (PassiveNodes.Count == 0)
+        {
+            SelectedPassiveNodeId = string.Empty;
+            return;
+        }
+
+        if (PassiveNodes.All(node => node.Id != SelectedPassiveNodeId))
+        {
+            SelectedPassiveNodeId = PassiveNodes[0].Id;
+        }
     }
 
     private bool CanManageBuild()

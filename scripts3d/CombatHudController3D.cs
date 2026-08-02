@@ -24,6 +24,10 @@ public partial class CombatHudController3D : CanvasLayer
     public int CurrentWaveNumber { get; private set; }
     public int TotalWaveCount { get; private set; }
     public int ActiveEnemyCount { get; private set; }
+    public int CharacterLevel { get; private set; }
+    public int TotalExperience { get; private set; }
+    public int UnspentPassivePoints { get; private set; }
+    public string ProgressionText { get; private set; } = "Lv 1 · XP 0/50 · Passive 0";
     public bool BossPanelVisible { get; private set; }
     public int BossCurrentHealth { get; private set; }
     public int BossMaxHealth { get; private set; }
@@ -46,6 +50,7 @@ public partial class CombatHudController3D : CanvasLayer
     private Label _spreadDamageLabel;
     private Label _mapModifierLabel;
     private Label _encounterLabel;
+    private Label _progressionLabel;
     private Label _skillPrimary;
     private Label _skillSecondary;
     private Label _skillUtility;
@@ -96,6 +101,7 @@ public partial class CombatHudController3D : CanvasLayer
         _spreadDamageLabel = GetNodeOrNull<Label>("PlayerPanel/SpreadDamage");
         _mapModifierLabel = GetNodeOrNull<Label>("PlayerPanel/MapModifier");
         _encounterLabel = GetNodeOrNull<Label>("PlayerPanel/Encounter");
+        _progressionLabel = GetNodeOrNull<Label>("PlayerPanel/Progression");
         _skillPrimary = GetNodeOrNull<Label>("SkillPanel/Primary");
         _skillSecondary = GetNodeOrNull<Label>("SkillPanel/Secondary");
         _skillUtility = GetNodeOrNull<Label>("SkillPanel/Utility");
@@ -172,6 +178,8 @@ public partial class CombatHudController3D : CanvasLayer
         _skills.CooldownsChanged += OnCooldownsChanged;
         _flow.StateChanged += OnFlowStateChanged;
         _runSession.MapLevelChanged += OnMapLevelChanged;
+        _runSession.CharacterProgressionChanged += OnCharacterProgressionChanged;
+        _runSession.PassiveAllocationChanged += OnPassiveAllocationChanged;
         _runSession.MapModifierResolved += OnMapModifierResolved;
         _runSession.EncounterPlanResolved += OnEncounterPlanResolved;
         BindDirectorSignals();
@@ -255,6 +263,8 @@ public partial class CombatHudController3D : CanvasLayer
         if (IsValid(_runSession))
         {
             _runSession.MapLevelChanged -= OnMapLevelChanged;
+            _runSession.CharacterProgressionChanged -= OnCharacterProgressionChanged;
+            _runSession.PassiveAllocationChanged -= OnPassiveAllocationChanged;
             _runSession.MapModifierResolved -= OnMapModifierResolved;
             _runSession.EncounterPlanResolved -= OnEncounterPlanResolved;
         }
@@ -306,6 +316,10 @@ public partial class CombatHudController3D : CanvasLayer
         RefreshEncounter();
     }
 
+    private void OnCharacterProgressionChanged(int level, int totalExperience, int unspentPoints) => RefreshProgression();
+
+    private void OnPassiveAllocationChanged(string nodeId) => RefreshProgression();
+
     private void OnMapModifierResolved(string modifierId, int mapLevel) => RefreshMapModifier();
 
     private void OnEncounterPlanResolved(string encounterId, int encounterTier, int mapLevel)
@@ -332,6 +346,7 @@ public partial class CombatHudController3D : CanvasLayer
         RefreshMapLevel();
         RefreshMapModifier();
         RefreshEncounter();
+        RefreshProgression();
         RefreshFlowState();
     }
 
@@ -454,6 +469,22 @@ public partial class CombatHudController3D : CanvasLayer
         if (IsValid(_encounterLabel))
         {
             _encounterLabel.Text = EncounterText;
+        }
+    }
+
+    private void RefreshProgression()
+    {
+        var progression = _runSession?.CharacterProgression;
+        CharacterLevel = progression?.Level ?? 1;
+        TotalExperience = progression?.TotalExperience ?? 0;
+        UnspentPassivePoints = progression?.UnspentPassivePoints ?? 0;
+        var nextThreshold = CharacterLevel >= CharacterProgressionState.MaximumLevel
+            ? CharacterProgressionState.ExperienceThresholds[^1]
+            : CharacterProgressionState.ExperienceThresholds[CharacterLevel];
+        ProgressionText = $"Lv {CharacterLevel} · XP {TotalExperience}/{nextThreshold} · Passive {UnspentPassivePoints}";
+        if (IsValid(_progressionLabel))
+        {
+            _progressionLabel.Text = ProgressionText;
         }
     }
 

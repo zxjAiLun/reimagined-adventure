@@ -1,0 +1,117 @@
+[gd_resource type="Resource" script_class="PassiveTreeResource" load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/PassiveTreeResource.cs" id="1_tree"]
+[ext_resource type="Script" path="res://scripts/PassiveNodeResource.cs" id="2_node"]
+
+[sub_resource type="Resource" id="Passive_sharpened_bolt"]
+script = ExtResource("2_node")
+NodeId = "sharpened-bolt"
+DisplayName = "Sharpened Bolt"
+Description = "+10% Projectile Damage"
+Branch = 0
+ProjectileDamageMultiplier = 1.1
+
+[sub_resource type="Resource" id="Passive_rapid_fire"]
+script = ExtResource("2_node")
+NodeId = "rapid-fire"
+DisplayName = "Rapid Fire"
+Description = "+8% Attack Speed"
+Branch = 0
+PrerequisiteIds = ["sharpened-bolt"]
+AttackSpeedMultiplier = 1.08
+
+[sub_resource type="Resource" id="Passive_split_focus"]
+script = ExtResource("2_node")
+NodeId = "split-focus"
+DisplayName = "Split Focus"
+Description = "+1 Projectile, -10% Projectile Damage"
+Branch = 0
+PrerequisiteIds = ["rapid-fire"]
+ProjectileCountBonus = 1
+ProjectileDamageMultiplier = 0.9
+
+[sub_resource type="Resource" id="Passive_wide_impact"]
+script = ExtResource("2_node")
+NodeId = "wide-impact"
+DisplayName = "Wide Impact"
+Description = "+12% Area Radius"
+Branch = 1
+AreaRadiusMultiplier = 1.12
+
+[sub_resource type="Resource" id="Passive_resonance"]
+script = ExtResource("2_node")
+NodeId = "resonance"
+DisplayName = "Resonance"
+Description = "+12% Area Damage"
+Branch = 1
+PrerequisiteIds = ["wide-impact"]
+AreaDamageMultiplier = 1.12
+
+[sub_resource type="Resource" id="Passive_quickened_ritual"]
+script = ExtResource("2_node")
+NodeId = "quickened-ritual"
+DisplayName = "Quickened Ritual"
+Description = "+10% Cooldown Recovery"
+Branch = 1
+PrerequisiteIds = ["resonance"]
+CooldownRecoveryMultiplier = 1.1
+
+[sub_resource type="Resource" id="Passive_kindling"]
+script = ExtResource("2_node")
+NodeId = "kindling"
+DisplayName = "Kindling"
+Description = "+12% Fire Damage"
+Branch = 2
+FireDamageMultiplier = 1.12
+
+[sub_resource type="Resource" id="Passive_overcharge"]
+script = ExtResource("2_node")
+NodeId = "overcharge"
+DisplayName = "Overcharge"
+Description = "+12% Lightning Damage"
+Branch = 2
+PrerequisiteIds = ["kindling"]
+LightningDamageMultiplier = 1.12
+
+[sub_resource type="Resource" id="Passive_unstable_elements"]
+script = ExtResource("2_node")
+NodeId = "unstable-elements"
+DisplayName = "Unstable Elements"
+Description = "+15% Ailment Chance, +20% Ailment Duration"
+Branch = 2
+PrerequisiteIds = ["overcharge"]
+AilmentChanceBonus = 15
+AilmentDurationMultiplier = 1.2
+
+[sub_resource type="Resource" id="Passive_vigour"]
+script = ExtResource("2_node")
+NodeId = "vigour"
+DisplayName = "Vigour"
+Description = "+15 Max HP"
+Branch = 3
+MaxHp = 15
+
+[sub_resource type="Resource" id="Passive_iron_skin"]
+script = ExtResource("2_node")
+NodeId = "iron-skin"
+DisplayName = "Iron Skin"
+Description = "+10 Armor"
+Branch = 3
+PrerequisiteIds = ["vigour"]
+Armor = 10
+
+[sub_resource type="Resource" id="Passive_elemental_ward"]
+script = ExtResource("2_node")
+NodeId = "elemental-ward"
+DisplayName = "Elemental Ward"
+Description = "+8 Fire/Cold/Lightning Resistance, -4% Incoming Damage"
+Branch = 3
+PrerequisiteIds = ["iron-skin"]
+FireResistance = 8
+ColdResistance = 8
+LightningResistance = 8
+IncomingDamageMultiplier = 0.96
+
+[resource]
+script = ExtResource("1_tree")
+Nodes = [SubResource("Passive_sharpened_bolt"), SubResource("Passive_rapid_fire"), SubResource("Passive_split_focus"), SubResource("Passive_wide_impact"), SubResource("Passive_resonance"), SubResource("Passive_quickened_ritual"), SubResource("Passive_kindling"), SubResource("Passive_overcharge"), SubResource("Passive_unstable_elements"), SubResource("Passive_vigour"), SubResource("Passive_iron_skin"), SubResource("Passive_elemental_ward")]
