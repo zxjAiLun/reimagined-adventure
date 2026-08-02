@@ -244,7 +244,6 @@ public partial class CharacterProgression3DRegressionSmoke : Node
 
     private void KillEnemy(Node3D enemy)
     {
-        enemy.ProcessMode = ProcessModeEnum.Disabled;
         var target = enemy as ICombatTarget;
         if (target == null)
         {
@@ -256,6 +255,7 @@ public partial class CharacterProgression3DRegressionSmoke : Node
             DamageType.Physical,
             "character_progression_smoke",
             CombatFaction.Player));
+        enemy.ProcessMode = ProcessModeEnum.Disabled;
     }
 
     private void SendKey(Key key)
