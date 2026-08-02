@@ -42,6 +42,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
     public RunSessionNode RunSession => _runSession;
     public PlayerController3D TargetPlayer => _player;
+    public AilmentComponent3D Ailments => _ailments;
     public bool NavigationMovementSuppressed { get; set; }
     public int AppliedMapLevel { get; private set; } = 1;
     public int AppliedMaxHealth { get; private set; }
@@ -74,6 +75,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
     private DamageFeedbackSource3D _damageFeedback;
     private HitFlash3D _hitFlash;
     private DeathFeedback3D _deathFeedback;
+    private AilmentComponent3D _ailments;
     private PlayerController3D _player;
     private Label3D _healthLabel;
     private AreaTelegraph3D _activeTelegraph;
@@ -137,7 +139,9 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         _damageFeedback = GetNodeOrNull<DamageFeedbackSource3D>("DamageFeedbackSource3D");
         _hitFlash = GetNodeOrNull<HitFlash3D>("HitFlash3D");
         _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
+        _ailments = GetNodeOrNull<AilmentComponent3D>("AilmentComponent3D");
         _health.Died += OnDied;
+        _health.DamageTaken += OnDamageTaken;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
@@ -163,7 +167,10 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         }
 
         var frameDelta = (float)delta;
-        _attackCooldownRemaining = Mathf.Max(0.0f, _attackCooldownRemaining - frameDelta);
+        var actionSpeedMultiplier = (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
+        _attackCooldownRemaining = Mathf.Max(
+            0.0f,
+            _attackCooldownRemaining - frameDelta * actionSpeedMultiplier);
         if (_player == null || !GodotObject.IsInstanceValid(_player))
         {
             FindPlayer();
@@ -183,7 +190,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         {
             case FeralState3D.Windup:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * actionSpeedMultiplier;
                 _activeTelegraph?.SetProgress(
                     1.0f - _stateRemaining / Mathf.Max(0.01f, AttackWindupSeconds));
                 if (_stateRemaining <= 0.0f)
@@ -199,7 +206,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
                 break;
             case FeralState3D.Recovery:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * actionSpeedMultiplier;
                 if (_stateRemaining <= 0.0f)
                 {
                     State = FeralState3D.Chasing;
@@ -226,16 +233,26 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
             return new DamageResult(0, false);
         }
 
-        var result = _health.ApplyDamage(request);
+        var incomingRequest = _ailments?.ModifyIncomingDamage(request) ?? request;
+        var result = _health.ApplyDamage(incomingRequest);
         if (result.DamageApplied > 0)
         {
             _lastPositiveDamageSourceFaction = request.SourceFaction;
             _damageFeedback?.Publish(result);
             _hitFlash?.Trigger();
+            _ailments?.ApplyFromDamage(request, result.DamageApplied);
         }
 
         RefreshVisuals();
         return result;
+    }
+
+    private void OnDamageTaken(DamageRequest request, DamageResult result)
+    {
+        if (result.DamageApplied > 0)
+        {
+            _lastPositiveDamageSourceFaction = request.SourceFaction;
+        }
     }
 
     private void ChaseOrBeginAttack(float frameDelta)

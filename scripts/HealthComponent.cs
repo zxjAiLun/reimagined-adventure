@@ -8,6 +8,8 @@ using Godot;
 /// </summary>
 public partial class HealthComponent : Node
 {
+    public event Action<DamageRequest, DamageResult> DamageTaken;
+
     [Signal]
     public delegate void DiedEventHandler();
 
@@ -112,13 +114,15 @@ public partial class HealthComponent : Node
         CurrentHealth -= appliedDamage;
         EmitHealthChanged();
         var killed = !IsAlive;
+        var result = new DamageResult(appliedDamage, killed);
+        DamageTaken?.Invoke(request, result);
         if (killed && !_deathEmitted)
         {
             _deathEmitted = true;
             EmitSignal(SignalName.Died);
         }
 
-        return new DamageResult(appliedDamage, killed);
+        return result;
     }
 
     private void EmitHealthChanged()

@@ -132,6 +132,14 @@ offset_bottom = 294.0
 theme_override_colors/font_color = Color(0.82, 0.92, 1, 1)
 text = "Lv 1 · XP 0/50 · Passive 0"
 
+[node name="Ailments" type="Label" parent="PlayerPanel"]
+offset_left = 16.0
+offset_top = 300.0
+offset_right = 382.0
+offset_bottom = 324.0
+theme_override_colors/font_color = Color(1, 0.82, 0.4, 1)
+text = "Ailments: none"
+
 [node name="SkillPanel" type="Panel" parent="."]
 offset_left = 24.0
 offset_top = 390.0

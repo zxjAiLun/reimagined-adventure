@@ -48,6 +48,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
     public RunSessionNode RunSession => _runSession;
     public PlayerController3D TargetPlayer => _player;
+    public AilmentComponent3D Ailments => _ailments;
     public Vector3 LockedSlamCenter { get; private set; }
     public Vector3 LastSlamTelegraphCenter { get; private set; }
     public float LastSlamTelegraphRadius { get; private set; }
@@ -77,6 +78,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     private DamageFeedbackSource3D _damageFeedback;
     private HitFlash3D _hitFlash;
     private DeathFeedback3D _deathFeedback;
+    private AilmentComponent3D _ailments;
     private PlayerController3D _player;
     private RunSessionNode _runSession;
     private Label3D _healthLabel;
@@ -166,7 +168,9 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _damageFeedback = GetNodeOrNull<DamageFeedbackSource3D>("DamageFeedbackSource3D");
         _hitFlash = GetNodeOrNull<HitFlash3D>("HitFlash3D");
         _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
+        _ailments = GetNodeOrNull<AilmentComponent3D>("AilmentComponent3D");
         _health.Died += OnDied;
+        _health.DamageTaken += OnDamageTaken;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
@@ -213,7 +217,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
                 break;
             case BrimstoneColossusState3D.PreparingSlam:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
                 _activeSlamTelegraph?.SetProgress(
                     1.0f - _stateRemaining / Mathf.Max(0.01f, _slamPreparationSeconds));
                 if (_stateRemaining <= 0.0f)
@@ -229,7 +233,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
                 break;
             case BrimstoneColossusState3D.PreparingSpear:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
                 _activeSpearTelegraph?.SetProgress(
                     1.0f - _stateRemaining / Mathf.Max(0.01f, _spearPreparationSeconds));
                 if (_stateRemaining <= 0.0f)
@@ -245,7 +249,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
                 break;
             case BrimstoneColossusState3D.Recovering:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
                 if (_stateRemaining <= 0.0f)
                 {
                     State = BrimstoneColossusState3D.Idle;
@@ -268,16 +272,26 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             return new DamageResult(0, false);
         }
 
-        var result = _health.ApplyDamage(request);
+        var incomingRequest = _ailments?.ModifyIncomingDamage(request) ?? request;
+        var result = _health.ApplyDamage(incomingRequest);
         if (result.DamageApplied > 0)
         {
             _lastPositiveDamageSourceFaction = request.SourceFaction;
             _damageFeedback?.Publish(result);
             _hitFlash?.Trigger();
+            _ailments?.ApplyFromDamage(request, result.DamageApplied);
         }
 
         RefreshVisuals();
         return result;
+    }
+
+    private void OnDamageTaken(DamageRequest request, DamageResult result)
+    {
+        if (result.DamageApplied > 0)
+        {
+            _lastPositiveDamageSourceFaction = request.SourceFaction;
+        }
     }
 
     private void FindPlayer()

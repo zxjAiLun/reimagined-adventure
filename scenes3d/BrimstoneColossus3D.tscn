@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/BrimstoneColossusController3D.cs" id="1_boss"]
 [ext_resource type="Resource" path="res://resources/BrimstoneColossus.tres" id="2_definition"]
@@ -13,6 +13,8 @@
 [ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="11_death_feedback"]
 [ext_resource type="Script" path="res://scripts3d/EnemyNavigation3D.cs" id="12_enemy_navigation"]
 [ext_resource type="Script" path="res://scripts3d/EnemyCrowdAgent3D.cs" id="13_crowd_agent"]
+[ext_resource type="Script" path="res://scripts3d/AilmentComponent3D.cs" id="14_ailment"]
+[ext_resource type="Script" path="res://scripts3d/AilmentPresentation3D.cs" id="15_ailment_presentation"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
 radius = 1.15
@@ -83,6 +85,16 @@ mesh = SubResource("CapsuleMesh_boss")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("3_health")
 MaxHealth = 160
+
+[node name="AilmentComponent3D" type="Node" parent="."]
+script = ExtResource("14_ailment")
+
+[node name="AilmentPresentation3D" type="Label3D" parent="."]
+position = Vector3(0, 3.25, 0)
+script = ExtResource("15_ailment_presentation")
+modulate = Color(1, 0.82, 0.4, 1)
+font_size = 20
+outline_size = 6
 
 [node name="DamageFeedbackSource3D" type="Node3D" parent="."]
 position = Vector3(0, 2.75, 0)

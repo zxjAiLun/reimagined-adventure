@@ -28,6 +28,7 @@ public partial class CombatHudController3D : CanvasLayer
     public int TotalExperience { get; private set; }
     public int UnspentPassivePoints { get; private set; }
     public string ProgressionText { get; private set; } = "Lv 1 · XP 0/50 · Passive 0";
+    public string PlayerAilmentsText { get; private set; } = "none";
     public bool BossPanelVisible { get; private set; }
     public int BossCurrentHealth { get; private set; }
     public int BossMaxHealth { get; private set; }
@@ -37,6 +38,7 @@ public partial class CombatHudController3D : CanvasLayer
 
     private PlayerController3D _player;
     private HealthComponent _playerHealth;
+    private AilmentComponent3D _playerAilments;
     private PlayerSkillController3D _skills;
     private BrimstoneColossusController3D _boss;
     private EncounterDirector3D _encounterDirector;
@@ -51,6 +53,7 @@ public partial class CombatHudController3D : CanvasLayer
     private Label _mapModifierLabel;
     private Label _encounterLabel;
     private Label _progressionLabel;
+    private Label _ailmentsLabel;
     private Label _skillPrimary;
     private Label _skillSecondary;
     private Label _skillUtility;
@@ -102,6 +105,7 @@ public partial class CombatHudController3D : CanvasLayer
         _mapModifierLabel = GetNodeOrNull<Label>("PlayerPanel/MapModifier");
         _encounterLabel = GetNodeOrNull<Label>("PlayerPanel/Encounter");
         _progressionLabel = GetNodeOrNull<Label>("PlayerPanel/Progression");
+        _ailmentsLabel = GetNodeOrNull<Label>("PlayerPanel/Ailments");
         _skillPrimary = GetNodeOrNull<Label>("SkillPanel/Primary");
         _skillSecondary = GetNodeOrNull<Label>("SkillPanel/Secondary");
         _skillUtility = GetNodeOrNull<Label>("SkillPanel/Utility");
@@ -131,6 +135,7 @@ public partial class CombatHudController3D : CanvasLayer
         var mapPlayer = _map.GetNodeOrNull<PlayerController3D>("Player3D");
         var mapSkills = mapPlayer?.GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
         var mapPlayerHealth = mapPlayer?.GetNodeOrNull<HealthComponent>("HealthComponent");
+        var mapPlayerAilments = mapPlayer?.GetNodeOrNull<AilmentComponent3D>("AilmentComponent3D");
         var mapDirector = _map.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
         var mapFlow = _map.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
         var mapRunSession = _map.GetParent() as RunSessionNode
@@ -141,9 +146,11 @@ public partial class CombatHudController3D : CanvasLayer
             || !IsValid(_playerHealth)
             || !IsValid(_flow)
             || !IsValid(_runSession)
+            || !IsValid(_playerAilments)
             || !ReferenceEquals(_player, mapPlayer)
             || !ReferenceEquals(_skills, mapSkills)
             || !ReferenceEquals(_playerHealth, mapPlayerHealth)
+            || !ReferenceEquals(_playerAilments, mapPlayerAilments)
             || !ReferenceEquals(_encounterDirector, mapDirector)
             || !ReferenceEquals(_flow, mapFlow)
             || !ReferenceEquals(_runSession, mapRunSession)))
@@ -154,11 +161,13 @@ public partial class CombatHudController3D : CanvasLayer
         _player = mapPlayer;
         _skills = mapSkills;
         _playerHealth = mapPlayerHealth;
+        _playerAilments = mapPlayerAilments;
         _encounterDirector = mapDirector;
         _flow = mapFlow;
         _runSession = mapRunSession;
 
-        if (_player == null || _skills == null || _playerHealth == null || _flow == null || _runSession == null)
+        if (_player == null || _skills == null || _playerHealth == null
+            || _playerAilments == null || _flow == null || _runSession == null)
         {
             ScheduleBindRetry();
             return;
@@ -173,6 +182,7 @@ public partial class CombatHudController3D : CanvasLayer
         }
 
         _playerHealth.HealthChanged += OnPlayerHealthChanged;
+        _playerAilments.AilmentsChanged += OnPlayerAilmentsChanged;
         _player.StatsChanged += OnPlayerStatsChanged;
         _player.EquipmentChanged += OnPlayerEquipmentChanged;
         _skills.CooldownsChanged += OnCooldownsChanged;
@@ -244,6 +254,11 @@ public partial class CombatHudController3D : CanvasLayer
             _playerHealth.HealthChanged -= OnPlayerHealthChanged;
         }
 
+        if (IsValid(_playerAilments))
+        {
+            _playerAilments.AilmentsChanged -= OnPlayerAilmentsChanged;
+        }
+
         if (IsValid(_player))
         {
             _player.StatsChanged -= OnPlayerStatsChanged;
@@ -284,6 +299,8 @@ public partial class CombatHudController3D : CanvasLayer
     }
 
     private void OnPlayerHealthChanged(int currentHealth, int maxHealth) => RefreshPlayerHealth();
+
+    private void OnPlayerAilmentsChanged(string summary) => RefreshAilments();
 
     private void OnPlayerStatsChanged() => RefreshPlayerStats();
 
@@ -347,6 +364,7 @@ public partial class CombatHudController3D : CanvasLayer
         RefreshMapModifier();
         RefreshEncounter();
         RefreshProgression();
+        RefreshAilments();
         RefreshFlowState();
     }
 
@@ -485,6 +503,15 @@ public partial class CombatHudController3D : CanvasLayer
         if (IsValid(_progressionLabel))
         {
             _progressionLabel.Text = ProgressionText;
+        }
+    }
+
+    private void RefreshAilments()
+    {
+        PlayerAilmentsText = _playerAilments?.Summary ?? "none";
+        if (IsValid(_ailmentsLabel))
+        {
+            _ailmentsLabel.Text = $"Ailments: {(string.IsNullOrWhiteSpace(PlayerAilmentsText) ? "none" : PlayerAilmentsText)}";
         }
     }
 

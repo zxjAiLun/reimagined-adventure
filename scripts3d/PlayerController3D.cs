@@ -34,9 +34,13 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     public bool IsAlive => _health?.IsAlive ?? false;
     public CombatFaction Faction => CombatFaction.Player;
     public Vector3 AimDirection { get; private set; } = Vector3.Forward;
+    public AilmentComponent3D Ailments => _ailments;
+    public double AilmentMoveSpeedMultiplier => _ailments?.MoveSpeedMultiplier ?? 1.0;
+    public double AilmentActionSpeedMultiplier => _ailments?.ActionSpeedMultiplier ?? 1.0;
     public int SpreadShotDamage => SkillSupportMath.Damage(
         SkillLibrary.SpreadShot(),
-        EffectiveStats);
+        EffectiveStats,
+        _skills?.Supports(SkillSlot.Primary));
     public int LastSpreadProjectileCount { get; private set; }
     public int LastSpreadProjectileDamage { get; private set; }
     public float LastAreaRadius { get; private set; }
@@ -70,6 +74,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     private DamageFeedbackSource3D _damageFeedback;
     private HitFlash3D _hitFlash;
     private DeathFeedback3D _deathFeedback;
+    private AilmentComponent3D _ailments;
     private MouseGroundTargeting3D _targeting;
     private PlayerMotor3D _motor;
     private PlayerSkillController3D _skills;
@@ -88,6 +93,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         _damageFeedback = GetNodeOrNull<DamageFeedbackSource3D>("DamageFeedbackSource3D");
         _hitFlash = GetNodeOrNull<HitFlash3D>("HitFlash3D");
         _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
+        _ailments = GetNodeOrNull<AilmentComponent3D>("AilmentComponent3D");
         _targeting = GetNode<MouseGroundTargeting3D>("MouseGroundTargeting3D");
         _motor = GetNodeOrNull<PlayerMotor3D>("PlayerMotor3D");
         _skills = GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
@@ -131,11 +137,13 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
             return new DamageResult(0, false);
         }
 
-        var result = _health.ApplyDamage(request);
+        var incomingRequest = _ailments?.ModifyIncomingDamage(request) ?? request;
+        var result = _health.ApplyDamage(incomingRequest);
         if (result.DamageApplied > 0)
         {
             _damageFeedback?.Publish(result);
             _hitFlash?.Trigger();
+            _ailments?.ApplyFromDamage(request, result.DamageApplied);
         }
 
         return result;
@@ -189,7 +197,11 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
                     damage,
                     skill.DamageType,
                     skill.Id,
-                    CombatFaction.Player));
+                    CombatFaction.Player,
+                    false,
+                    SkillSupportMath.Ailment(skill, EffectiveStats, supports),
+                    EffectiveStats.AilmentDurationMultiplier,
+                    EffectiveStats.DamageOverTimeMultiplier));
         }
 
         return true;
@@ -225,7 +237,11 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
                 SkillSupportMath.Damage(skill, EffectiveStats, supports),
                 skill.DamageType,
                 skill.Id,
-                CombatFaction.Player),
+                CombatFaction.Player,
+                false,
+                SkillSupportMath.Ailment(skill, EffectiveStats, supports),
+                EffectiveStats.AilmentDurationMultiplier,
+                EffectiveStats.DamageOverTimeMultiplier),
             radius);
         return true;
     }
