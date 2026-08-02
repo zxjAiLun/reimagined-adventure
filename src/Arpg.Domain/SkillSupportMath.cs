@@ -85,8 +85,26 @@ public static class SkillSupportMath
         var cooldown = skill.CooldownSeconds
             * validSupports.Aggregate(1.0, (current, support) => current * support.CooldownMultiplier);
         return skill.Slot == SkillSlot.Primary
-            ? cooldown / Math.Max(0.0001, stats.AttackSpeedMultiplier)
-            : cooldown;
+            ? cooldown / Math.Max(0.0001, stats.AttackSpeedMultiplier * stats.CooldownRecoveryMultiplier)
+            : cooldown / Math.Max(0.0001, stats.CooldownRecoveryMultiplier);
+    }
+
+    public static AilmentApplicationDefinition? Ailment(
+        SkillDefinition skill,
+        Stats stats,
+        IEnumerable<SupportDefinition>? supports = null)
+    {
+        ArgumentNullException.ThrowIfNull(stats);
+        stats.Validate();
+        var validSupports = ValidateSupports(skill, supports);
+        var ailment = validSupports.FirstOrDefault(support => support.Ailment != null)?.Ailment;
+        if (ailment == null)
+        {
+            return null;
+        }
+
+        var chance = Math.Clamp(ailment.ChancePercent + stats.AilmentChanceBonus, 0, 100);
+        return ailment with { ChancePercent = chance };
     }
 
     public static double ManaCost(

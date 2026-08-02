@@ -13,6 +13,10 @@ public sealed class StatsTests
         Assert.Equal(0, stats.Armor);
         Assert.Equal(0, stats.ProjectileCountBonus);
         Assert.Equal(1.0, stats.DamageMultiplier);
+        Assert.Equal(1.0, stats.CooldownRecoveryMultiplier);
+        Assert.Equal(0, stats.AilmentChanceBonus);
+        Assert.Equal(1.0, stats.AilmentDurationMultiplier);
+        Assert.Equal(1.0, stats.DamageOverTimeMultiplier);
         Assert.Equal(1.0, stats.ProjectileDamageMultiplier);
         Assert.Equal(1.0, stats.AreaDamageMultiplier);
         Assert.Equal(0, stats.FireResistance);
@@ -29,6 +33,10 @@ public sealed class StatsTests
             Armor = 12,
             ProjectileCountBonus = 1,
             DamageMultiplier = 1.25,
+            CooldownRecoveryMultiplier = 1.10,
+            AilmentChanceBonus = 5,
+            AilmentDurationMultiplier = 1.20,
+            DamageOverTimeMultiplier = 1.15,
             ProjectileDamageMultiplier = 1.10,
             FireResistance = 20,
         };
@@ -38,6 +46,10 @@ public sealed class StatsTests
             Armor = 8,
             ProjectileCountBonus = 2,
             DamageMultiplier = 1.20,
+            CooldownRecoveryMultiplier = 1.25,
+            AilmentChanceBonus = 7,
+            AilmentDurationMultiplier = 1.10,
+            DamageOverTimeMultiplier = 1.20,
             ProjectileDamageMultiplier = 1.15,
             FireResistance = 15,
         };
@@ -48,6 +60,10 @@ public sealed class StatsTests
         Assert.Equal(20, result.Armor);
         Assert.Equal(3, result.ProjectileCountBonus);
         Assert.Equal(1.50, result.DamageMultiplier, 10);
+        Assert.Equal(1.375, result.CooldownRecoveryMultiplier, 10);
+        Assert.Equal(12, result.AilmentChanceBonus);
+        Assert.Equal(1.32, result.AilmentDurationMultiplier, 10);
+        Assert.Equal(1.38, result.DamageOverTimeMultiplier, 10);
         Assert.Equal(1.265, result.ProjectileDamageMultiplier, 10);
         Assert.Equal(35, result.FireResistance);
     }
