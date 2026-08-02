@@ -101,7 +101,9 @@ jobs:
             "res://scenes3d/MalformedSave3DRegressionSmoke.tscn",
             "res://scenes3d/MapScope3DRegressionSmoke.tscn",
             "res://scenes3d/CharacterProgression3DRegressionSmoke.tscn",
-            "res://scenes3d/PassiveTree3DRegressionSmoke.tscn"
+            "res://scenes3d/PassiveTree3DRegressionSmoke.tscn",
+            "res://scenes3d/AilmentRuntime3DRegressionSmoke.tscn",
+            "res://scenes3d/AilmentLifecycle3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"
