@@ -232,6 +232,16 @@ public sealed class SaveSnapshot
             return false;
         }
 
+        // Validate dictionary values before any cross-collection identity checks.
+        // A JSON object can deserialize an equipment value as null; reject that
+        // shape here instead of relying on the file adapter to catch a null
+        // dereference later.
+        if (EquippedItemsBySlot.Any(pair => pair.Value == null))
+        {
+            error = "equipped item values cannot be null";
+            return false;
+        }
+
         if (PlayerMaxHealth < 1
             || PlayerCurrentHealth < 0
             || PlayerCurrentHealth > PlayerMaxHealth

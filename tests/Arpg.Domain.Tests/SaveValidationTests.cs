@@ -114,6 +114,27 @@ public sealed class SaveValidationTests
     }
 
     [Fact]
+    public void NullEquippedValueIsRejectedBeforeCrossCollectionChecks()
+    {
+        var generator = new LootGenerator(9127);
+        var stashItem = generator.GenerateWeaponDrop(1);
+        var snapshot = new SaveSnapshot
+        {
+            EquippedItemsBySlot = new Dictionary<EquipmentSlot, Item>
+            {
+                [EquipmentSlot.Armor] = null!,
+            },
+            StashItems = [stashItem],
+        };
+
+        var exception = Record.Exception(() => snapshot.TryValidate(out _));
+
+        Assert.Null(exception);
+        Assert.False(snapshot.TryValidate(out var error));
+        Assert.NotEmpty(error);
+    }
+
+    [Fact]
     public void FullEquipmentDictionaryRoundTripsAndLegacyWeaponMigrates()
     {
         var generator = new LootGenerator(9910);
