@@ -15,7 +15,8 @@ public sealed record EnemySpawnContext3D(
     int NavigationLayers,
     MapModifierStats MapModifier,
     int DropItemLevel,
-    bool IsBoss)
+    bool IsBoss,
+    bool IsBossAdd = false)
 {
     public EliteModifierDefinition EliteModifier { get; init; }
     public ulong EliteSelectionSeed { get; init; }
@@ -70,6 +71,11 @@ public sealed record EnemySpawnContext3D(
         var modifier = MapModifier ?? throw new System.ArgumentNullException(nameof(MapModifier));
         modifier.Validate();
         EliteModifier?.Validate();
+        if (IsBossAdd && IsBoss)
+        {
+            throw new System.ArgumentException("Boss adds cannot use a boss spawn context.", nameof(IsBossAdd));
+        }
+
         if (EliteModifier != null)
         {
             if (IsBoss)

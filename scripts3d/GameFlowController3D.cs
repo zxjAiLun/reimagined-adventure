@@ -226,6 +226,13 @@ public partial class GameFlowController3D : Node
 
     private void OnBossDied()
     {
+        if (_encounterDirector?.IsOperational == true)
+        {
+            // EncounterCompleted is the authoritative completion boundary in
+            // the wave runtime; boss phase adds must be cleared first.
+            return;
+        }
+
         CompleteMap();
     }
 

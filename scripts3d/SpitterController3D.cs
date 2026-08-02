@@ -70,6 +70,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     public ulong EliteSelectionSeed { get; private set; }
     public int EliteAppliedCount { get; private set; }
     public VolcanicDeathEffect3D ActiveVolcanicDeathEffect { get; private set; }
+    public bool IsBossAdd { get; private set; }
 
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
@@ -142,6 +143,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         SpawnEncounterId = context.EncounterId;
         SpawnWaveId = context.WaveId;
         SpawnOrdinal = context.SpawnOrdinal;
+        IsBossAdd = context.IsBossAdd;
     }
 
     public override void _Ready()
@@ -537,6 +539,11 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         if (ForceGuaranteedDropForTest)
         {
             SpawnDropItem(_runSession.GenerateWeaponDrop(AppliedDropItemLevel));
+            return;
+        }
+
+        if (IsBossAdd)
+        {
             return;
         }
 

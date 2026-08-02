@@ -59,6 +59,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
     public ulong EliteSelectionSeed { get; private set; }
     public int EliteAppliedCount { get; private set; }
     public VolcanicDeathEffect3D ActiveVolcanicDeathEffect { get; private set; }
+    public bool IsBossAdd { get; private set; }
 
     public void ResetForNavigationPressureTest(Vector3 position)
     {
@@ -146,6 +147,7 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         SpawnEncounterId = context.EncounterId;
         SpawnWaveId = context.WaveId;
         SpawnOrdinal = context.SpawnOrdinal;
+        IsBossAdd = context.IsBossAdd;
     }
 
     public override void _Ready()
@@ -467,6 +469,11 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         if (ForceGuaranteedDropForTest)
         {
             SpawnDropItem(_runSession.GenerateWeaponDrop(AppliedDropItemLevel));
+            return;
+        }
+
+        if (IsBossAdd)
+        {
             return;
         }
 

@@ -158,6 +158,12 @@ public partial class SaveRecovery3DRegressionSmoke : Node
                     return;
                 }
 
+                // This smoke tests restored player presentation and runtime
+                // state, not the legacy fixture enemies' attack timers. Stop
+                // those fixtures before the observation window so a fresh
+                // contact hit cannot make a valid reset look stale.
+                StopLegacyEnemyPressure();
+
                 var runtimePass = player.IsAlive
                     && player.CurrentHealth > 0
                     && player.CollisionLayer == PlayerController3D.PlayerCollisionLayer
@@ -236,6 +242,25 @@ public partial class SaveRecovery3DRegressionSmoke : Node
         _complete = true;
         GD.PushError($"SAVE_RECOVERY_3D_SPIKE_FAIL {reason}");
         GetTree().Quit(1);
+    }
+
+    private void StopLegacyEnemyPressure()
+    {
+        foreach (var node in GetTree().GetNodesInGroup("enemies_3d"))
+        {
+            if (node is not Node3D enemy || enemy is BrimstoneColossusController3D)
+            {
+                continue;
+            }
+
+            enemy.SetPhysicsProcess(false);
+            enemy.SetProcess(false);
+            if (enemy is CollisionObject3D collision)
+            {
+                collision.CollisionLayer = 0;
+                collision.CollisionMask = 0;
+            }
+        }
     }
 
     private static Item CreateMaxHpWeapon()

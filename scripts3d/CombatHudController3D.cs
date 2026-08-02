@@ -36,6 +36,10 @@ public partial class CombatHudController3D : CanvasLayer
     public string BossHealthText { get; private set; } = "0/0";
     public double BossHealthBarValue => _bossHealthBar?.Value ?? BossCurrentHealth;
     public double BossHealthBarMax => _bossHealthBar?.MaxValue ?? BossMaxHealth;
+    public int BossPhaseNumber { get; private set; }
+    public int BossPhaseCount { get; private set; }
+    public string BossPhaseText { get; private set; } = "Phase 1/0";
+    public string BossAttackText { get; private set; } = string.Empty;
 
     private PlayerController3D _player;
     private HealthComponent _playerHealth;
@@ -62,6 +66,7 @@ public partial class CombatHudController3D : CanvasLayer
     private Control _bossPanel;
     private ProgressBar _bossHealthBar;
     private Label _bossHealthValue;
+    private Label _bossPhaseLabel;
     private Label _flowStateLabel;
     private bool _bound;
     private bool _bossBound;
@@ -114,6 +119,7 @@ public partial class CombatHudController3D : CanvasLayer
         _bossPanel = GetNodeOrNull<Control>("BossPanel");
         _bossHealthBar = GetNodeOrNull<ProgressBar>("BossPanel/BossHpBar");
         _bossHealthValue = GetNodeOrNull<Label>("BossPanel/BossHpValue");
+        _bossPhaseLabel = GetNodeOrNull<Label>("BossPanel/BossPhase");
         _flowStateLabel = GetNodeOrNull<Label>("PlayerPanel/FlowState");
     }
 
@@ -231,6 +237,8 @@ public partial class CombatHudController3D : CanvasLayer
 
         _bossHealth.HealthChanged += OnBossHealthChanged;
         _bossHealth.Died += OnBossDied;
+        _boss.BossPhaseChanged += OnBossPhaseChanged;
+        _boss.BossAttackStarted += OnBossAttackStarted;
         _bossBound = true;
         RefreshBoss();
     }
@@ -241,6 +249,12 @@ public partial class CombatHudController3D : CanvasLayer
         {
             _bossHealth.HealthChanged -= OnBossHealthChanged;
             _bossHealth.Died -= OnBossDied;
+        }
+
+        if (IsValid(_boss))
+        {
+            _boss.BossPhaseChanged -= OnBossPhaseChanged;
+            _boss.BossAttackStarted -= OnBossAttackStarted;
         }
 
         _boss = null;
@@ -313,6 +327,10 @@ public partial class CombatHudController3D : CanvasLayer
     private void OnBossHealthChanged(int currentHealth, int maxHealth) => RefreshBoss();
 
     private void OnBossDied() => RefreshBoss();
+
+    private void OnBossPhaseChanged(int phaseIndex, string phaseId) => RefreshBoss();
+
+    private void OnBossAttackStarted(string attackId) => RefreshBoss();
 
     private void OnBossSpawned(Node3D boss)
     {
@@ -447,6 +465,17 @@ public partial class CombatHudController3D : CanvasLayer
         if (IsValid(_bossHealthValue))
         {
             _bossHealthValue.Text = $"Boss HP {BossHealthText}";
+        }
+
+        BossPhaseNumber = _boss?.PhaseNumber ?? 0;
+        BossPhaseCount = _boss?.PhaseCount ?? 0;
+        BossAttackText = _boss?.CurrentAttackId ?? string.Empty;
+        BossPhaseText = _boss == null
+            ? string.Empty
+            : $"Phase {BossPhaseNumber}/{Mathf.Max(1, BossPhaseCount)} · {_boss.CurrentPhaseId} · {BossAttackText}";
+        if (IsValid(_bossPhaseLabel))
+        {
+            _bossPhaseLabel.Text = BossPhaseText;
         }
     }
 

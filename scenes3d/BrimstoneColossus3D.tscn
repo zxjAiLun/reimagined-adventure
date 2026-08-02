@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes3d/ItemDrop3D.tscn" id="6_drop"]
 [ext_resource type="PackedScene" path="res://scenes3d/AreaTelegraph3D.tscn" id="7_area_telegraph"]
 [ext_resource type="PackedScene" path="res://scenes3d/LineTelegraph3D.tscn" id="8_line_telegraph"]
+[ext_resource type="PackedScene" path="res://scenes3d/RingTelegraph3D.tscn" id="16_ring_telegraph"]
 [ext_resource type="Script" path="res://scripts3d/DamageFeedbackSource3D.cs" id="9_damage_source"]
 [ext_resource type="Script" path="res://scripts3d/HitFlash3D.cs" id="10_hit_flash"]
 [ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="11_death_feedback"]
@@ -43,6 +44,7 @@ AreaEffectScene = ExtResource("5_area")
 ItemDropScene = ExtResource("6_drop")
 AreaTelegraphScene = ExtResource("7_area_telegraph")
 LineTelegraphScene = ExtResource("8_line_telegraph")
+RingTelegraphScene = ExtResource("16_ring_telegraph")
 
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
 navigation_layers = 2

@@ -58,6 +58,7 @@ public partial class EncounterDirector3D : Node
     public int EncounterCompletedCount { get; private set; }
     public int CurrentWaveSpawnedCount { get; private set; }
     public int CurrentWaveTargetCount { get; private set; }
+    public int BossAddSpawnCount { get; private set; }
     public int ActiveEliteCount => GetActiveEnemies()
         .Count(enemy => enemy is IEliteRuntime3D elite
             && !string.IsNullOrWhiteSpace(elite.EliteModifierId));
@@ -185,6 +186,86 @@ public partial class EncounterDirector3D : Node
         TrackEnemy(enemy);
         EmitSignal(SignalName.ActiveEliteCountChanged, ActiveEliteCount);
         return true;
+    }
+
+    /// <summary>
+    /// Spawns map-local adds requested by a live boss phase. Adds use the
+    /// normal pre-ready configuration and active-enemy accounting, but are
+    /// deliberately outside the current wave target so the encounter cannot
+    /// advance until every add is dead.
+    /// </summary>
+    public int TrySpawnBossAdds(string waveId, int count)
+    {
+        if (count <= 0
+            || _enemyContainer == null
+            || _player == null
+            || !GodotObject.IsInstanceValid(_player))
+        {
+            return 0;
+        }
+
+        var runSession = MapRuntimeScope3D.FindRunSession(this);
+        var scene = GD.Load<PackedScene>("res://scenes3d/Feral3D.tscn");
+        if (runSession == null || scene == null)
+        {
+            return 0;
+        }
+
+        var mapModifier = runSession.CurrentMapModifier?.Effects ?? new MapModifierStats();
+        var dropItemLevel = runSession.CurrentMapPlan.DropItemLevel;
+        var encounterId = string.IsNullOrWhiteSpace(CurrentEncounterId)
+            ? runSession.CurrentEncounterId
+            : CurrentEncounterId;
+        var added = 0;
+        for (var index = 0; index < count; index++)
+        {
+            var spawnPoint = ChooseBossAddSpawnPoint();
+            if (spawnPoint == null)
+            {
+                break;
+            }
+
+            var enemy = scene.Instantiate<FeralController3D>();
+            enemy.Name = $"FeralBossAdd_{CurrentWaveIndex + 1}_{BossAddSpawnCount + added + 1}";
+            var context = new EnemySpawnContext3D(
+                runSession,
+                _player,
+                runSession.CurrentMapLevel,
+                encounterId,
+                string.IsNullOrWhiteSpace(waveId) ? "boss-adds" : waveId,
+                _spawnedEnemies.Count + 1,
+                1,
+                mapModifier,
+                dropItemLevel,
+                false,
+                true);
+            try
+            {
+                context.Validate();
+                enemy.ConfigureBeforeReady(context);
+                _enemyContainer.AddChild(enemy);
+                enemy.GlobalPosition = new Vector3(
+                    spawnPoint.GlobalPosition.X,
+                    0.0f,
+                    spawnPoint.GlobalPosition.Z);
+            }
+            catch (Exception exception)
+            {
+                GD.PushError($"Could not configure boss add {enemy.Name}: {exception.Message}");
+                enemy.QueueFree();
+                continue;
+            }
+
+            TrackEnemy(enemy);
+            SpawnedEnemyCount++;
+            BossAddSpawnCount++;
+            added++;
+            LastSpawnPointId = spawnPoint.SpawnPointId;
+            EmitSignal(SignalName.EnemySpawned, enemy);
+            EmitSignal(SignalName.ActiveEliteCountChanged, ActiveEliteCount);
+        }
+
+        return added;
     }
 
     public bool IsEncounterComplete() => State == EncounterDirectorState3D.Completed;
@@ -375,6 +456,34 @@ public partial class EncounterDirector3D : Node
         {
             var point = candidates[(_spawnPointCursor + offset) % candidates.Length];
             if (point.CanSpawn(_player, navigationLayers, _spawnedEnemies))
+            {
+                _spawnPointCursor = (_spawnPointCursor + offset + 1) % candidates.Length;
+                return point;
+            }
+        }
+
+        return null;
+    }
+
+    private EncounterSpawnPoint3D ChooseBossAddSpawnPoint()
+    {
+        if (_spawnPoints.Count == 0)
+        {
+            return null;
+        }
+
+        var candidates = _spawnPoints
+            .Where(point => point.SpawnPointId == "feral" || point.SpawnPointId == "mixed")
+            .ToArray();
+        if (candidates.Length == 0)
+        {
+            candidates = _spawnPoints.ToArray();
+        }
+
+        for (var offset = 0; offset < candidates.Length; offset++)
+        {
+            var point = candidates[(_spawnPointCursor + offset) % candidates.Length];
+            if (point.CanSpawn(_player, 1, _spawnedEnemies))
             {
                 _spawnPointCursor = (_spawnPointCursor + offset + 1) % candidates.Length;
                 return point;
