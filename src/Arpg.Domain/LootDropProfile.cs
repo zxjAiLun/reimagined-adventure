@@ -47,6 +47,13 @@ public static class LootDropProfiles
         ForgeFragmentAmount: 1,
         GuaranteedItem: false);
 
+    public static LootDropProfile Elite { get; } = new(
+        BaseDropChancePercent: 70,
+        MaximumItemDrops: 1,
+        ForgeFragmentChancePercent: 100,
+        ForgeFragmentAmount: 2,
+        GuaranteedItem: false);
+
     public static LootDropProfile Boss { get; } = new(
         BaseDropChancePercent: 100,
         MaximumItemDrops: 2,

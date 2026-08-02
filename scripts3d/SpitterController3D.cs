@@ -18,7 +18,7 @@ public enum SpitterState3D
 /// 3D ranged enemy adapter. Aim chooses the attack, Windup locks its target
 /// direction, Launch creates one projectile, and Recovery gates the next shot.
 /// </summary>
-public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnemySpawnConfigurable3D
+public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnemySpawnConfigurable3D, IEliteRuntime3D
 {
     [Export] public float MoveSpeed { get; set; } = 2.0f;
     [Export] public float PreferredRange { get; set; } = 6.0f;
@@ -65,6 +65,11 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     public int SpawnOrdinal { get; private set; }
     public int SpawnContextAppliedCount { get; private set; }
     public bool ExperienceAwarded { get; private set; }
+    public EliteModifierDefinition EliteModifier { get; private set; }
+    public string EliteModifierId => EliteModifier?.Id ?? string.Empty;
+    public ulong EliteSelectionSeed { get; private set; }
+    public int EliteAppliedCount { get; private set; }
+    public VolcanicDeathEffect3D ActiveVolcanicDeathEffect { get; private set; }
 
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
@@ -105,6 +110,18 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         var baseDamage = ProjectileDamage;
         var scaledHealth = MapScaling.EnemyHp(baseHealth, context.MapLevel, context.MapModifier);
         var scaledDamage = MapScaling.EnemyDamage(baseDamage, context.MapLevel, context.MapModifier);
+        if (context.EliteModifier != null)
+        {
+            scaledHealth = EliteRuntime3D.ScaleInt(scaledHealth, context.EliteModifier.HealthMultiplier);
+            scaledDamage = EliteRuntime3D.ScaleInt(scaledDamage, context.EliteModifier.DamageMultiplier);
+            MoveSpeed *= (float)context.EliteModifier.MoveSpeedMultiplier;
+            TelegraphSeconds /= (float)context.EliteModifier.ActionSpeedMultiplier;
+            RecoverySeconds /= (float)context.EliteModifier.ActionSpeedMultiplier;
+            health.Armor += context.EliteModifier.ArmorBonus;
+            EliteModifier = context.EliteModifier;
+            EliteSelectionSeed = context.EliteSelectionSeed;
+            EliteAppliedCount++;
+        }
         health.SetMaxHealth(scaledHealth);
         ProjectileDamage = scaledDamage;
 
@@ -409,13 +426,18 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         var projectile = ProjectileScene.Instantiate<BasicProjectile3D>();
         GetParent().AddChild(projectile);
         projectile.GlobalPosition = GlobalPosition + LockedDirection * 0.8f + Vector3.Up * 0.55f;
-        projectile.Launch(
-            LockedDirection,
-            new DamageRequest(
+        var request = EliteModifier == null
+            ? new DamageRequest(
                 ProjectileDamage,
                 DamageType.Poison,
                 "spitter_acid_3d",
-                CombatFaction.Enemy));
+                CombatFaction.Enemy)
+            : EliteRuntime3D.BuildEnemyAttack(
+                EliteModifier,
+                ProjectileDamage,
+                DamageType.Poison,
+                "spitter_acid_3d");
+        projectile.Launch(LockedDirection, request);
         LastLaunchDirection = projectile.LaunchDirection;
         ProjectileShotCount++;
     }
@@ -452,7 +474,25 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         _deathFeedback?.Play();
         AwardExperienceIfEligible();
         SpawnDrop();
+        SpawnVolcanicDeathEffect();
         RefreshVisuals();
+    }
+
+    private void SpawnVolcanicDeathEffect()
+    {
+        var deathEffect = EliteModifier?.DeathEffect;
+        var map = GetParent()?.GetParent() as Node3D;
+        if (deathEffect == null || map == null)
+        {
+            return;
+        }
+
+        ActiveVolcanicDeathEffect = new VolcanicDeathEffect3D();
+        map.AddChild(ActiveVolcanicDeathEffect);
+        ActiveVolcanicDeathEffect.Configure(
+            GlobalPosition,
+            deathEffect,
+            EliteRuntime3D.ScaleInt(AppliedPrimaryDamage, deathEffect.DamageMultiplier));
     }
 
     private void AwardExperienceIfEligible()
@@ -475,7 +515,9 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         var sourceId = string.IsNullOrWhiteSpace(SpawnEncounterId)
             ? $"spitter:{GetPath()}"
             : $"spitter:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
-        ExperienceAwarded = _runSession.TryAwardExperience(ExperienceSourceKind.Spitter, sourceId);
+        ExperienceAwarded = EliteModifier == null
+            ? _runSession.TryAwardExperience(ExperienceSourceKind.Spitter, sourceId)
+            : _runSession.TryAwardEliteExperience(ExperienceSourceKind.Spitter, sourceId);
     }
 
     private void SpawnDrop()
@@ -498,9 +540,13 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
             return;
         }
 
+        var isElite = EliteModifier != null;
         var result = _runSession.GenerateDrops(
-            new ItemRollContext(AppliedDropItemLevel, LootSourceKind.Spitter),
-            LootDropProfiles.Spitter);
+            new ItemRollContext(
+                AppliedDropItemLevel,
+                isElite ? LootSourceKind.Elite : LootSourceKind.Spitter,
+                RarityMultiplier: isElite ? 1.5 : 1.0),
+            isElite ? LootDropProfiles.Elite : LootDropProfiles.Spitter);
         _runSession.TryAwardForgeFragments(result.ForgeFragments);
         foreach (var item in result.Items)
         {
@@ -525,7 +571,8 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     {
         if (_healthLabel != null)
         {
-            _healthLabel.Text = $"SPITTER 3D {CurrentHealth}/{MaxHealth}\n{State}";
+            var eliteTag = EliteModifier == null ? string.Empty : $"\n{EliteRuntime3D.DisplayTag(EliteModifier)}";
+            _healthLabel.Text = $"SPITTER 3D {CurrentHealth}/{MaxHealth}\n{State}{eliteTag}";
         }
     }
 }

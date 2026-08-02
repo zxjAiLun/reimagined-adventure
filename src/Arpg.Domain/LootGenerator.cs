@@ -4,6 +4,7 @@ public enum LootSourceKind
 {
     Feral,
     Spitter,
+    Elite,
     Boss,
     Reward,
     Chest,
@@ -249,7 +250,12 @@ public sealed class LootGenerator
             return context.ForcedRarity.Value;
         }
 
-        var minimum = context.Source == LootSourceKind.Boss ? Rarity.Rare : Rarity.Normal;
+        var minimum = context.Source switch
+        {
+            LootSourceKind.Boss => Rarity.Rare,
+            LootSourceKind.Elite => Rarity.Magic,
+            _ => Rarity.Normal,
+        };
         var normalWeight = minimum > Rarity.Normal ? 0 : 60;
         var magicWeight = minimum > Rarity.Magic ? 0 : Math.Max(0, (int)Math.Round(30.0 * context.RarityMultiplier));
         var rareWeight = Math.Max(1, (int)Math.Round(10.0 * Math.Max(1.0, context.RarityMultiplier)));

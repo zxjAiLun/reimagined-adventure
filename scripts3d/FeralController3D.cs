@@ -11,7 +11,7 @@ public enum FeralState3D
     Dead,
 }
 
-public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemySpawnConfigurable3D
+public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemySpawnConfigurable3D, IEliteRuntime3D
 {
     [Export] public float MoveSpeed { get; set; } = 2.4f;
     [Export] public float AttackRange { get; set; } = 1.25f;
@@ -54,6 +54,11 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
     public int SpawnOrdinal { get; private set; }
     public int SpawnContextAppliedCount { get; private set; }
     public bool ExperienceAwarded { get; private set; }
+    public EliteModifierDefinition EliteModifier { get; private set; }
+    public string EliteModifierId => EliteModifier?.Id ?? string.Empty;
+    public ulong EliteSelectionSeed { get; private set; }
+    public int EliteAppliedCount { get; private set; }
+    public VolcanicDeathEffect3D ActiveVolcanicDeathEffect { get; private set; }
 
     public void ResetForNavigationPressureTest(Vector3 position)
     {
@@ -109,6 +114,18 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         var baseDamage = ContactDamage;
         var scaledHealth = MapScaling.EnemyHp(baseHealth, context.MapLevel, context.MapModifier);
         var scaledDamage = MapScaling.EnemyDamage(baseDamage, context.MapLevel, context.MapModifier);
+        if (context.EliteModifier != null)
+        {
+            scaledHealth = EliteRuntime3D.ScaleInt(scaledHealth, context.EliteModifier.HealthMultiplier);
+            scaledDamage = EliteRuntime3D.ScaleInt(scaledDamage, context.EliteModifier.DamageMultiplier);
+            MoveSpeed *= (float)context.EliteModifier.MoveSpeedMultiplier;
+            AttackWindupSeconds /= (float)context.EliteModifier.ActionSpeedMultiplier;
+            AttackRecoverySeconds /= (float)context.EliteModifier.ActionSpeedMultiplier;
+            health.Armor += context.EliteModifier.ArmorBonus;
+            EliteModifier = context.EliteModifier;
+            EliteSelectionSeed = context.EliteSelectionSeed;
+            EliteAppliedCount++;
+        }
         health.SetMaxHealth(scaledHealth);
         ContactDamage = scaledDamage;
 
@@ -324,11 +341,18 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         toPlayer.Y = 0.0f;
         if (_player.IsAlive && toPlayer.Length() <= AttackRange)
         {
-            var result = _player.ApplyDamage(new DamageRequest(
-                ContactDamage,
-                DamageType.Physical,
-                "feral_contact_3d",
-                CombatFaction.Enemy));
+            var request = EliteModifier == null
+                ? new DamageRequest(
+                    ContactDamage,
+                    DamageType.Physical,
+                    "feral_contact_3d",
+                    CombatFaction.Enemy)
+                : EliteRuntime3D.BuildEnemyAttack(
+                    EliteModifier,
+                    ContactDamage,
+                    DamageType.Physical,
+                    "feral_contact_3d");
+            var result = _player.ApplyDamage(request);
             if (result.DamageApplied > 0)
             {
                 SuccessfulContactAttackCount++;
@@ -380,7 +404,25 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         _deathFeedback?.Play();
         AwardExperienceIfEligible();
         SpawnDrop();
+        SpawnVolcanicDeathEffect();
         RefreshVisuals();
+    }
+
+    private void SpawnVolcanicDeathEffect()
+    {
+        var deathEffect = EliteModifier?.DeathEffect;
+        var map = GetParent()?.GetParent() as Node3D;
+        if (deathEffect == null || map == null)
+        {
+            return;
+        }
+
+        ActiveVolcanicDeathEffect = new VolcanicDeathEffect3D();
+        map.AddChild(ActiveVolcanicDeathEffect);
+        ActiveVolcanicDeathEffect.Configure(
+            GlobalPosition,
+            deathEffect,
+            EliteRuntime3D.ScaleInt(AppliedPrimaryDamage, deathEffect.DamageMultiplier));
     }
 
     private void AwardExperienceIfEligible()
@@ -403,7 +445,9 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         var sourceId = string.IsNullOrWhiteSpace(SpawnEncounterId)
             ? $"feral:{GetPath()}"
             : $"feral:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
-        ExperienceAwarded = _runSession.TryAwardExperience(ExperienceSourceKind.Feral, sourceId);
+        ExperienceAwarded = EliteModifier == null
+            ? _runSession.TryAwardExperience(ExperienceSourceKind.Feral, sourceId)
+            : _runSession.TryAwardEliteExperience(ExperienceSourceKind.Feral, sourceId);
     }
 
     private void SpawnDrop()
@@ -426,9 +470,13 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
             return;
         }
 
+        var isElite = EliteModifier != null;
         var result = _runSession.GenerateDrops(
-            new ItemRollContext(AppliedDropItemLevel, LootSourceKind.Feral),
-            LootDropProfiles.Feral);
+            new ItemRollContext(
+                AppliedDropItemLevel,
+                isElite ? LootSourceKind.Elite : LootSourceKind.Feral,
+                RarityMultiplier: isElite ? 1.5 : 1.0),
+            isElite ? LootDropProfiles.Elite : LootDropProfiles.Feral);
         _runSession.TryAwardForgeFragments(result.ForgeFragments);
         foreach (var item in result.Items)
         {
@@ -453,7 +501,8 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
     {
         if (_healthLabel != null)
         {
-            _healthLabel.Text = $"FERAL 3D {CurrentHealth}/{MaxHealth}\n{State}";
+            var eliteTag = EliteModifier == null ? string.Empty : $"\n{EliteRuntime3D.DisplayTag(EliteModifier)}";
+            _healthLabel.Text = $"FERAL 3D {CurrentHealth}/{MaxHealth}\n{State}{eliteTag}";
         }
     }
 }

@@ -17,6 +17,9 @@ public sealed record EnemySpawnContext3D(
     int DropItemLevel,
     bool IsBoss)
 {
+    public EliteModifierDefinition EliteModifier { get; init; }
+    public ulong EliteSelectionSeed { get; init; }
+
     public void Validate()
     {
         if (RunSession == null)
@@ -66,6 +69,28 @@ public sealed record EnemySpawnContext3D(
 
         var modifier = MapModifier ?? throw new System.ArgumentNullException(nameof(MapModifier));
         modifier.Validate();
+        EliteModifier?.Validate();
+        if (EliteModifier != null)
+        {
+            if (IsBoss)
+            {
+                throw new System.ArgumentException("Bosses cannot receive an elite modifier.", nameof(EliteModifier));
+            }
+
+            if (!EliteModifier.IsEligible(MapLevel))
+            {
+                throw new System.ArgumentException(
+                    "Elite modifier is not eligible for the spawn map level.",
+                    nameof(EliteModifier));
+            }
+
+            if (EliteSelectionSeed == 0)
+            {
+                throw new System.ArgumentException(
+                    "Elite spawns require a non-zero selection seed.",
+                    nameof(EliteSelectionSeed));
+            }
+        }
     }
 }
 

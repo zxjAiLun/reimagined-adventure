@@ -37,6 +37,9 @@ public partial class EncounterDirector3D : Node
     [Signal]
     public delegate void ActiveEnemyCountChangedEventHandler(int activeEnemyCount);
 
+    [Signal]
+    public delegate void ActiveEliteCountChangedEventHandler(int activeEliteCount);
+
     [Export] public EncounterDefinitionResource3D DefinitionResource { get; set; }
     [Export] public bool Enabled { get; set; } = true;
     [Export] public NodePath PlayerPath { get; set; } = new("../Player3D");
@@ -55,6 +58,9 @@ public partial class EncounterDirector3D : Node
     public int EncounterCompletedCount { get; private set; }
     public int CurrentWaveSpawnedCount { get; private set; }
     public int CurrentWaveTargetCount { get; private set; }
+    public int ActiveEliteCount => GetActiveEnemies()
+        .Count(enemy => enemy is IEliteRuntime3D elite
+            && !string.IsNullOrWhiteSpace(elite.EliteModifierId));
     public string LastSpawnPointId { get; private set; } = string.Empty;
     public Node3D ActiveBoss => _spawnedEnemies
         .OfType<BrimstoneColossusController3D>()
@@ -162,6 +168,25 @@ public partial class EncounterDirector3D : Node
             .ToArray();
     }
 
+    /// <summary>
+    /// Test-only registration for a dynamically configured enemy. Production
+    /// encounters use SpawnNextEnemy; this keeps lifecycle assertions on the
+    /// same active-count accounting without exposing the spawn state machine.
+    /// </summary>
+    public bool RegisterExternalEnemyForTest(Node3D enemy)
+    {
+        if (enemy == null
+            || _spawnedEnemies.Contains(enemy)
+            || enemy.GetNodeOrNull<HealthComponent>("HealthComponent") == null)
+        {
+            return false;
+        }
+
+        TrackEnemy(enemy);
+        EmitSignal(SignalName.ActiveEliteCountChanged, ActiveEliteCount);
+        return true;
+    }
+
     public bool IsEncounterComplete() => State == EncounterDirectorState3D.Completed;
 
     private void CollectSpawnPoints()
@@ -265,6 +290,17 @@ public partial class EncounterDirector3D : Node
         var mapLevel = runSession.CurrentMapLevel;
         var modifier = runSession.CurrentMapModifier?.Effects ?? new MapModifierStats();
         var dropItemLevel = runSession.CurrentMapPlan.DropItemLevel;
+        var eliteSelection = EliteSelection.Select(
+            runSession.Session.RunSeed,
+            runSession.CurrentEncounterSeed,
+            mapLevel,
+            CurrentWaveIndex,
+            CurrentWaveSpawnedCount + 1,
+            enemy is BrimstoneColossusController3D,
+            runSession.CurrentMapModifierId);
+        var eliteModifier = string.IsNullOrWhiteSpace(eliteSelection.EliteModifierId)
+            ? null
+            : EliteModifierLibrary.Find(eliteSelection.EliteModifierId);
         var context = new EnemySpawnContext3D(
             runSession,
             _player,
@@ -275,7 +311,11 @@ public partial class EncounterDirector3D : Node
             entry.NavigationLayers,
             modifier,
             dropItemLevel,
-            enemy is BrimstoneColossusController3D);
+            enemy is BrimstoneColossusController3D)
+        {
+            EliteModifier = eliteModifier,
+            EliteSelectionSeed = eliteSelection.SelectionSeed,
+        };
         try
         {
             context.Validate();
@@ -310,6 +350,7 @@ public partial class EncounterDirector3D : Node
         SpawnedEnemyCount++;
         LastSpawnPointId = spawnPoint.SpawnPointId;
         EmitSignal(SignalName.EnemySpawned, enemy);
+        EmitSignal(SignalName.ActiveEliteCountChanged, ActiveEliteCount);
         if (enemy is BrimstoneColossusController3D boss)
         {
             SpawnedBossCount++;
@@ -394,6 +435,7 @@ public partial class EncounterDirector3D : Node
             _countedDead.Add(enemy);
             ActiveEnemyCount = Mathf.Max(0, ActiveEnemyCount - 1);
             EmitSignal(SignalName.ActiveEnemyCountChanged, ActiveEnemyCount);
+            EmitSignal(SignalName.ActiveEliteCountChanged, ActiveEliteCount);
         }
     }
 }

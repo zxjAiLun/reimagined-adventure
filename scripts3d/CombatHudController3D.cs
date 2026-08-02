@@ -24,6 +24,7 @@ public partial class CombatHudController3D : CanvasLayer
     public int CurrentWaveNumber { get; private set; }
     public int TotalWaveCount { get; private set; }
     public int ActiveEnemyCount { get; private set; }
+    public int ActiveEliteCount { get; private set; }
     public int CharacterLevel { get; private set; }
     public int TotalExperience { get; private set; }
     public int UnspentPassivePoints { get; private set; }
@@ -290,6 +291,7 @@ public partial class CombatHudController3D : CanvasLayer
             _encounterDirector.WaveStarted -= OnWaveStarted;
             _encounterDirector.WaveCleared -= OnWaveCleared;
             _encounterDirector.ActiveEnemyCountChanged -= OnActiveEnemyCountChanged;
+            _encounterDirector.ActiveEliteCountChanged -= OnActiveEliteCountChanged;
             _encounterDirector.EncounterCompleted -= OnEncounterCompleted;
         }
 
@@ -351,6 +353,8 @@ public partial class CombatHudController3D : CanvasLayer
     private void OnWaveCleared(int waveIndex, string waveId) => RefreshEncounter();
 
     private void OnActiveEnemyCountChanged(int activeEnemyCount) => RefreshEncounter();
+
+    private void OnActiveEliteCountChanged(int activeEliteCount) => RefreshEncounter();
 
     private void OnEncounterCompleted() => RefreshEncounter();
 
@@ -483,7 +487,8 @@ public partial class CombatHudController3D : CanvasLayer
             ?? _runSession?.CurrentEncounterDefinition?.Waves?.Count
             ?? 0;
         ActiveEnemyCount = _encounterDirector?.ActiveEnemyCount ?? 0;
-        EncounterText = $"Encounter: {displayName} · Tier {EncounterTier}\nWave {CurrentWaveNumber} / {TotalWaveCount} · {ActiveEnemyCount} enemies";
+        ActiveEliteCount = _encounterDirector?.ActiveEliteCount ?? 0;
+        EncounterText = $"Encounter: {displayName} · Tier {EncounterTier}\nWave {CurrentWaveNumber} / {TotalWaveCount} · {ActiveEnemyCount} enemies · {ActiveEliteCount} elites";
         if (IsValid(_encounterLabel))
         {
             _encounterLabel.Text = EncounterText;
@@ -526,6 +531,7 @@ public partial class CombatHudController3D : CanvasLayer
         _encounterDirector.WaveStarted += OnWaveStarted;
         _encounterDirector.WaveCleared += OnWaveCleared;
         _encounterDirector.ActiveEnemyCountChanged += OnActiveEnemyCountChanged;
+        _encounterDirector.ActiveEliteCountChanged += OnActiveEliteCountChanged;
         _encounterDirector.EncounterCompleted += OnEncounterCompleted;
         _directorBound = true;
     }
