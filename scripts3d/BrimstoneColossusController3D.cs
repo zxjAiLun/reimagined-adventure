@@ -69,8 +69,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         ? "phase-1"
         : _phases[Mathf.Clamp(_currentPhaseIndex, 0, _phases.Count - 1)].Id;
     public string CurrentAttackId { get; private set; } = string.Empty;
-    public IReadOnlyList<Vector3> LockedBarrageDirections => _lockedBarrageDirections;
-    public IReadOnlyList<Vector3> LastBarrageLaunchDirections => _lastBarrageLaunchDirections;
+    public int LockedBarrageDirectionCount => _lockedBarrageDirections.Count;
+    public int LastBarrageLaunchDirectionCount => _lastBarrageLaunchDirections.Count;
     public float SlamRadius => _slamRadius;
     public EnemyNavigation3D Navigation => _navigation;
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
@@ -94,6 +94,16 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public float RingInnerRadius => _ringInnerRadius;
     public float RingOuterRadius => _ringOuterRadius;
     public Vector3 LockedRingCenter { get; private set; }
+
+    public Vector3 GetLockedBarrageDirection(int index) =>
+        index >= 0 && index < _lockedBarrageDirections.Count
+            ? _lockedBarrageDirections[index]
+            : Vector3.Zero;
+
+    public Vector3 GetLastBarrageLaunchDirection(int index) =>
+        index >= 0 && index < _lastBarrageLaunchDirections.Count
+            ? _lastBarrageLaunchDirections[index]
+            : Vector3.Zero;
     public int AppliedMapLevel { get; private set; } = 1;
     public int AppliedMaxHealth { get; private set; }
     public int AppliedPrimaryDamage { get; private set; }

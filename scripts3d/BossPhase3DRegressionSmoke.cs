@@ -219,7 +219,10 @@ public partial class BossPhase3DRegressionSmoke : Node
     {
         if (_boss.ActiveBarrageTelegraphCount == 3 && _barrageDirections.Count == 0)
         {
-            _barrageDirections.AddRange(_boss.LockedBarrageDirections);
+            for (var index = 0; index < _boss.LockedBarrageDirectionCount; index++)
+            {
+                _barrageDirections.Add(_boss.GetLockedBarrageDirection(index));
+            }
             _player.GlobalPosition = new Vector3(-4.0f, 0.0f, 2.0f);
         }
 
@@ -233,15 +236,16 @@ public partial class BossPhase3DRegressionSmoke : Node
             return;
         }
 
-        var launchDirections = _boss.LastBarrageLaunchDirections;
         if (_boss.EmberBarrageLaunchCount == 0)
         {
             return;
         }
 
-        var locked = launchDirections.Count == _barrageDirections.Count
-            && launchDirections.Select((direction, index) =>
-                direction.DistanceTo(_barrageDirections[index]) < 0.001f).All(value => value);
+        var locked = _boss.LastBarrageLaunchDirectionCount == _barrageDirections.Count
+            && Enumerable.Range(0, _boss.LastBarrageLaunchDirectionCount)
+                .Select(index => _boss.GetLastBarrageLaunchDirection(index)
+                    .DistanceTo(_barrageDirections[index]) < 0.001f)
+                .All(value => value);
         if (!locked || _boss.ActiveBarrageTelegraphCount != 0)
         {
             Fail("Ember Barrage retargeted or left telegraphs active after launch");
