@@ -53,7 +53,28 @@ public partial class BossDefinitionResource : Resource
                     PreparationSeconds = FlameSpearPreparationSeconds,
                     Range = FlameSpearRange,
                 },
+                new BossAttackDefinition
+                {
+                    Id = "molten_ring",
+                    Name = "Molten Ring",
+                    Kind = BossAttackKind.MoltenRing,
+                    DamageType = DamageType.Fire,
+                    Damage = 12,
+                    PreparationSeconds = 0.80,
+                    Radius = 4.5,
+                },
+                new BossAttackDefinition
+                {
+                    Id = "ember_barrage",
+                    Name = "Ember Barrage",
+                    Kind = BossAttackKind.EmberBarrage,
+                    DamageType = DamageType.Fire,
+                    Damage = 8,
+                    PreparationSeconds = 0.35,
+                    Range = 8.0,
+                },
             ],
+            Phases = BossLibrary.BrimstoneColossus().Phases,
         };
         definition.Validate();
         return definition;
