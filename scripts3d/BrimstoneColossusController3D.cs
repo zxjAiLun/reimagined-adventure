@@ -34,11 +34,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     [Export] public PackedScene RingTelegraphScene { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
 
-    [Signal]
-    public delegate void BossPhaseChangedEventHandler(int phaseIndex, string phaseId);
-
-    [Signal]
-    public delegate void BossAttackStartedEventHandler(string attackId);
+    public event Action<int, string> PhaseChanged;
+    public event Action<string> AttackStarted;
 
     /// <summary>
     /// Compatibility hook for the deterministic scaling smoke. Production
@@ -537,7 +534,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     private void MarkAttackStarted(string attackId)
     {
         CurrentAttackId = attackId;
-        EmitSignal(SignalName.BossAttackStarted, attackId);
+        AttackStarted?.Invoke(attackId);
     }
 
     private void BeginMagmaSlam()
@@ -878,7 +875,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         CurrentAttackId = string.Empty;
         if (_phases.Count > 0)
         {
-            EmitSignal(SignalName.BossPhaseChanged, 0, _phases[0].Id);
+            PhaseChanged?.Invoke(0, _phases[0].Id);
         }
     }
 
@@ -906,7 +903,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             _lavaRemaining = 0.65f;
         }
 
-        EmitSignal(SignalName.BossPhaseChanged, phaseIndex, phase.Id);
+        PhaseChanged?.Invoke(phaseIndex, phase.Id);
     }
 
     private void TickLavaEruption(float delta)

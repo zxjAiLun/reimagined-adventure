@@ -237,8 +237,8 @@ public partial class CombatHudController3D : CanvasLayer
 
         _bossHealth.HealthChanged += OnBossHealthChanged;
         _bossHealth.Died += OnBossDied;
-        _boss.BossPhaseChanged += OnBossPhaseChanged;
-        _boss.BossAttackStarted += OnBossAttackStarted;
+        _boss.PhaseChanged += OnBossPhaseChanged;
+        _boss.AttackStarted += OnBossAttackStarted;
         _bossBound = true;
         RefreshBoss();
     }
@@ -253,8 +253,8 @@ public partial class CombatHudController3D : CanvasLayer
 
         if (IsValid(_boss))
         {
-            _boss.BossPhaseChanged -= OnBossPhaseChanged;
-            _boss.BossAttackStarted -= OnBossAttackStarted;
+            _boss.PhaseChanged -= OnBossPhaseChanged;
+            _boss.AttackStarted -= OnBossAttackStarted;
         }
 
         _boss = null;
