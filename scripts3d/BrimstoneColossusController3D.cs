@@ -776,12 +776,19 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         Vector3 position,
         float duration)
     {
-        if (RingTelegraphScene == null || GetParent() == null)
+        if (GetParent() == null)
         {
             return null;
         }
 
-        var telegraph = RingTelegraphScene.Instantiate<RingTelegraph3D>();
+        var scene = RingTelegraphScene
+            ?? GD.Load<PackedScene>("res://scenes3d/RingTelegraph3D.tscn");
+        if (scene == null)
+        {
+            return null;
+        }
+
+        var telegraph = scene.Instantiate<RingTelegraph3D>();
         GetParent().AddChild(telegraph);
         telegraph.Activate(innerRadius, outerRadius, position, duration);
         return telegraph;
