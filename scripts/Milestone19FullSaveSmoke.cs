@@ -27,7 +27,7 @@ public partial class Milestone19FullSaveSmoke : Node2D
 
         var savedEquippedId = inventory.EquippedWeapon?.Id;
         var legacyPassiveRejected = !save.TrySaveCurrentRun(out var legacySaveError)
-            && legacySaveError.Contains("legacy passive allocation", System.StringComparison.OrdinalIgnoreCase);
+            && legacySaveError.Contains("passive allocation", System.StringComparison.OrdinalIgnoreCase);
         if (!legacyPassiveRejected)
         {
             Fail($"legacy passive allocation should be rejected without earned XP: {legacySaveError}");

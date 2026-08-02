@@ -251,6 +251,12 @@ public sealed class SaveSnapshot
             return false;
         }
 
+        if (!IsValidPassiveAllocation())
+        {
+            error = "invalid passive allocation";
+            return false;
+        }
+
         if (PlayerMaxHealth < 1
             || PlayerCurrentHealth < 0
             || PlayerCurrentHealth > PlayerMaxHealth
@@ -296,11 +302,6 @@ public sealed class SaveSnapshot
             || PassiveAllocatedIndices.Distinct().Count() != PassiveAllocatedIndices.Count
             || AllocatedPassiveNodeIds.Any(string.IsNullOrWhiteSpace)
             || AllocatedPassiveNodeIds.Distinct(StringComparer.Ordinal).Count() != AllocatedPassiveNodeIds.Count
-            || AllocatedPassiveNodeIds.Count > 0
-                && !PassiveTreeLibrary.TryValidateStableAllocation(
-                    AllocatedPassiveNodeIds,
-                    TotalExperience,
-                    out _)
             || AtlasUnlockedMapIds.Any(string.IsNullOrWhiteSpace)
             || AtlasCompletedMapIds.Any(string.IsNullOrWhiteSpace)
             || AtlasUnlockedMapIds.Distinct(StringComparer.Ordinal).Count() != AtlasUnlockedMapIds.Count
@@ -343,6 +344,36 @@ public sealed class SaveSnapshot
     }
 
     private static bool ValidOption(int value) => value >= -1 && value < 3;
+
+    private bool IsValidPassiveAllocation()
+    {
+        if (AllocatedPassiveNodeIds.Count > 0
+            && !PassiveTreeLibrary.TryValidateStableAllocation(
+                AllocatedPassiveNodeIds,
+                TotalExperience,
+                out _))
+        {
+            return false;
+        }
+
+        if (PassiveAllocatedIndices.Count == 0)
+        {
+            return true;
+        }
+
+        if (!PassiveTreeLibrary.TryMigrateLegacyIndices(
+                PassiveAllocatedIndices,
+                TotalExperience,
+                out var legacyNodeIds,
+                out _))
+        {
+            return false;
+        }
+
+        return AllocatedPassiveNodeIds.Count == 0
+            || AllocatedPassiveNodeIds.ToHashSet(StringComparer.Ordinal)
+                .SetEquals(legacyNodeIds);
+    }
 
     public static MapCompletePhase ResolveMapCompletePhase(
         SaveRunState state,

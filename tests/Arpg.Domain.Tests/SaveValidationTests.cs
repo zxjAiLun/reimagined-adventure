@@ -97,6 +97,7 @@ public sealed class SaveValidationTests
             MapLevel = 3,
             PlayerMaxHealth = 125,
             PlayerCurrentHealth = 107,
+            TotalExperience = 130,
             InventoryItems = [inventoryItem],
             EquippedWeapon = equippedItem,
             PassiveAllocatedIndices = [0, 1],
