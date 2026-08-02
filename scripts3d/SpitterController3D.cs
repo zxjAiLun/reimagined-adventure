@@ -63,6 +63,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     public string SpawnWaveId { get; private set; } = string.Empty;
     public int SpawnOrdinal { get; private set; }
     public int SpawnContextAppliedCount { get; private set; }
+    public bool ExperienceAwarded { get; private set; }
 
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
@@ -80,6 +81,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     private EnemyCrowdAgent3D _crowdAgent;
     private EnemySpawnContext3D _spawnContext;
     private bool _spawnContextApplied;
+    private CombatFaction _lastPositiveDamageSourceFaction = CombatFaction.Neutral;
 
     public void ConfigureBeforeReady(EnemySpawnContext3D context)
     {
@@ -240,6 +242,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         var result = _health.ApplyDamage(request);
         if (result.DamageApplied > 0)
         {
+            _lastPositiveDamageSourceFaction = request.SourceFaction;
             _damageFeedback?.Publish(result);
             _hitFlash?.Trigger();
         }
@@ -430,8 +433,32 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         CollisionMask = 0;
         SetPhysicsProcess(false);
         _deathFeedback?.Play();
+        AwardExperienceIfEligible();
         SpawnDrop();
         RefreshVisuals();
+    }
+
+    private void AwardExperienceIfEligible()
+    {
+        if (ExperienceAwarded
+            || _lastPositiveDamageSourceFaction != CombatFaction.Player)
+        {
+            return;
+        }
+
+        _runSession ??= MapRuntimeScope3D.FindRunSession(this);
+        _player ??= MapRuntimeScope3D.FindPlayer(this);
+        var map = GetParent()?.GetParent();
+        var flow = map?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        if (_runSession == null || _player?.IsAlive != true || flow?.State != GameFlowState.Playing)
+        {
+            return;
+        }
+
+        var sourceId = string.IsNullOrWhiteSpace(SpawnEncounterId)
+            ? $"spitter:{GetPath()}"
+            : $"spitter:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
+        ExperienceAwarded = _runSession.TryAwardExperience(ExperienceSourceKind.Spitter, sourceId);
     }
 
     private void SpawnDrop()

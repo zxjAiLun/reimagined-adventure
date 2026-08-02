@@ -28,6 +28,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
     public Stats EffectiveStats { get; private set; } = Stats.Neutral;
     public Stats RewardStats => _rewardStats;
+    public Stats PassiveStats => _passiveStats;
     public int CurrentHealth => _health?.CurrentHealth ?? 0;
     public int MaxHealth => _health?.MaxHealth ?? 0;
     public bool IsAlive => _health?.IsAlive ?? false;
@@ -75,6 +76,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     private PlayerBuildController3D _build;
     private Stats _equipmentStats = Stats.Neutral;
     private Stats _rewardStats = Stats.Neutral;
+    private Stats _passiveStats = Stats.Neutral;
     private int _baseMaxHealth;
 
     public override void _Ready()
@@ -254,6 +256,15 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         EmitSignal(SignalName.StatsChanged);
     }
 
+    public void SetPassiveStats(Stats stats)
+    {
+        ArgumentNullException.ThrowIfNull(stats);
+        stats.Validate();
+        _passiveStats = stats;
+        RecalculateEffectiveStats();
+        EmitSignal(SignalName.StatsChanged);
+    }
+
     public bool CanRestoreCurrentHealth(int currentHealth)
     {
         return _health != null && currentHealth >= 0 && currentHealth <= MaxHealth;
@@ -277,8 +288,23 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         Stats rewardStats,
         out int maxHealth)
     {
+        return TryCalculateMaxHealthForRestore(
+            items,
+            equippedItems,
+            rewardStats,
+            Stats.Neutral,
+            out maxHealth);
+    }
+
+    public bool TryCalculateMaxHealthForRestore(
+        IReadOnlyList<Item> items,
+        IReadOnlyDictionary<EquipmentSlot, Item> equippedItems,
+        Stats rewardStats,
+        Stats passiveStats,
+        out int maxHealth)
+    {
         maxHealth = 0;
-        if (!TryBuildRestoreStats(items, equippedItems, rewardStats, out var restoreStats))
+        if (!TryBuildRestoreStats(items, equippedItems, rewardStats, passiveStats, out var restoreStats))
         {
             return false;
         }
@@ -314,7 +340,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         IReadOnlyList<Item> items,
         IReadOnlyDictionary<EquipmentSlot, Item> equippedItems)
     {
-        if (!TryBuildRestoreStats(items, equippedItems, _rewardStats, out _))
+        if (!TryBuildRestoreStats(items, equippedItems, _rewardStats, _passiveStats, out _))
         {
             return false;
         }
@@ -453,6 +479,7 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
     {
         _equipmentStats = _equipment.CombinedStats();
         EffectiveStats = Stats.Combine(_equipmentStats, _rewardStats);
+        EffectiveStats = Stats.Combine(EffectiveStats, _passiveStats);
         if (_health == null || _baseMaxHealth <= 0)
         {
             return;
@@ -467,10 +494,15 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
         IReadOnlyList<Item> items,
         IReadOnlyDictionary<EquipmentSlot, Item> equippedItems,
         Stats rewardStats,
+        Stats passiveStats,
         out Stats restoreStats)
     {
         restoreStats = null;
-        if (items == null || items.Count > 16 || rewardStats == null || equippedItems == null)
+        if (items == null
+            || items.Count > 16
+            || rewardStats == null
+            || passiveStats == null
+            || equippedItems == null)
         {
             return false;
         }
@@ -515,7 +547,9 @@ public partial class PlayerController3D : CharacterBody3D, ICombatTarget
 
         try
         {
-            restoreStats = Stats.Combine(restoreEquipment.CombinedStats(), rewardStats);
+            restoreStats = Stats.Combine(
+                Stats.Combine(restoreEquipment.CombinedStats(), rewardStats),
+                passiveStats);
             return true;
         }
         catch (ArgumentException)
