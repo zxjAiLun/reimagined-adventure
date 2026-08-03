@@ -192,6 +192,7 @@ public sealed class MinimalSaveService
         public int PlayerCurrentHealth { get; set; } = 100;
         public Stats RewardStats { get; set; } = Stats.Neutral;
         public int TotalExperience { get; set; }
+        public List<string> AwardedExperienceSourceIds { get; set; } = new();
         public int ManaCharges { get; set; } = SaveSnapshot.MaxManaCharges;
         public int InventoryCount { get; set; }
         public List<string> InventoryItemIds { get; set; } = new();
@@ -233,6 +234,7 @@ public sealed class MinimalSaveService
                 PlayerCurrentHealth = snapshot.PlayerCurrentHealth,
                 RewardStats = snapshot.RewardStats,
                 TotalExperience = snapshot.TotalExperience,
+                AwardedExperienceSourceIds = snapshot.AwardedExperienceSourceIds.ToList(),
                 ManaCharges = snapshot.ManaCharges,
                 InventoryCount = snapshot.InventoryCount,
                 InventoryItemIds = snapshot.InventoryItemIds.ToList(),
@@ -307,6 +309,7 @@ public sealed class MinimalSaveService
                 PlayerCurrentHealth = PlayerCurrentHealth,
                 RewardStats = RewardStats,
                 TotalExperience = TotalExperience,
+                AwardedExperienceSourceIds = AwardedExperienceSourceIds,
                 ManaCharges = ManaCharges,
                 InventoryCount = InventoryCount,
                 InventoryItemIds = InventoryItemIds,

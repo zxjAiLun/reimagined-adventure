@@ -122,6 +122,7 @@ public partial class RunSessionNode : Node
     public int TotalExperience => CharacterProgression.TotalExperience;
     public int UnspentPassivePoints => CharacterProgression.UnspentPassivePoints;
     public Stats PassiveStats => PassiveTree.CombinedStats();
+    public IReadOnlyCollection<string> AwardedExperienceSourceIds => _awardedExperienceSourceIds;
 
     public override void _Ready()
     {
@@ -224,13 +225,36 @@ public partial class RunSessionNode : Node
         IEnumerable<string> allocatedNodeIds,
         out Stats passiveStats)
     {
+        return CanRestoreProgression(
+            totalExperience,
+            allocatedNodeIds,
+            _awardedExperienceSourceIds,
+            out passiveStats);
+    }
+
+    public bool CanRestoreProgression(
+        int totalExperience,
+        IEnumerable<string> allocatedNodeIds,
+        IEnumerable<string> awardedExperienceSourceIds,
+        out Stats passiveStats)
+    {
         passiveStats = Stats.Neutral;
-        if (totalExperience < 0 || allocatedNodeIds == null)
+        if (totalExperience < 0
+            || allocatedNodeIds == null
+            || awardedExperienceSourceIds == null)
         {
             return false;
         }
 
         var requested = allocatedNodeIds.ToArray();
+        var awarded = awardedExperienceSourceIds.ToArray();
+        if (awarded.Length > SaveSnapshot.MaxAwardedExperienceSourceIds
+            || awarded.Any(string.IsNullOrWhiteSpace)
+            || awarded.Distinct(StringComparer.Ordinal).Count() != awarded.Length)
+        {
+            return false;
+        }
+
         var candidateProgression = new CharacterProgressionState(totalExperience);
         var pointCost = requested.Sum(nodeId =>
             PassiveTree.Nodes.FirstOrDefault(node => node.Id == nodeId)?.PointCost ?? 0);
@@ -246,21 +270,40 @@ public partial class RunSessionNode : Node
 
     public bool TryRestoreProgression(int totalExperience, IEnumerable<string> allocatedNodeIds)
     {
-        if (allocatedNodeIds == null)
+        return TryRestoreProgression(
+            totalExperience,
+            allocatedNodeIds,
+            _awardedExperienceSourceIds);
+    }
+
+    public bool TryRestoreProgression(
+        int totalExperience,
+        IEnumerable<string> allocatedNodeIds,
+        IEnumerable<string> awardedExperienceSourceIds)
+    {
+        if (allocatedNodeIds == null || awardedExperienceSourceIds == null)
         {
             return false;
         }
 
         var requested = allocatedNodeIds.ToArray();
-        if (!CanRestoreProgression(totalExperience, requested, out _))
+        var awarded = awardedExperienceSourceIds.ToArray();
+        if (!CanRestoreProgression(totalExperience, requested, awarded, out _))
         {
             return false;
         }
 
         var pointCost = requested.Sum(nodeId =>
             PassiveTree.Nodes.First(node => node.Id == nodeId).PointCost);
-        CharacterProgression.Restore(totalExperience, pointCost);
-        PassiveTree.Restore(requested, pointCost);
+        var candidateProgression = new CharacterProgressionState(totalExperience, pointCost);
+        var candidateTree = CreatePassiveTreeState();
+        if (!candidateTree.TryRestore(requested, pointCost))
+        {
+            return false;
+        }
+
+        var candidateLedger = awarded.ToHashSet(StringComparer.Ordinal);
+        ReplaceProgressionState(candidateProgression, candidateTree, candidateLedger);
         ApplyPassiveStatsToCurrentMap();
         NotifyProgressionChanged();
         foreach (var nodeId in requested)
@@ -273,12 +316,34 @@ public partial class RunSessionNode : Node
 
     private Stats CalculatePassiveStats(IReadOnlyList<string> nodeIds, int pointCost)
     {
-        var candidateTree = new PassiveTreeState(new PassiveTreeDefinition
-        {
-            Nodes = PassiveTree.Nodes,
-        });
+        var candidateTree = CreatePassiveTreeState();
         candidateTree.Restore(nodeIds, pointCost);
         return candidateTree.CombinedStats();
+    }
+
+    private PassiveTreeState CreatePassiveTreeState() => new(new PassiveTreeDefinition
+    {
+        Nodes = PassiveTree.Nodes,
+    });
+
+    private void ReplaceProgressionState(
+        CharacterProgressionState progression,
+        PassiveTreeState passiveTree,
+        HashSet<string> awardedExperienceSourceIds)
+    {
+        var owner = _signalOwner ?? this;
+        foreach (var session in owner._linkedSessions.ToArray())
+        {
+            if (session == null || !GodotObject.IsInstanceValid(session))
+            {
+                owner._linkedSessions.Remove(session);
+                continue;
+            }
+
+            session._characterProgression = progression;
+            session._passiveTree = passiveTree;
+            session._awardedExperienceSourceIds = awardedExperienceSourceIds;
+        }
     }
 
     private void NotifyProgressionChanged()

@@ -98,6 +98,7 @@ public sealed class SaveValidationTests
             PlayerMaxHealth = 125,
             PlayerCurrentHealth = 107,
             TotalExperience = 130,
+            AwardedExperienceSourceIds = ["feral:map-1:quiet:wave-1:1", "spitter:map-1:quiet:wave-1:2"],
             InventoryItems = [inventoryItem],
             EquippedWeapon = equippedItem,
             PassiveAllocatedIndices = [0, 1],
@@ -109,6 +110,9 @@ public sealed class SaveValidationTests
 
         Assert.Equal(inventoryItem.Id, restored.InventoryItems[0].Id);
         Assert.Equal(equippedItem.Id, restored.EquippedWeapon!.Id);
+        Assert.Equal(
+            ["feral:map-1:quiet:wave-1:1", "spitter:map-1:quiet:wave-1:2"],
+            restored.AwardedExperienceSourceIds);
         Assert.Equal([0, 1], restored.PassiveAllocatedIndices);
         Assert.Equal(["quiet-coast", "hardened-frontier"], restored.AtlasUnlockedMapIds);
         Assert.Equal(["quiet-coast"], restored.AtlasCompletedMapIds);
@@ -208,6 +212,27 @@ public sealed class SaveValidationTests
         });
 
         Assert.Null(exception);
+    }
+
+    [Fact]
+    public void AwardedExperienceLedgerRejectsNullDuplicateAndOversizedEntries()
+    {
+        var nullLedger = new SaveSnapshot { AwardedExperienceSourceIds = null! };
+        var duplicateLedger = new SaveSnapshot
+        {
+            AwardedExperienceSourceIds = ["feral-1", "feral-1"],
+        };
+        var oversizedLedger = new SaveSnapshot
+        {
+            AwardedExperienceSourceIds = Enumerable
+                .Range(0, SaveSnapshot.MaxAwardedExperienceSourceIds + 1)
+                .Select(index => $"feral-{index}")
+                .ToArray(),
+        };
+
+        Assert.False(nullLedger.TryValidate(out _));
+        Assert.False(duplicateLedger.TryValidate(out _));
+        Assert.False(oversizedLedger.TryValidate(out _));
     }
 
     [Fact]

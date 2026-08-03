@@ -58,6 +58,8 @@ public partial class SaveBoundaryNode3D : Node
             PlayerCurrentHealth = _player.CurrentHealth,
             RewardStats = _player.RewardStats,
             TotalExperience = _runSession?.TotalExperience ?? 0,
+            AwardedExperienceSourceIds = _runSession?.AwardedExperienceSourceIds.ToArray()
+                ?? Array.Empty<string>(),
             AllocatedPassiveNodeIds = _runSession?.PassiveTree.AllocatedNodeIds.ToArray()
                 ?? Array.Empty<string>(),
             InventoryItemIds = items.Select(item => item.Id).ToArray(),
@@ -104,6 +106,7 @@ public partial class SaveBoundaryNode3D : Node
             && !_runSession.CanRestoreProgression(
                 state.TotalExperience,
                 state.AllocatedPassiveNodeIds,
+                state.AwardedExperienceSourceIds,
                 out targetPassiveStats))
         {
             error = "saved 3D passive progression is invalid";
@@ -111,7 +114,9 @@ public partial class SaveBoundaryNode3D : Node
         }
 
         if (_runSession == null
-            && (state.TotalExperience != 0 || state.AllocatedPassiveNodeIds.Count > 0))
+            && (state.TotalExperience != 0
+                || state.AllocatedPassiveNodeIds.Count > 0
+                || state.AwardedExperienceSourceIds.Count > 0))
         {
             error = "saved 3D passive progression has no run owner";
             return false;
@@ -170,7 +175,8 @@ public partial class SaveBoundaryNode3D : Node
             if (_runSession != null
                 && !_runSession.TryRestoreProgression(
                     state.TotalExperience,
-                    state.AllocatedPassiveNodeIds))
+                    state.AllocatedPassiveNodeIds,
+                    state.AwardedExperienceSourceIds))
             {
                 throw new InvalidOperationException("saved 3D passive progression is invalid");
             }
@@ -274,6 +280,8 @@ public partial class SaveBoundaryNode3D : Node
             PlayerCurrentHealth = _player.CurrentHealth,
             RewardStats = _player.RewardStats,
             TotalExperience = _runSession?.TotalExperience ?? 0,
+            AwardedExperienceSourceIds = _runSession?.AwardedExperienceSourceIds.ToArray()
+                ?? Array.Empty<string>(),
             AllocatedPassiveNodeIds = _runSession?.PassiveTree.AllocatedNodeIds.ToArray()
                 ?? Array.Empty<string>(),
             InventoryItemIds = items.Select(item => item.Id).ToArray(),
@@ -330,7 +338,8 @@ public partial class SaveBoundaryNode3D : Node
             if (_runSession != null
                 && !_runSession.TryRestoreProgression(
                     state.TotalExperience,
-                    state.AllocatedPassiveNodeIds))
+                    state.AllocatedPassiveNodeIds,
+                    state.AwardedExperienceSourceIds))
             {
                 throw new InvalidOperationException("could not restore passive progression");
             }

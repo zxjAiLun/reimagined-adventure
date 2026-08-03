@@ -24,6 +24,7 @@ public sealed class MinimalRunState
     public int PlayerCurrentHealth { get; init; } = 100;
     public Stats RewardStats { get; init; } = Stats.Neutral;
     public int TotalExperience { get; init; }
+    public IReadOnlyList<string> AwardedExperienceSourceIds { get; init; } = Array.Empty<string>();
     public int ManaCharges { get; init; } = SaveSnapshot.MaxManaCharges;
     public IReadOnlyList<string> InventoryItemIds { get; init; } = Array.Empty<string>();
     public string? EquippedWeaponId { get; init; }
@@ -60,6 +61,7 @@ public sealed class SaveSnapshot
     public const int CurrentVersion = 1;
     public const int MaxManaCharges = 3;
     public const int MaxInventoryCount = 16;
+    public const int MaxAwardedExperienceSourceIds = 1024;
 
     public uint Magic { get; init; } = ExpectedMagic;
     public int Version { get; init; } = CurrentVersion;
@@ -74,6 +76,7 @@ public sealed class SaveSnapshot
     public int PlayerCurrentHealth { get; init; } = 100;
     public Stats RewardStats { get; init; } = Stats.Neutral;
     public int TotalExperience { get; init; }
+    public IReadOnlyList<string> AwardedExperienceSourceIds { get; init; } = Array.Empty<string>();
     public int ManaCharges { get; init; } = MaxManaCharges;
     public int InventoryCount { get; init; }
     public IReadOnlyList<string> InventoryItemIds { get; init; } = Array.Empty<string>();
@@ -135,6 +138,8 @@ public sealed class SaveSnapshot
             PlayerCurrentHealth = state.PlayerCurrentHealth,
             RewardStats = state.RewardStats,
             TotalExperience = state.TotalExperience,
+            AwardedExperienceSourceIds = state.AwardedExperienceSourceIds?.ToArray()
+                ?? Array.Empty<string>(),
             ManaCharges = state.ManaCharges,
             InventoryCount = itemIds.Length,
             InventoryItemIds = itemIds,
@@ -180,6 +185,7 @@ public sealed class SaveSnapshot
             PlayerCurrentHealth = PlayerCurrentHealth,
             RewardStats = RewardStats,
             TotalExperience = TotalExperience,
+            AwardedExperienceSourceIds = AwardedExperienceSourceIds.ToArray(),
             ManaCharges = ManaCharges,
             InventoryItemIds = InventoryItemIds.ToArray(),
             EquippedWeaponId = EquippedWeaponId,
@@ -211,6 +217,7 @@ public sealed class SaveSnapshot
             || InventoryItemIds == null
             || InventoryItems == null
             || EquippedItemsBySlot == null
+            || AwardedExperienceSourceIds == null
             || StashItems == null
             || UnlockedSupportIds == null
             || SupportIdBySkillSlot == null
@@ -261,6 +268,10 @@ public sealed class SaveSnapshot
             || PlayerCurrentHealth < 0
             || PlayerCurrentHealth > PlayerMaxHealth
             || TotalExperience < 0
+            || AwardedExperienceSourceIds.Count > MaxAwardedExperienceSourceIds
+            || AwardedExperienceSourceIds.Any(string.IsNullOrWhiteSpace)
+            || AwardedExperienceSourceIds.Distinct(StringComparer.Ordinal).Count()
+                != AwardedExperienceSourceIds.Count
             || !IsValidStats(RewardStats)
             || ManaCharges < 0
             || ManaCharges > MaxManaCharges
