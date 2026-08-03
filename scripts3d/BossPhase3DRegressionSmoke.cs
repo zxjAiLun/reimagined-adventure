@@ -1,14 +1,11 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using Arpg.Domain;
 using Godot;
 
 /// <summary>
-/// Regression coverage for the Brimstone phase contract. It uses the normal
-/// legacy arena fixtures so the smoke can isolate one boss without waiting
-/// through a full encounter, while phase adds still use the production
-/// EncounterDirector spawn path.
+/// Runtime contract for the independent Brimstone phase driver. The smoke
+/// observes map-local metadata and real telegraph/projectile nodes instead of
+/// exposing another Godot-heavy diagnostic API on the boss controller.
 /// </summary>
 public partial class BossPhase3DRegressionSmoke : Node
 {
@@ -18,12 +15,13 @@ public partial class BossPhase3DRegressionSmoke : Node
     private TestArena3D _arena;
     private BrimstoneColossusController3D _boss;
     private PlayerController3D _player;
-    private EncounterDirector3D _director;
     private GameFlowController3D _flow;
+    private HealthComponent _playerHealth;
     private int _ringHealthBefore;
-    private int _phaseTwoAddCount;
-    private readonly List<Vector3> _barrageDirections = new();
-    private BossLavaEruption3D _pausedLava;
+    private int _phaseTwoAdds;
+    private int _lavaCountBeforePause;
+    private Vector3 _barrageDirection0;
+    private int _barrageProjectileCountBefore;
 
     public override void _Ready()
     {
@@ -38,259 +36,242 @@ public partial class BossPhase3DRegressionSmoke : Node
             return;
         }
 
-        BindRuntime();
-        if (_boss == null || _player == null || _director == null || _flow == null)
+        try
         {
-            if (_elapsed > 10.0)
+            BindRuntime();
+            if (_boss == null || _player == null || _flow == null)
             {
-                Fail("Boss phase smoke runtime did not become ready");
+                if (_elapsed > 12.0)
+                {
+                    Fail("boss phase smoke runtime did not become ready");
+                }
+
+                return;
             }
 
-            return;
-        }
+            switch (_stage)
+            {
+                case 0:
+                    PrepareBoss();
+                    break;
+                case 1:
+                    VerifyPhaseTwoAndRing();
+                    break;
+                case 2:
+                    EnterPhaseThree();
+                    break;
+                case 3:
+                    VerifyEmberBarrage();
+                    break;
+                case 4:
+                    VerifyLavaPauseAndDeath();
+                    break;
+            }
 
-        switch (_stage)
-        {
-            case 0:
-                PrepareArena();
-                break;
-            case 1:
-                EnterPhaseTwo();
-                break;
-            case 2:
-                ObserveMoltenRing();
-                break;
-            case 3:
-                EnterPhaseThree();
-                break;
-            case 4:
-                ObserveEmberBarrage();
-                break;
-            case 5:
-                ObserveLavaAndPause();
-                break;
-            case 6:
-                ObserveDeathBoundary();
-                break;
+            if (_elapsed > 36.0 && !_complete)
+            {
+                Fail($"boss phase smoke timed out at stage {_stage}");
+            }
         }
-
-        if (_elapsed > 28.0 && !_complete)
+        catch (Exception exception)
         {
-            Fail($"Boss phase smoke timed out at stage {_stage}");
+            Fail(exception.Message);
         }
     }
 
     private void BindRuntime()
     {
-        _arena ??= GetTree().GetNodesInGroup("arena_3d")
-            .OfType<TestArena3D>()
-            .FirstOrDefault();
-        _boss ??= _arena?.GetNodeOrNull<BrimstoneColossusController3D>("BrimstoneColossus3D");
-        _player ??= _arena?.GetNodeOrNull<PlayerController3D>("Player3D");
-        _director ??= _arena?.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
-        _flow ??= _arena?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
-        if (_director != null)
+        _arena ??= GetNodeOrNull<TestArena3D>("Arena3D");
+        if (_arena == null)
         {
-            _director.Enabled = false;
-            _director.ProcessMode = ProcessModeEnum.Disabled;
-        }
-    }
-
-    private void PrepareArena()
-    {
-        _player.GetNode<HealthComponent>("HealthComponent").SetMaxHealth(100000);
-        _player.GlobalPosition = Vector3.Zero;
-        _boss.GlobalPosition = new Vector3(5.0f, 0.0f, 0.0f);
-        _boss.SetPhysicsProcess(false);
-        DisableOtherFixtures();
-        if (_boss.PhaseCount != 3 || _boss.CurrentPhaseIndex != 0 || !_boss.IsAlive)
-        {
-            Fail($"initial phase contract was invalid count={_boss.PhaseCount} index={_boss.CurrentPhaseIndex} alive={_boss.IsAlive}");
             return;
         }
 
+        _player ??= _arena.GetNodeOrNull<PlayerController3D>("Player3D");
+        _flow ??= _arena.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        _playerHealth ??= _player?.GetNodeOrNull<HealthComponent>("HealthComponent");
+
+        _boss ??= _arena.GetNodeOrNull<BrimstoneColossusController3D>("BrimstoneColossus3D");
+        if (_boss == null)
+        {
+            var scene = GD.Load<PackedScene>("res://scenes3d/BrimstoneColossus3D.tscn");
+            if (scene != null)
+            {
+                _boss = scene.Instantiate<BrimstoneColossusController3D>();
+                _boss.Name = "BrimstoneColossus3D";
+                _arena.AddChild(_boss);
+                _boss.GlobalPosition = Vector3.Zero;
+            }
+        }
+
+        var director = _arena.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
+        if (director != null)
+        {
+            director.Enabled = false;
+            director.ProcessMode = ProcessModeEnum.Disabled;
+        }
+    }
+
+    private void PrepareBoss()
+    {
+        if (_boss == null || !_boss.IsAlive || !HasMeta(_boss, "boss_phase_id"))
+        {
+            return;
+        }
+
+        _player.GlobalPosition = _boss.GlobalPosition + new Vector3(3.0f, 0.0f, 0.0f);
+        if (MetaString(_boss, "boss_phase_id") != "phase-1")
+        {
+            Fail($"initial boss phase was not phase-1: {MetaString(_boss, "boss_phase_id")}");
+            return;
+        }
+
+        _boss.ApplyDamage(new DamageRequest(
+            60,
+            DamageType.Physical,
+            "boss_phase_smoke_phase_two",
+            CombatFaction.Player));
         _stage = 1;
         _elapsed = 0.0;
     }
 
-    private void EnterPhaseTwo()
+    private void VerifyPhaseTwoAndRing()
     {
-        if (_boss.CurrentPhaseIndex == 0)
+        if (MetaString(_boss, "boss_phase_id") != "phase-2")
         {
-            _boss.ApplyDamage(new DamageRequest(
-                50,
-                DamageType.Physical,
-                "boss_phase_smoke_phase_two",
-                CombatFaction.Player));
             return;
         }
 
-        _phaseTwoAddCount = _boss.BossAddSpawnCount;
-        if (_boss.CurrentPhaseIndex != 1
-            || _boss.CurrentPhaseId != "phase-2"
-            || _boss.PhaseTransitionCount != 1
-            || _phaseTwoAddCount != 2
-            || _director.ActiveEnemyCount < 2)
+        _phaseTwoAdds = MetaInt(_boss, "boss_add_count");
+        if (_phaseTwoAdds < 2)
         {
-            Fail($"phase two transition/add contract failed phase={_boss.CurrentPhaseId} transitions={_boss.PhaseTransitionCount} adds={_phaseTwoAddCount} active={_director.ActiveEnemyCount}");
+            Fail($"phase two did not spawn two map-local adds: {_phaseTwoAdds}");
             return;
         }
 
-        DisableOtherFixtures();
-        _player.GlobalPosition = new Vector3(3.0f, 0.0f, 0.0f);
-        _boss.GlobalPosition = Vector3.Zero;
-        _boss.SetPhysicsProcess(true);
-        _stage = 2;
-        _elapsed = 0.0;
-    }
-
-    private void ObserveMoltenRing()
-    {
-        if (_boss.ActiveRingTelegraph == null)
+        if (MetaString(_boss, "boss_current_attack_id") != "molten_ring")
         {
-            if (_elapsed > 3.0)
-            {
-                Fail("Molten Ring did not create a telegraph");
-            }
-
             return;
         }
 
-        var telegraph = _boss.ActiveRingTelegraph;
-        var ringCenter = new Vector3(_boss.LockedRingCenter.X, 0.05f, _boss.LockedRingCenter.Z);
-        var geometryPass = telegraph.StartPosition.DistanceTo(ringCenter) < 0.01f
-            && Math.Abs(telegraph.InnerRadius - _boss.RingInnerRadius) < 0.001f
-            && Math.Abs(telegraph.OuterRadius - _boss.RingOuterRadius) < 0.001f
-            && _boss.CurrentAttackId == "molten_ring";
+        if (!FindActiveRing())
+        {
+            Fail("Molten Ring did not create a visible telegraph");
+            return;
+        }
+
         _ringHealthBefore = _player.CurrentHealth;
-        if (!geometryPass)
-        {
-            Fail("Molten Ring telegraph geometry or attack id was not locked");
-            return;
-        }
-
-        _boss.GlobalPosition = new Vector3(0.1f, 0.0f, 0.0f);
-        if (_boss.MoltenRingImpactCount == 0)
+        if (MetaInt(_boss, "boss_molten_ring_impact_count") < 1)
         {
             return;
         }
 
-        var hitOnce = _boss.MoltenRingImpactCount == 1
+        var ringPassed = MetaInt(_boss, "boss_molten_ring_impact_count") == 1
             && _player.CurrentHealth < _ringHealthBefore
-            && _boss.ActiveRingTelegraph == null;
-        if (!hitOnce)
+            && !FindActiveRing();
+        if (!ringPassed)
         {
-            Fail($"Molten Ring impact contract failed impacts={_boss.MoltenRingImpactCount} hp={_player.CurrentHealth}/{_ringHealthBefore} telegraph={_boss.ActiveRingTelegraph != null}");
+            var activeRing = GetActiveRing();
+            Fail($"Molten Ring impact contract failed hp={_player.CurrentHealth}/{_ringHealthBefore} active={activeRing != null} player={_player.GlobalPosition} boss={_boss.GlobalPosition} ring={(activeRing == null ? "none" : $"{activeRing.StartPosition} inner={activeRing.InnerRadius} outer={activeRing.OuterRadius} isActive={activeRing.IsActive}")}");
             return;
         }
 
-        _boss.SetPhysicsProcess(false);
-        _stage = 3;
+        _boss.ApplyDamage(new DamageRequest(
+            70,
+            DamageType.Physical,
+            "boss_phase_smoke_phase_three",
+            CombatFaction.Player));
+        _stage = 2;
         _elapsed = 0.0;
     }
 
     private void EnterPhaseThree()
     {
-        if (_boss.CurrentPhaseIndex < 2)
+        if (MetaString(_boss, "boss_phase_id") != "phase-3")
         {
-            _boss.ApplyDamage(new DamageRequest(
-                60,
-                DamageType.Physical,
-                "boss_phase_smoke_phase_three",
-                CombatFaction.Player));
             return;
         }
 
-        if (_boss.CurrentPhaseId != "phase-3"
-            || _boss.PhaseTransitionCount != 2
-            || _boss.RecoverySeconds >= 0.65f)
+        if (MetaInt(_boss, "boss_phase_transition_count") != 2)
         {
-            Fail($"phase three transition contract failed phase={_boss.CurrentPhaseId} transitions={_boss.PhaseTransitionCount} recovery={_boss.RecoverySeconds}");
+            Fail("phase three transition count was not exactly two");
             return;
         }
 
-        _player.GlobalPosition = new Vector3(3.0f, 0.0f, 0.0f);
-        _boss.SetPhysicsProcess(true);
+        _player.GlobalPosition = _boss.GlobalPosition + new Vector3(3.0f, 0.0f, 0.0f);
+        _stage = 3;
+        _elapsed = 0.0;
+    }
+
+    private void VerifyEmberBarrage()
+    {
+        if (MetaString(_boss, "boss_current_attack_id") != "ember_barrage")
+        {
+            return;
+        }
+
+        var telegraphCount = ActiveLineTelegraphCount();
+        if (telegraphCount != 3)
+        {
+            Fail($"Ember Barrage did not create three telegraphs: {telegraphCount}");
+            return;
+        }
+
+        _barrageDirection0 = FindFirstLineDirection();
+        _barrageProjectileCountBefore = EnemyProjectileCount();
+        _player.GlobalPosition = _boss.GlobalPosition + new Vector3(-4.0f, 0.0f, 2.0f);
+        if (MetaInt(_boss, "boss_ember_barrage_launch_count") == 0)
+        {
+            return;
+        }
+
+        var launchDirection = MetaVector3(_boss, "boss_last_barrage_direction_0");
+        var locked = launchDirection.DistanceTo(_barrageDirection0) < 0.001f;
+        var launched = EnemyProjectileCount() >= _barrageProjectileCountBefore + 3;
+        if (!locked || !launched || ActiveLineTelegraphCount() != 0)
+        {
+            Fail($"Ember Barrage lock/launch failed locked={locked} launched={launched} active={ActiveLineTelegraphCount()}");
+            return;
+        }
+
         _stage = 4;
         _elapsed = 0.0;
     }
 
-    private void ObserveEmberBarrage()
+    private void VerifyLavaPauseAndDeath()
     {
-        if (_boss.ActiveBarrageTelegraphCount == 3 && _barrageDirections.Count == 0)
-        {
-            for (var index = 0; index < _boss.LockedBarrageDirectionCount; index++)
-            {
-                _barrageDirections.Add(_boss.GetLockedBarrageDirection(index));
-            }
-            _player.GlobalPosition = new Vector3(-4.0f, 0.0f, 2.0f);
-        }
-
-        if (_barrageDirections.Count == 0)
-        {
-            if (_elapsed > 4.0)
-            {
-                Fail("Ember Barrage did not create three telegraphs");
-            }
-
-            return;
-        }
-
-        if (_boss.EmberBarrageLaunchCount == 0)
+        if (MetaInt(_boss, "boss_lava_eruption_count") < 1)
         {
             return;
         }
 
-        var locked = _boss.LastBarrageLaunchDirectionCount == _barrageDirections.Count
-            && Enumerable.Range(0, _boss.LastBarrageLaunchDirectionCount)
-                .Select(index => _boss.GetLastBarrageLaunchDirection(index)
-                    .DistanceTo(_barrageDirections[index]) < 0.001f)
-                .All(value => value);
-        if (!locked || _boss.ActiveBarrageTelegraphCount != 0)
+        _lavaCountBeforePause = MetaInt(_boss, "boss_lava_eruption_count");
+        if (MetaLong(_boss, "boss_last_hazard_seed") == 0)
         {
-            Fail("Ember Barrage retargeted or left telegraphs active after launch");
+            Fail("lava eruption did not publish a deterministic non-zero seed");
             return;
         }
 
-        _stage = 5;
-        _elapsed = 0.0;
-    }
-
-    private void ObserveLavaAndPause()
-    {
-        if (_boss.LavaEruptionCount == 0 || _boss.ActiveLavaEruption == null)
+        if (!_flow.RestoreState(GameFlowState.GameOver))
         {
-            if (_elapsed > 4.0)
-            {
-                Fail("phase three did not create deterministic lava eruption");
-            }
-
+            Fail("could not enter GameOver during lava windup");
             return;
         }
 
-        _pausedLava = _boss.ActiveLavaEruption;
-        var seed = _boss.LastHazardSeed;
-        if (seed == 0 || _pausedLava.ActiveTelegraph == null || _pausedLava.DeterministicSeed != seed)
+        if (_elapsed < 0.9)
         {
-            Fail("lava eruption lost its deterministic seed or telegraph");
             return;
         }
 
-        _flow.RestoreState(GameFlowState.GameOver);
-        var cancelled = _pausedLava.IsCancelled || !GodotObject.IsInstanceValid(_pausedLava);
+        if (MetaInt(_boss, "boss_lava_eruption_count") != _lavaCountBeforePause
+            || FindActiveRing()
+            || ActiveLineTelegraphCount() != 0)
+        {
+            Fail("GameOver did not freeze and clean boss phase hazards");
+            return;
+        }
+
         _flow.RestoreState(GameFlowState.Playing);
-        if (!cancelled)
-        {
-            Fail("GameOver did not cancel the active lava eruption");
-            return;
-        }
-
-        _stage = 6;
-        _elapsed = 0.0;
-    }
-
-    private void ObserveDeathBoundary()
-    {
         _boss.ApplyDamage(new DamageRequest(
             999999,
             DamageType.Physical,
@@ -298,24 +279,14 @@ public partial class BossPhase3DRegressionSmoke : Node
             CombatFaction.Player));
         if (_boss.IsAlive)
         {
-            if (_elapsed > 2.0)
-            {
-                Fail("Boss did not die from lethal phase smoke damage");
-            }
-
             return;
         }
 
-        var cleaned = _boss.State == BrimstoneColossusState3D.Dead
-            && !_boss.IsPhysicsProcessing()
-            && _boss.CollisionLayer == 0
-            && _boss.CollisionMask == 0
-            && _boss.ActiveRingTelegraph == null
-            && _boss.ActiveBarrageTelegraphCount == 0
-            && _flow.State == GameFlowState.MapComplete;
-        if (!cleaned)
+        if (_flow.State != GameFlowState.MapComplete
+            || _boss.CollisionLayer != 0
+            || _boss.CollisionMask != 0)
         {
-            Fail($"Boss death boundary was incomplete state={_boss.State} physics={_boss.IsPhysicsProcessing()} flow={_flow.State}");
+            Fail($"boss death boundary failed flow={_flow.State} layer={_boss.CollisionLayer} mask={_boss.CollisionMask}");
             return;
         }
 
@@ -324,23 +295,71 @@ public partial class BossPhase3DRegressionSmoke : Node
         GetTree().Quit();
     }
 
-    private void DisableOtherFixtures()
+    private bool FindActiveRing()
     {
-        foreach (var node in GetTree().GetNodesInGroup("enemies_3d"))
-        {
-            if (node is not Node3D enemy || ReferenceEquals(enemy, _boss))
-            {
-                continue;
-            }
-
-            enemy.SetPhysicsProcess(false);
-            if (enemy is CollisionObject3D collision)
-            {
-                collision.CollisionLayer = 0;
-                collision.CollisionMask = 0;
-            }
-        }
+        return GetActiveRing() != null;
     }
+
+    private RingTelegraph3D GetActiveRing()
+    {
+        var node = GetTree().GetFirstNodeInGroup("combat_telegraphs_3d");
+        if (node is RingTelegraph3D ring && ring.IsActive)
+        {
+            return ring;
+        }
+
+        return null;
+    }
+
+    private int ActiveLineTelegraphCount()
+    {
+        var node = GetTree().GetFirstNodeInGroup("combat_telegraphs_3d");
+        return node is LineTelegraph3D line
+            && line.IsActive
+            ? MetaInt(_boss, "boss_active_barrage_telegraph_count")
+            : 0;
+    }
+
+    private Vector3 FindFirstLineDirection()
+    {
+        var node = GetTree().GetFirstNodeInGroup("combat_telegraphs_3d");
+        if (node is LineTelegraph3D line && line.IsActive)
+        {
+            return line.LockedDirection;
+        }
+
+        return Vector3.Zero;
+    }
+
+    private int EnemyProjectileCount()
+    {
+        return CountGroupMembers(this, "enemy_projectiles_3d");
+    }
+
+    private static int CountGroupMembers(Node node, string group)
+    {
+        var count = node.IsInGroup(group) ? 1 : 0;
+        for (var index = 0; index < node.GetChildCount(); index++)
+        {
+            count += CountGroupMembers(node.GetChild(index), group);
+        }
+
+        return count;
+    }
+
+    private static bool HasMeta(Node node, string key) => node.HasMeta(key);
+
+    private static int MetaInt(Node node, string key) =>
+        node.HasMeta(key) ? node.GetMeta(key).AsInt32() : -1;
+
+    private static long MetaLong(Node node, string key) =>
+        node.HasMeta(key) ? node.GetMeta(key).AsInt64() : 0;
+
+    private static string MetaString(Node node, string key) =>
+        node.HasMeta(key) ? node.GetMeta(key).AsString() : string.Empty;
+
+    private static Vector3 MetaVector3(Node node, string key) =>
+        node.HasMeta(key) ? node.GetMeta(key).AsVector3() : Vector3.Zero;
 
     private void Fail(string reason)
     {

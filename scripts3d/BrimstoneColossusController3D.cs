@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Arpg.Domain;
 using Godot;
 
@@ -12,10 +11,6 @@ public enum BrimstoneColossusState3D
     Recovering,
     PreparingSpear,
     SpearLaunch,
-    PreparingMoltenRing,
-    MoltenRingImpact,
-    PreparingEmberBarrage,
-    EmberBarrageLaunch,
     Dead,
 }
 
@@ -31,12 +26,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     [Export] public PackedScene AreaEffectScene { get; set; }
     [Export] public PackedScene AreaTelegraphScene { get; set; }
     [Export] public PackedScene LineTelegraphScene { get; set; }
-    [Export] public PackedScene RingTelegraphScene { get; set; }
     [Export] public PackedScene ItemDropScene { get; set; }
-
-    public event Action<int, string> PhaseChanged;
-    public event Action<string> AttackStarted;
-
 
     /// <summary>
     /// Compatibility hook for the deterministic scaling smoke. Production
@@ -53,22 +43,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public int MagmaSlamImpactCount { get; private set; }
     public int FlameSpearCount { get; private set; }
     public int FlameSpearLaunchCount { get; private set; }
-    public int MoltenRingCount { get; private set; }
-    public int MoltenRingImpactCount { get; private set; }
-    public int EmberBarrageCount { get; private set; }
-    public int EmberBarrageLaunchCount { get; private set; }
-    public int LavaEruptionCount { get; private set; }
-    public int PhaseTransitionCount { get; private set; }
-    public int BossAddSpawnCount { get; private set; }
-    public int CurrentPhaseIndex => _currentPhaseIndex;
-    public int PhaseNumber => _phases.Count == 0 ? 1 : _currentPhaseIndex + 1;
-    public int PhaseCount => _phases.Count;
-    public string CurrentPhaseId => _phases.Count == 0
-        ? "phase-1"
-        : _phases[Mathf.Clamp(_currentPhaseIndex, 0, _phases.Count - 1)].Id;
-    public string CurrentAttackId { get; private set; } = string.Empty;
-    public int LockedBarrageDirectionCount => _lockedBarrageDirections.Count;
-    public int LastBarrageLaunchDirectionCount => _lastBarrageLaunchDirections.Count;
     public float SlamRadius => _slamRadius;
     public EnemyNavigation3D Navigation => _navigation;
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
@@ -85,27 +59,12 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public float SpearTelegraphLength { get; private set; }
     public AreaTelegraph3D ActiveSlamTelegraph => _activeSlamTelegraph;
     public LineTelegraph3D ActiveSpearTelegraph => _activeSpearTelegraph;
-    public RingTelegraph3D ActiveRingTelegraph => _activeRingTelegraph;
-    public int ActiveBarrageTelegraphCount => _activeBarrageTelegraphs.Count;
-    public BossLavaEruption3D ActiveLavaEruption => _activeLavaEruption;
-    public ulong LastHazardSeed { get; private set; }
-    public float RingInnerRadius => _ringInnerRadius;
-    public float RingOuterRadius => _ringOuterRadius;
-    public Vector3 LockedRingCenter { get; private set; }
-
-    public Vector3 GetLockedBarrageDirection(int index) =>
-        index >= 0 && index < _lockedBarrageDirections.Count
-            ? _lockedBarrageDirections[index]
-            : Vector3.Zero;
-
-    public Vector3 GetLastBarrageLaunchDirection(int index) =>
-        index >= 0 && index < _lastBarrageLaunchDirections.Count
-            ? _lastBarrageLaunchDirections[index]
-            : Vector3.Zero;
     public int AppliedMapLevel { get; private set; } = 1;
     public int AppliedMaxHealth { get; private set; }
     public int AppliedPrimaryDamage { get; private set; }
     public int AppliedSecondaryDamage { get; private set; }
+    public int AppliedRingDamage { get; private set; }
+    public int AppliedBarrageDamage { get; private set; }
     public int AppliedDropItemLevel { get; private set; } = 1;
     public string SpawnEncounterId { get; private set; } = string.Empty;
     public string SpawnWaveId { get; private set; } = string.Empty;
@@ -117,6 +76,19 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public float FlameSpearPreparationSeconds => _spearPreparationSeconds;
     public float RecoverySeconds => _recoverySeconds;
 
+    internal event Action<int, string> BossPhaseChanged;
+    internal event Action<string> BossAttackStarted;
+
+    internal void NotifyBossPhaseChanged(int phaseIndex, string phaseId)
+    {
+        BossPhaseChanged?.Invoke(phaseIndex, phaseId);
+    }
+
+    internal void NotifyBossAttackStarted(string attackId)
+    {
+        BossAttackStarted?.Invoke(attackId);
+    }
+
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
     private HitFlash3D _hitFlash;
@@ -127,15 +99,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     private Label3D _healthLabel;
     private AreaTelegraph3D _activeSlamTelegraph;
     private LineTelegraph3D _activeSpearTelegraph;
-    private RingTelegraph3D _activeRingTelegraph;
-    private readonly List<LineTelegraph3D> _activeBarrageTelegraphs = new();
-    private readonly List<Vector3> _lockedBarrageDirections = new();
-    private readonly List<Vector3> _lastBarrageLaunchDirections = new();
-    private BossDefinition _bossDefinition;
-    private IReadOnlyList<BossPhaseDefinition> _phases = Array.Empty<BossPhaseDefinition>();
-    private int _currentPhaseIndex;
-    private int _attackPatternIndex;
-    private float _baseRecoverySeconds;
     private float _moveSpeed;
     private float _slamDamage;
     private float _slamPreparationSeconds;
@@ -145,21 +108,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     private float _spearPreparationSeconds;
     private float _spearRange;
     private float _recoverySeconds;
-    private float _ringDamage;
-    private float _ringInnerRadius;
-    private float _ringOuterRadius;
-    private float _ringPreparationSeconds;
-    private float _barrageDamage;
-    private float _barragePreparationSeconds;
-    private float _barrageRange;
-    private float _barrageLength;
-    private int _scaledRingDamage;
-    private int _scaledBarrageDamage;
-    private float _lavaRemaining;
-    private int _lavaActivationCount;
-    private BossLavaEruption3D _activeLavaEruption;
-    private bool _ringImpactApplied;
-    private bool _barrageLaunchPerformed;
     private float _stateRemaining;
     private bool _nextAttackIsSlam = true;
     private bool _slamImpactApplied;
@@ -230,8 +178,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         AppliedMaxHealth = scaledHealth;
         AppliedPrimaryDamage = scaledSlamDamage;
         AppliedSecondaryDamage = scaledSpearDamage;
-        _scaledRingDamage = scaledRingDamage;
-        _scaledBarrageDamage = scaledBarrageDamage;
+        AppliedRingDamage = scaledRingDamage;
+        AppliedBarrageDamage = scaledBarrageDamage;
         AppliedDropItemLevel = context.DropItemLevel;
         SpawnEncounterId = context.EncounterId;
         SpawnWaveId = context.WaveId;
@@ -250,24 +198,31 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _ailments = GetNodeOrNull<AilmentComponent3D>("AilmentComponent3D");
         _health.Died += OnDied;
         _health.DamageTaken += OnDamageTaken;
-        _health.HealthChanged += OnHealthChanged;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
         _runSession = _spawnContext?.RunSession ?? MapRuntimeScope3D.FindRunSession(this);
-        ApplyDefinition(DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus());
+        var definition = DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus();
+        ApplyDefinition(definition);
         if (!_spawnContextApplied)
         {
             AppliedMaxHealth = _health.MaxHealth;
             AppliedPrimaryDamage = Mathf.RoundToInt(_slamDamage);
             AppliedSecondaryDamage = Mathf.RoundToInt(_spearDamage);
+            AppliedRingDamage = definition.Attack(BossAttackKind.MoltenRing).Damage;
+            AppliedBarrageDamage = definition.Attack(BossAttackKind.EmberBarrage).Damage;
             SpawnOrdinal = 0;
         }
 
         _player = _spawnContext?.Player;
         _player ??= MapRuntimeScope3D.FindPlayer(this);
-        InitializePhaseRuntime();
         RefreshVisuals();
+        BossPhaseRuntimeRegistry3D.Register(this);
+    }
+
+    public override void _ExitTree()
+    {
+        BossPhaseRuntimeRegistry3D.Remove(this);
     }
 
     public override void _PhysicsProcess(double delta)
@@ -290,7 +245,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         }
 
         var frameDelta = (float)delta;
-        TickLavaEruption(frameDelta);
         switch (State)
         {
             case BrimstoneColossusState3D.Idle:
@@ -329,49 +283,12 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
                 State = BrimstoneColossusState3D.Recovering;
                 _stateRemaining = Mathf.Max(0.01f, _recoverySeconds);
                 break;
-            case BrimstoneColossusState3D.PreparingMoltenRing:
-                Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta * (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
-                _activeRingTelegraph?.SetProgress(
-                    1.0f - _stateRemaining / Mathf.Max(0.01f, _ringPreparationSeconds));
-                if (_stateRemaining <= 0.0f)
-                {
-                    BeginMoltenRingImpact();
-                }
-
-                break;
-            case BrimstoneColossusState3D.MoltenRingImpact:
-                Velocity = Vector3.Zero;
-                State = BrimstoneColossusState3D.Recovering;
-                _stateRemaining = Mathf.Max(0.01f, _recoverySeconds);
-                break;
-            case BrimstoneColossusState3D.PreparingEmberBarrage:
-                Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta * (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
-                foreach (var telegraph in _activeBarrageTelegraphs)
-                {
-                    telegraph?.SetProgress(
-                        1.0f - _stateRemaining / Mathf.Max(0.01f, _barragePreparationSeconds));
-                }
-
-                if (_stateRemaining <= 0.0f)
-                {
-                    BeginEmberBarrageLaunch();
-                }
-
-                break;
-            case BrimstoneColossusState3D.EmberBarrageLaunch:
-                Velocity = Vector3.Zero;
-                State = BrimstoneColossusState3D.Recovering;
-                _stateRemaining = Mathf.Max(0.01f, _recoverySeconds);
-                break;
             case BrimstoneColossusState3D.Recovering:
                 Velocity = Vector3.Zero;
                 _stateRemaining -= frameDelta * (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
                 if (_stateRemaining <= 0.0f)
                 {
                     State = BrimstoneColossusState3D.Idle;
-                    CurrentAttackId = string.Empty;
                 }
 
                 break;
@@ -413,21 +330,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         }
     }
 
-    private void OnHealthChanged(int currentHealth, int maxHealth)
-    {
-        if (!IsAlive || _phases.Count == 0 || maxHealth <= 0)
-        {
-            return;
-        }
-
-        var healthPercent = currentHealth * 100.0 / maxHealth;
-        while (_currentPhaseIndex + 1 < _phases.Count
-            && healthPercent <= _phases[_currentPhaseIndex + 1].EnterAtHealthPercent)
-        {
-            EnterPhase(_currentPhaseIndex + 1);
-        }
-    }
-
     private void FindPlayer()
     {
         _player = MapRuntimeScope3D.FindPlayer(this);
@@ -438,24 +340,16 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         var toPlayer = _player.GlobalPosition - GlobalPosition;
         toPlayer.Y = 0.0f;
         var distance = toPlayer.Length();
-        if (TryGetNextAttack(out var attackKind)
-            && IsAttackInRange(attackKind, distance))
+        if (_nextAttackIsSlam && distance <= _slamRange)
         {
-            switch (attackKind)
-            {
-                case BossAttackKind.MagmaSlam:
-                    BeginMagmaSlam();
-                    return;
-                case BossAttackKind.FlameSpear:
-                    BeginFlameSpear();
-                    return;
-                case BossAttackKind.MoltenRing:
-                    BeginMoltenRing();
-                    return;
-                case BossAttackKind.EmberBarrage:
-                    BeginEmberBarrage();
-                    return;
-            }
+            BeginMagmaSlam();
+            return;
+        }
+
+        if (!_nextAttackIsSlam && distance <= _spearRange)
+        {
+            BeginFlameSpear();
+            return;
         }
 
         State = BrimstoneColossusState3D.Chasing;
@@ -496,48 +390,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             frameDelta);
     }
 
-    private bool TryGetNextAttack(out BossAttackKind attackKind)
-    {
-        if (_phases.Count > 0)
-        {
-            var pattern = _phases[_currentPhaseIndex].AttackPattern;
-            attackKind = pattern[Mathf.Clamp(_attackPatternIndex, 0, pattern.Count - 1)];
-            return true;
-        }
-
-        attackKind = _nextAttackIsSlam
-            ? BossAttackKind.MagmaSlam
-            : BossAttackKind.FlameSpear;
-        return true;
-    }
-
-    private bool IsAttackInRange(BossAttackKind attackKind, float distance)
-    {
-        return attackKind switch
-        {
-            BossAttackKind.MagmaSlam => distance <= _slamRange,
-            BossAttackKind.FlameSpear => distance <= _spearRange,
-            BossAttackKind.MoltenRing => distance <= Mathf.Max(_slamRange, _ringOuterRadius + 3.0f),
-            BossAttackKind.EmberBarrage => distance <= _barrageRange,
-            _ => false,
-        };
-    }
-
-    private void AdvanceAttackPattern()
-    {
-        if (_phases.Count > 0)
-        {
-            var pattern = _phases[_currentPhaseIndex].AttackPattern;
-            _attackPatternIndex = (_attackPatternIndex + 1) % pattern.Count;
-        }
-    }
-
-    private void MarkAttackStarted(string attackId)
-    {
-        CurrentAttackId = attackId;
-        AttackStarted?.Invoke(attackId);
-    }
-
     private void BeginMagmaSlam()
     {
         State = BrimstoneColossusState3D.PreparingSlam;
@@ -548,8 +400,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         LockedSlamCenter = GlobalPosition;
         LastSlamTelegraphCenter = LockedSlamCenter;
         LastSlamTelegraphRadius = _slamRadius;
-        AdvanceAttackPattern();
-        MarkAttackStarted("magma_slam");
         _activeSlamTelegraph = CreateAreaTelegraph(
             _slamRadius,
             LockedSlamCenter,
@@ -605,8 +455,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             ? direction.Normalized()
             : Vector3.Forward;
         SpearTelegraphLength = Mathf.Max(3.0f, direction.Length() + 1.0f);
-        AdvanceAttackPattern();
-        MarkAttackStarted("flame_spear");
         _activeSpearTelegraph = CreateLineTelegraph(
             LockedSpearDirection,
             SpearTelegraphLength,
@@ -627,112 +475,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _stateRemaining = 0.0f;
     }
 
-    private void BeginMoltenRing()
-    {
-        State = BrimstoneColossusState3D.PreparingMoltenRing;
-        MoltenRingCount++;
-        _ringImpactApplied = false;
-        _stateRemaining = Mathf.Max(0.05f, _ringPreparationSeconds);
-        LockedRingCenter = GlobalPosition;
-        AdvanceAttackPattern();
-        MarkAttackStarted("molten_ring");
-        _activeRingTelegraph = CreateRingTelegraph(
-            _ringInnerRadius,
-            _ringOuterRadius,
-            LockedRingCenter,
-            _ringPreparationSeconds);
-    }
-
-    private void BeginMoltenRingImpact()
-    {
-        State = BrimstoneColossusState3D.MoltenRingImpact;
-        _activeRingTelegraph?.Complete();
-        _activeRingTelegraph = null;
-        if (_ringImpactApplied)
-        {
-            return;
-        }
-
-        _ringImpactApplied = true;
-        MoltenRingImpactCount++;
-        var request = new DamageRequest(
-            Mathf.Max(1, Mathf.RoundToInt(_ringDamage)),
-            DamageType.Fire,
-            "molten_ring_3d",
-            CombatFaction.Enemy);
-        foreach (var node in GetTree().GetNodesInGroup("damageables_3d"))
-        {
-            if (node is not Node3D damageableNode
-                || node is not ICombatTarget target
-                || !target.IsAlive
-                || !CombatTargeting.CanHit(request, target))
-            {
-                continue;
-            }
-
-            var distance = HorizontalDistance(damageableNode.GlobalPosition, LockedRingCenter);
-            if (distance >= _ringInnerRadius && distance <= _ringOuterRadius)
-            {
-                target.ApplyDamage(request);
-            }
-        }
-    }
-
-    private void BeginEmberBarrage()
-    {
-        State = BrimstoneColossusState3D.PreparingEmberBarrage;
-        EmberBarrageCount++;
-        _barrageLaunchPerformed = false;
-        _stateRemaining = Mathf.Max(0.05f, _barragePreparationSeconds);
-        _lockedBarrageDirections.Clear();
-        _lastBarrageLaunchDirections.Clear();
-        CancelBarrageTelegraphs();
-
-        var direction = _player.GlobalPosition - GlobalPosition;
-        direction.Y = 0.0f;
-        direction = direction.LengthSquared() > 0.001f
-            ? direction.Normalized()
-            : Vector3.Forward;
-        var length = Mathf.Max(_barrageLength, (float)HorizontalDistance(_player.GlobalPosition, GlobalPosition) + 1.0f);
-        foreach (var degrees in new[] { -15.0f, 0.0f, 15.0f })
-        {
-            var lockedDirection = direction.Rotated(Vector3.Up, Mathf.DegToRad(degrees)).Normalized();
-            _lockedBarrageDirections.Add(lockedDirection);
-            var telegraph = CreateLineTelegraph(
-                GlobalPosition,
-                lockedDirection,
-                length,
-                _barragePreparationSeconds);
-            if (telegraph != null)
-            {
-                _activeBarrageTelegraphs.Add(telegraph);
-            }
-        }
-
-        AdvanceAttackPattern();
-        MarkAttackStarted("ember_barrage");
-    }
-
-    private void BeginEmberBarrageLaunch()
-    {
-        State = BrimstoneColossusState3D.EmberBarrageLaunch;
-        CompleteBarrageTelegraphs();
-        if (_barrageLaunchPerformed)
-        {
-            return;
-        }
-
-        _barrageLaunchPerformed = true;
-        _lastBarrageLaunchDirections.AddRange(_lockedBarrageDirections);
-        foreach (var direction in _lockedBarrageDirections)
-        {
-            FireEmberProjectile(direction);
-        }
-
-        EmberBarrageLaunchCount++;
-        _stateRemaining = 0.0f;
-    }
-
     private AreaTelegraph3D CreateAreaTelegraph(float radius, Vector3 position, float duration)
     {
         if (AreaTelegraphScene == null || GetParent() == null)
@@ -748,15 +490,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
     private LineTelegraph3D CreateLineTelegraph(Vector3 direction, float length, float duration)
     {
-        return CreateLineTelegraph(GlobalPosition, direction, length, duration);
-    }
-
-    private LineTelegraph3D CreateLineTelegraph(
-        Vector3 origin,
-        Vector3 direction,
-        float length,
-        float duration)
-    {
         if (LineTelegraphScene == null || GetParent() == null)
         {
             return null;
@@ -764,31 +497,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
         var telegraph = LineTelegraphScene.Instantiate<LineTelegraph3D>();
         GetParent().AddChild(telegraph);
-        telegraph.Activate(origin, direction, length, duration);
-        return telegraph;
-    }
-
-    private RingTelegraph3D CreateRingTelegraph(
-        float innerRadius,
-        float outerRadius,
-        Vector3 position,
-        float duration)
-    {
-        if (GetParent() == null)
-        {
-            return null;
-        }
-
-        var scene = RingTelegraphScene
-            ?? GD.Load<PackedScene>("res://scenes3d/RingTelegraph3D.tscn");
-        if (scene == null)
-        {
-            return null;
-        }
-
-        var telegraph = scene.Instantiate<RingTelegraph3D>();
-        GetParent().AddChild(telegraph);
-        telegraph.Activate(innerRadius, outerRadius, position, duration);
+        telegraph.Activate(GlobalPosition, direction, length, duration);
         return telegraph;
     }
 
@@ -815,176 +524,12 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         FlameSpearLaunchCount++;
     }
 
-    private void FireEmberProjectile(Vector3 direction)
-    {
-        if (ProjectileScene == null || !_player.IsAlive || GetParent() == null)
-        {
-            return;
-        }
-
-        var projectile = ProjectileScene.Instantiate<BasicProjectile3D>();
-        GetParent().AddChild(projectile);
-        projectile.GlobalPosition = GlobalPosition
-            + direction * (Radius + 0.2f)
-            + Vector3.Up * 0.5f;
-        projectile.Launch(
-            direction,
-            new DamageRequest(
-                Mathf.Max(1, Mathf.RoundToInt(_barrageDamage)),
-                DamageType.Fire,
-                "ember_barrage_3d",
-                CombatFaction.Enemy));
-    }
-
-    private void CompleteBarrageTelegraphs()
-    {
-        foreach (var telegraph in _activeBarrageTelegraphs)
-        {
-            telegraph?.Complete();
-        }
-
-        _activeBarrageTelegraphs.Clear();
-    }
-
-    private void CancelBarrageTelegraphs()
-    {
-        foreach (var telegraph in _activeBarrageTelegraphs)
-        {
-            telegraph?.Cancel();
-        }
-
-        _activeBarrageTelegraphs.Clear();
-    }
-
     private void CancelTelegraphs()
     {
         _activeSlamTelegraph?.Cancel();
         _activeSlamTelegraph = null;
         _activeSpearTelegraph?.Cancel();
         _activeSpearTelegraph = null;
-        _activeRingTelegraph?.Cancel();
-        _activeRingTelegraph = null;
-        CancelBarrageTelegraphs();
-    }
-
-    private void InitializePhaseRuntime()
-    {
-        _currentPhaseIndex = 0;
-        _attackPatternIndex = 0;
-        _baseRecoverySeconds = _recoverySeconds;
-        _lavaRemaining = 0.0f;
-        CurrentAttackId = string.Empty;
-        if (_phases.Count > 0)
-        {
-            PhaseChanged?.Invoke(0, _phases[0].Id);
-        }
-    }
-
-    private void EnterPhase(int phaseIndex)
-    {
-        if (!IsAlive || phaseIndex < 0 || phaseIndex >= _phases.Count)
-        {
-            return;
-        }
-
-        _currentPhaseIndex = phaseIndex;
-        _attackPatternIndex = 0;
-        _recoverySeconds = _baseRecoverySeconds
-            * (float)_phases[phaseIndex].RecoveryMultiplier;
-        PhaseTransitionCount++;
-        var phase = _phases[phaseIndex];
-        if (!string.IsNullOrWhiteSpace(phase.AddWaveId))
-        {
-            var director = GetParent()?.GetParent()?.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
-            BossAddSpawnCount += director?.TrySpawnBossAdds(phase.AddWaveId, 2) ?? 0;
-        }
-
-        if (string.Equals(phase.HazardProfileId, "lava-eruption", StringComparison.Ordinal))
-        {
-            _lavaRemaining = 0.65f;
-        }
-
-        PhaseChanged?.Invoke(phaseIndex, phase.Id);
-
-    }
-
-    private void TickLavaEruption(float delta)
-    {
-        if (_phases.Count == 0
-            || _currentPhaseIndex < 0
-            || _currentPhaseIndex >= _phases.Count
-            || !string.Equals(
-                _phases[_currentPhaseIndex].HazardProfileId,
-                "lava-eruption",
-                StringComparison.Ordinal))
-        {
-            _activeLavaEruption?.Cancel();
-            _activeLavaEruption = null;
-            return;
-        }
-
-        if (_activeLavaEruption != null
-            && !GodotObject.IsInstanceValid(_activeLavaEruption))
-        {
-            _activeLavaEruption = null;
-        }
-
-        if (_activeLavaEruption != null)
-        {
-            return;
-        }
-
-        _lavaRemaining -= Mathf.Max(0.0f, delta);
-        if (_lavaRemaining > 0.0f)
-        {
-            return;
-        }
-
-        SpawnLavaEruption();
-        _lavaRemaining = 2.5f;
-    }
-
-    private void SpawnLavaEruption()
-    {
-        var map = GetParent()?.GetParent() as Node3D;
-        if (map == null || _player == null || !_player.IsAlive)
-        {
-            return;
-        }
-
-        var seed = RandomService.DeriveSeed(
-            _runSession?.CurrentEncounterSeed ?? RandomService.DefaultSeed,
-            0x4C41564145525550UL);
-        seed = RandomService.DeriveSeed(seed, (ulong)Mathf.Max(0, SpawnOrdinal));
-        seed = RandomService.DeriveSeed(seed, (ulong)(_currentPhaseIndex + 1));
-        seed = RandomService.DeriveSeed(seed, (ulong)(_lavaActivationCount + 1));
-        var random = new RandomService(seed);
-        var angle = random.NextFloat01() * Mathf.Pi * 2.0;
-        var distance = 2.0 + random.NextFloat01() * 3.0;
-        var center = _player.GlobalPosition + new Vector3(
-            (float)Math.Cos(angle) * (float)distance,
-            0.0f,
-            (float)Math.Sin(angle) * (float)distance);
-        var hazard = new BossLavaEruption3D();
-        map.AddChild(hazard);
-        hazard.Configure(
-            center,
-            1.35f,
-            0.75f,
-            Mathf.Max(1, Mathf.RoundToInt(_barrageDamage)),
-            DamageType.Fire,
-            seed);
-        _activeLavaEruption = hazard;
-        _lavaActivationCount++;
-        LavaEruptionCount++;
-        LastHazardSeed = seed;
-    }
-
-    private static float HorizontalDistance(Vector3 first, Vector3 second)
-    {
-        var delta = first - second;
-        delta.Y = 0.0f;
-        return delta.Length();
     }
 
     private void OnDied()
@@ -996,8 +541,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
         _deathHandled = true;
         CancelTelegraphs();
-        _activeLavaEruption?.Cancel();
-        _activeLavaEruption = null;
         State = BrimstoneColossusState3D.Dead;
         _crowdAgent?.SetActive(false);
         Velocity = Vector3.Zero;
@@ -1086,16 +629,10 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
 
     private void ApplyDefinition(BossDefinition definition)
     {
-        definition.Validate();
-        _bossDefinition = definition;
-        _phases = definition.Phases ?? Array.Empty<BossPhaseDefinition>();
         _moveSpeed = SpatialScale3D.Distance(definition.MoveSpeed);
         _recoverySeconds = (float)definition.RecoverySeconds;
-        _baseRecoverySeconds = _recoverySeconds;
         var slam = definition.Attack(BossAttackKind.MagmaSlam);
         var spear = definition.Attack(BossAttackKind.FlameSpear);
-        var ring = definition.Attack(BossAttackKind.MoltenRing);
-        var barrage = definition.Attack(BossAttackKind.EmberBarrage);
         _slamDamage = _spawnContextApplied ? AppliedPrimaryDamage : slam.Damage;
         _slamPreparationSeconds = (float)slam.PreparationSeconds;
         _slamRadius = SpatialScale3D.Distance(slam.Radius);
@@ -1103,18 +640,6 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _spearDamage = _spawnContextApplied ? AppliedSecondaryDamage : spear.Damage;
         _spearPreparationSeconds = (float)spear.PreparationSeconds;
         _spearRange = SpatialScale3D.Distance(spear.Range);
-        _ringDamage = _spawnContextApplied && _scaledRingDamage > 0
-            ? _scaledRingDamage
-            : ring.Damage;
-        _ringPreparationSeconds = (float)ring.PreparationSeconds;
-        _ringOuterRadius = SpatialScale3D.Distance(ring.Radius);
-        _ringInnerRadius = Mathf.Max(1.0f, _ringOuterRadius * 0.5f);
-        _barrageDamage = _spawnContextApplied && _scaledBarrageDamage > 0
-            ? _scaledBarrageDamage
-            : barrage.Damage;
-        _barragePreparationSeconds = (float)barrage.PreparationSeconds;
-        _barrageRange = Mathf.Max(8.0f, SpatialScale3D.Distance(barrage.Range));
-        _barrageLength = Mathf.Max(6.0f, _barrageRange);
         _health.SetMaxHealth(_spawnContextApplied ? AppliedMaxHealth : definition.MaxHealth);
         _health.SetDefensiveStats(new Stats { FireResistance = definition.FireResistance });
     }

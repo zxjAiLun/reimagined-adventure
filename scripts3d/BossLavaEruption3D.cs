@@ -3,7 +3,7 @@ using Godot;
 
 /// <summary>
 /// Map-local, deterministic delayed boss hazard. It owns a pausable
-/// telegraph clock and delegates the actual hit to the normal area effect.
+/// telegraph clock and resolves the single-player impact in the owning map.
 /// </summary>
 public partial class BossLavaEruption3D : Node3D
 {
@@ -14,7 +14,6 @@ public partial class BossLavaEruption3D : Node3D
     public ulong DeterministicSeed { get; private set; }
     public Vector3 ExplosionCenter { get; private set; }
     public float ExplosionRadius { get; private set; }
-    public AreaTelegraph3D ActiveTelegraph => _telegraph;
 
     private Vector3 _center;
     private int _damage;
@@ -22,7 +21,7 @@ public partial class BossLavaEruption3D : Node3D
     private float _remaining;
     private float _postImpactRemaining;
     private float _telegraphDuration;
-    private AreaTelegraph3D _telegraph;
+    private ulong _telegraphId;
     private GameFlowController3D _flow;
     private bool _configured;
 
@@ -96,7 +95,7 @@ public partial class BossLavaEruption3D : Node3D
         }
 
         _remaining -= Mathf.Max(0.0f, (float)delta);
-        _telegraph?.SetProgress(
+        ResolveTelegraph()?.SetProgress(
             1.0f - _remaining / Mathf.Max(0.01f, _telegraphDuration));
         if (_remaining <= 0.0f)
         {
@@ -111,8 +110,8 @@ public partial class BossLavaEruption3D : Node3D
             return;
         }
 
-        _telegraph?.Cancel();
-        _telegraph = null;
+        ResolveTelegraph()?.Cancel();
+        _telegraphId = 0;
         IsActive = false;
         IsCancelled = true;
         QueueFree();
@@ -134,9 +133,10 @@ public partial class BossLavaEruption3D : Node3D
             return;
         }
 
-        _telegraph = scene.Instantiate<AreaTelegraph3D>();
-        AddChild(_telegraph);
-        _telegraph.Activate(ExplosionRadius, _center, _telegraphDuration);
+        var telegraph = scene.Instantiate<AreaTelegraph3D>();
+        AddChild(telegraph);
+        telegraph.Activate(ExplosionRadius, _center, _telegraphDuration);
+        _telegraphId = telegraph.GetInstanceId();
     }
 
     private void ApplyImpact()
@@ -148,31 +148,39 @@ public partial class BossLavaEruption3D : Node3D
 
         IsActive = false;
         IsComplete = true;
-        _telegraph?.Complete();
-        _telegraph = null;
+        ResolveTelegraph()?.Complete();
+        _telegraphId = 0;
         ExplosionCount++;
         _postImpactRemaining = 0.35f;
 
-        var scene = GD.Load<PackedScene>("res://scenes3d/SkillAreaEffect3D.tscn");
-        if (scene == null || GetParent() is not Node3D map)
+        var player = MapRuntimeScope3D.FindPlayer(this);
+        var request = new DamageRequest(
+            _damage,
+            _damageType,
+            "lava_eruption_3d",
+            CombatFaction.Enemy);
+        if (player == null
+            || !player.IsAlive
+            || !CombatTargeting.CanHit(request, player))
         {
             return;
         }
 
-        var effect = scene.Instantiate<SkillAreaEffect3D>();
-        map.AddChild(effect);
-        effect.ConfigureHazard(
-            _center,
-            ExplosionRadius,
-            0.0,
-            0.18,
-            new DamageRequest(
-                _damage,
-                _damageType,
-                "lava_eruption_3d",
-                CombatFaction.Enemy));
-        effect.SetVisualVisible(false);
-        effect.ApplyImpactNow();
-        effect.QueueFree();
+        var delta = player.GlobalPosition - _center;
+        delta.Y = 0.0f;
+        if (delta.LengthSquared() <= ExplosionRadius * ExplosionRadius)
+        {
+            player.ApplyDamage(request);
+        }
+    }
+
+    private AreaTelegraph3D ResolveTelegraph()
+    {
+        if (_telegraphId == 0)
+        {
+            return null;
+        }
+
+        return GodotObject.InstanceFromId(_telegraphId) as AreaTelegraph3D;
     }
 }
