@@ -25,13 +25,15 @@ public partial class AtlasRouteChoiceController3D : CanvasLayer
     private Label _optionsLabel;
     private bool _bound;
     private bool _exiting;
+    private int _bindAttempts;
 
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        _bindAttempts = 0;
         _panel = GetNodeOrNull<Control>("RoutePanel");
         _optionsLabel = GetNodeOrNull<Label>("RoutePanel/Options");
-        CallDeferred(nameof(BindRuntime));
+        ScheduleBindRetry();
     }
 
     public override void _ExitTree()
@@ -119,7 +121,13 @@ public partial class AtlasRouteChoiceController3D : CanvasLayer
         _build = GetParent<Node3D>()?.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
         if (_run == null || _rewards == null || _flow == null)
         {
-            CallDeferred(nameof(BindRuntime));
+            ScheduleBindRetry();
+            return;
+        }
+
+        if (_bound)
+        {
+            Refresh();
             return;
         }
 
@@ -131,6 +139,15 @@ public partial class AtlasRouteChoiceController3D : CanvasLayer
         }
         _bound = true;
         Refresh();
+    }
+
+    private void ScheduleBindRetry()
+    {
+        if (!_exiting && IsInsideTree() && _bindAttempts < 60)
+        {
+            _bindAttempts++;
+            CallDeferred(nameof(BindRuntime));
+        }
     }
 
     private void OnRewardChosen(string rewardId)

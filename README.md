@@ -197,7 +197,22 @@ for equip/unequip, bidirectional stash transfer, reforge, support changes, UI
 labels, and build completion; `MalformedSave3DRegressionSmoke.tscn` verifies
 file-level null-collection and malformed-JSON rejection without live-state
 mutation; `MapScope3DRegressionSmoke.tscn` verifies overlapping-map drop
-ownership and local build-flow access. CI runs 39 smoke scenes in total.
+ownership and local build-flow access. The mastery round adds
+`CharacterProgression3DRegressionSmoke.tscn` and
+`PassiveTree3DRegressionSmoke.tscn` for run-owned XP, stable passive IDs,
+legacy migration, build allocation, and save recovery;
+`AilmentRuntime3DRegressionSmoke.tscn` and
+`AilmentLifecycle3DRegressionSmoke.tscn` for Burning, Chilled, Shocked,
+pause/death cleanup, and isolated ailment RNG; and
+`EliteSelection3DRegressionSmoke.tscn` and
+`EliteRuntime3DRegressionSmoke.tscn` for deterministic modifier selection,
+pre-ready elite scaling, rewards, and combat presentation.
+`BossPhase3DRegressionSmoke.tscn` covers Brimstone phase thresholds, the
+phase-two add wave, Molten Ring, Ember Barrage, deterministic Lava Eruption,
+pause cancellation, death cleanup, and Map Complete. The end-to-end
+`MasteryCombatDepth3DRegressionSmoke.tscn` ties support loadout, progression,
+passive damage, ailments, and save restore together. CI runs 47 smoke scenes
+in total.
 
 ## Migration boundaries
 

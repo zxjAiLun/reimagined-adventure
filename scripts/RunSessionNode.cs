@@ -125,9 +125,10 @@ public partial class RunSessionNode : Node
 
     public override void _Ready()
     {
-        foreach (var node in GetTree().GetNodesInGroup("run_sessions"))
+        var existing = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        if (existing != null)
         {
-            if (node is RunSessionNode existing && existing != this && existing._session != null)
+            if (existing != this && existing._session != null)
             {
                 _session = existing._session;
                 _lootGenerator = existing._lootGenerator;

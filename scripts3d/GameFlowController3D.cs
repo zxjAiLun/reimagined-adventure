@@ -39,6 +39,11 @@ public partial class GameFlowController3D : Node
         RefreshOverlay();
     }
 
+    public override void _PhysicsProcess(double delta)
+    {
+        BossPhaseRuntimeRegistry3D.TickAll((float)delta);
+    }
+
     public override void _ExitTree()
     {
         _exiting = true;

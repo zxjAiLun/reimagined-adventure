@@ -471,7 +471,7 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
         var completedBefore = _run.Atlas.State.CompletedMapIds.ToArray();
         var unlockedBefore = _run.Atlas.State.UnlockedMapIds.ToArray();
         _flow.RestoreState(GameFlowState.GameOver);
-        _director.EmitSignal(EncounterDirector3D.SignalName.EncounterCompleted);
+        _director.RaiseEncounterCompletedForTest();
         var unchanged = _flow.State == GameFlowState.GameOver
             && _run.AtlasCompletionCount == completionBefore
             && _run.Atlas.State.CompletedMapIds.OrderBy(id => id)

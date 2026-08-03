@@ -19,26 +19,13 @@ public enum EncounterDirectorState3D
 /// </summary>
 public partial class EncounterDirector3D : Node
 {
-    [Signal]
-    public delegate void EncounterCompletedEventHandler();
-
-    [Signal]
-    public delegate void WaveStartedEventHandler(int waveIndex, string waveId);
-
-    [Signal]
-    public delegate void EnemySpawnedEventHandler(Node3D enemy);
-
-    [Signal]
-    public delegate void BossSpawnedEventHandler(Node3D boss);
-
-    [Signal]
-    public delegate void WaveClearedEventHandler(int waveIndex, string waveId);
-
-    [Signal]
-    public delegate void ActiveEnemyCountChangedEventHandler(int activeEnemyCount);
-
-    [Signal]
-    public delegate void ActiveEliteCountChangedEventHandler(int activeEliteCount);
+    public event Action EncounterCompleted;
+    public event Action<int, string> WaveStarted;
+    public event Action<Node3D> EnemySpawned;
+    public event Action<Node3D> BossSpawned;
+    public event Action<int, string> WaveCleared;
+    public event Action<int> ActiveEnemyCountChanged;
+    public event Action<int> ActiveEliteCountChanged;
 
     [Export] public EncounterDefinitionResource3D DefinitionResource { get; set; }
     [Export] public bool Enabled { get; set; } = true;
@@ -184,7 +171,7 @@ public partial class EncounterDirector3D : Node
         }
 
         TrackEnemy(enemy);
-        EmitSignal(SignalName.ActiveEliteCountChanged, ActiveEliteCount);
+        ActiveEliteCountChanged?.Invoke(ActiveEliteCount);
         return true;
     }
 
@@ -261,14 +248,16 @@ public partial class EncounterDirector3D : Node
             BossAddSpawnCount++;
             added++;
             LastSpawnPointId = spawnPoint.SpawnPointId;
-            EmitSignal(SignalName.EnemySpawned, enemy);
-            EmitSignal(SignalName.ActiveEliteCountChanged, ActiveEliteCount);
+            EnemySpawned?.Invoke(enemy);
+            ActiveEliteCountChanged?.Invoke(ActiveEliteCount);
         }
 
         return added;
     }
 
     public bool IsEncounterComplete() => State == EncounterDirectorState3D.Completed;
+
+    public void RaiseEncounterCompletedForTest() => EncounterCompleted?.Invoke();
 
     private void CollectSpawnPoints()
     {
@@ -278,9 +267,12 @@ public partial class EncounterDirector3D : Node
             return;
         }
 
-        foreach (var child in root.GetChildren().OfType<EncounterSpawnPoint3D>())
+        for (var index = 0; index < root.GetChildCount(); index++)
         {
-            _spawnPoints.Add(child);
+            if (root.GetChild(index) is EncounterSpawnPoint3D child)
+            {
+                _spawnPoints.Add(child);
+            }
         }
     }
 
@@ -290,7 +282,7 @@ public partial class EncounterDirector3D : Node
         {
             State = EncounterDirectorState3D.Completed;
             EncounterCompletedCount++;
-            EmitSignal(SignalName.EncounterCompleted);
+            EncounterCompleted?.Invoke();
             return;
         }
 
@@ -301,7 +293,7 @@ public partial class EncounterDirector3D : Node
         _entrySpawned = 0;
         _spawnRemaining = 0.0f;
         State = EncounterDirectorState3D.Spawning;
-        EmitSignal(SignalName.WaveStarted, waveIndex, _waves[waveIndex].WaveId);
+        WaveStarted?.Invoke(waveIndex, _waves[waveIndex].WaveId);
     }
 
     private void TickSpawning(float delta)
@@ -326,10 +318,7 @@ public partial class EncounterDirector3D : Node
         {
             if (_clearedWaves.Add(CurrentWaveIndex))
             {
-                EmitSignal(
-                    SignalName.WaveCleared,
-                    CurrentWaveIndex,
-                    wave.WaveId);
+                WaveCleared?.Invoke(CurrentWaveIndex, wave.WaveId);
             }
 
             if (CurrentWaveIndex + 1 >= _waves.Count)
@@ -430,12 +419,12 @@ public partial class EncounterDirector3D : Node
         CurrentWaveSpawnedCount++;
         SpawnedEnemyCount++;
         LastSpawnPointId = spawnPoint.SpawnPointId;
-        EmitSignal(SignalName.EnemySpawned, enemy);
-        EmitSignal(SignalName.ActiveEliteCountChanged, ActiveEliteCount);
+        EnemySpawned?.Invoke(enemy);
+        ActiveEliteCountChanged?.Invoke(ActiveEliteCount);
         if (enemy is BrimstoneColossusController3D boss)
         {
             SpawnedBossCount++;
-            EmitSignal(SignalName.BossSpawned, boss);
+            BossSpawned?.Invoke(boss);
         }
 
         return true;
@@ -517,7 +506,7 @@ public partial class EncounterDirector3D : Node
         if (health.IsAlive)
         {
             ActiveEnemyCount++;
-            EmitSignal(SignalName.ActiveEnemyCountChanged, ActiveEnemyCount);
+            ActiveEnemyCountChanged?.Invoke(ActiveEnemyCount);
         }
         else
         {
@@ -543,8 +532,8 @@ public partial class EncounterDirector3D : Node
 
             _countedDead.Add(enemy);
             ActiveEnemyCount = Mathf.Max(0, ActiveEnemyCount - 1);
-            EmitSignal(SignalName.ActiveEnemyCountChanged, ActiveEnemyCount);
-            EmitSignal(SignalName.ActiveEliteCountChanged, ActiveEliteCount);
+            ActiveEnemyCountChanged?.Invoke(ActiveEnemyCount);
+            ActiveEliteCountChanged?.Invoke(ActiveEliteCount);
         }
     }
 }

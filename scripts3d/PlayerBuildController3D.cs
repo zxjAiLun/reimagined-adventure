@@ -18,8 +18,7 @@ public enum BuildPanelMode
 /// </summary>
 public partial class PlayerBuildController3D : Node
 {
-    [Signal]
-    public delegate void BuildChangedEventHandler();
+    public event Action BuildChanged;
 
     public PlayerController3D Player { get; private set; }
     public InventoryScreenController3D Screen { get; private set; }
@@ -35,6 +34,7 @@ public partial class PlayerBuildController3D : Node
 
     private bool _previousPaused;
     private bool _exiting;
+    private int _bindAttempts;
     private RunSessionNode _runSession;
 
     public override void _Ready()
@@ -55,7 +55,8 @@ public partial class PlayerBuildController3D : Node
             _runSession.PassiveAllocationChanged += OnPassiveAllocationChanged;
         }
         SetProcessUnhandledInput(true);
-        CallDeferred(nameof(BindScreen));
+        _bindAttempts = 0;
+        ScheduleBindScreen();
     }
 
     public override void _ExitTree()
@@ -157,7 +158,7 @@ public partial class PlayerBuildController3D : Node
         EnsureSelection();
         EnsurePassiveSelection();
         Screen?.ShowBuild(this);
-        EmitSignal(SignalName.BuildChanged);
+        BuildChanged?.Invoke();
         return true;
     }
 
@@ -172,7 +173,7 @@ public partial class PlayerBuildController3D : Node
         PanelMode = BuildPanelMode.Inventory;
         Screen?.HideBuild();
         GetTree().Paused = _previousPaused;
-        EmitSignal(SignalName.BuildChanged);
+        BuildChanged?.Invoke();
         return true;
     }
 
@@ -184,7 +185,7 @@ public partial class PlayerBuildController3D : Node
         }
 
         SelectedItemId = itemId;
-        EmitSignal(SignalName.BuildChanged);
+        BuildChanged?.Invoke();
         return true;
     }
 
@@ -210,7 +211,7 @@ public partial class PlayerBuildController3D : Node
             ? BuildPanelMode.Inventory
             : BuildPanelMode.Passives;
         EnsurePassiveSelection();
-        EmitSignal(SignalName.BuildChanged);
+        BuildChanged?.Invoke();
     }
 
     public bool TryAllocateSelectedPassive()
@@ -226,7 +227,7 @@ public partial class PlayerBuildController3D : Node
         var allocated = _runSession.TryAllocatePassive(SelectedPassiveNodeId);
         if (allocated)
         {
-            EmitSignal(SignalName.BuildChanged);
+            BuildChanged?.Invoke();
         }
 
         return allocated;
@@ -252,29 +253,37 @@ public partial class PlayerBuildController3D : Node
         Screen ??= GetParent()?.GetNodeOrNull<InventoryScreenController3D>("InventoryScreen3D");
         if (Screen == null)
         {
-            CallDeferred(nameof(BindScreen));
+            ScheduleBindScreen();
             return;
         }
 
-        Screen.ShowBuild(this);
         Screen.HideBuild();
+    }
+
+    private void ScheduleBindScreen()
+    {
+        if (!_exiting && IsInsideTree() && _bindAttempts < 60)
+        {
+            _bindAttempts++;
+            CallDeferred(nameof(BindScreen));
+        }
     }
 
     private void OnPlayerBuildChanged()
     {
         EnsureSelection();
-        EmitSignal(SignalName.BuildChanged);
+        BuildChanged?.Invoke();
     }
 
     private void OnProgressionChanged(int level, int totalExperience, int unspentPoints)
     {
-        EmitSignal(SignalName.BuildChanged);
+        BuildChanged?.Invoke();
     }
 
     private void OnPassiveAllocationChanged(string nodeId)
     {
         EnsurePassiveSelection();
-        EmitSignal(SignalName.BuildChanged);
+        BuildChanged?.Invoke();
     }
 
     private void EnsureSelection()
@@ -301,7 +310,7 @@ public partial class PlayerBuildController3D : Node
         var current = Math.Max(0, Player.Items.ToList().FindIndex(item => item.Id == SelectedItemId));
         var next = (current + delta + Player.Items.Count) % Player.Items.Count;
         SelectedItemId = Player.Items[next].Id;
-        EmitSignal(SignalName.BuildChanged);
+        BuildChanged?.Invoke();
     }
 
     private void SelectPassiveRelative(int delta)
@@ -316,7 +325,7 @@ public partial class PlayerBuildController3D : Node
         current = Math.Max(0, current);
         var next = (current + delta + PassiveNodes.Count) % PassiveNodes.Count;
         SelectedPassiveNodeId = PassiveNodes[next].Id;
-        EmitSignal(SignalName.BuildChanged);
+        BuildChanged?.Invoke();
     }
 
     private void EnsurePassiveSelection()

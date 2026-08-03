@@ -32,6 +32,7 @@ public partial class InventoryScreenController3D : CanvasLayer
     private Label _hintLabel;
     private BuildIntermissionController3D _intermission;
     private bool _exiting;
+    private int _bindAttempts;
 
     public override void _Ready()
     {
@@ -46,7 +47,8 @@ public partial class InventoryScreenController3D : CanvasLayer
         _stashLabel = GetNodeOrNull<Label>("Panel/Stash");
         _currencyLabel = GetNodeOrNull<Label>("Panel/Currency");
         _hintLabel = GetNodeOrNull<Label>("Panel/Hint");
-        CallDeferred(nameof(BindBuild));
+        _bindAttempts = 0;
+        ScheduleBindBuild();
     }
 
     public override void _ExitTree()
@@ -174,7 +176,7 @@ public partial class InventoryScreenController3D : CanvasLayer
         _build = GetParent()?.GetNodeOrNull<PlayerBuildController3D>("PlayerBuildController3D");
         if (_build == null)
         {
-            CallDeferred(nameof(BindBuild));
+            ScheduleBindBuild();
             return;
         }
 
@@ -188,6 +190,15 @@ public partial class InventoryScreenController3D : CanvasLayer
         if (_intermission != null)
         {
             _intermission.BuildDataChanged += Refresh;
+        }
+    }
+
+    private void ScheduleBindBuild()
+    {
+        if (!_exiting && IsInsideTree() && _bindAttempts < 60)
+        {
+            _bindAttempts++;
+            CallDeferred(nameof(BindBuild));
         }
     }
 

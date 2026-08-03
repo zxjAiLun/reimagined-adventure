@@ -38,9 +38,8 @@ public partial class CombatHudController3D : CanvasLayer
     public double BossHealthBarMax => _bossHealthBar?.MaxValue ?? BossMaxHealth;
     public int BossPhaseNumber { get; private set; }
     public int BossPhaseCount { get; private set; }
-    public string BossPhaseText { get; private set; } = "Phase 1/0";
+    public string BossPhaseText { get; private set; } = "Phase 1/3";
     public string BossAttackText { get; private set; } = string.Empty;
-
     private PlayerController3D _player;
     private HealthComponent _playerHealth;
     private AilmentComponent3D _playerAilments;
@@ -237,8 +236,8 @@ public partial class CombatHudController3D : CanvasLayer
 
         _bossHealth.HealthChanged += OnBossHealthChanged;
         _bossHealth.Died += OnBossDied;
-        _boss.PhaseChanged += OnBossPhaseChanged;
-        _boss.AttackStarted += OnBossAttackStarted;
+        _boss.BossPhaseChanged += OnBossPhaseChanged;
+        _boss.BossAttackStarted += OnBossAttackStarted;
         _bossBound = true;
         RefreshBoss();
     }
@@ -253,8 +252,8 @@ public partial class CombatHudController3D : CanvasLayer
 
         if (IsValid(_boss))
         {
-            _boss.PhaseChanged -= OnBossPhaseChanged;
-            _boss.AttackStarted -= OnBossAttackStarted;
+            _boss.BossPhaseChanged -= OnBossPhaseChanged;
+            _boss.BossAttackStarted -= OnBossAttackStarted;
         }
 
         _boss = null;
@@ -467,16 +466,40 @@ public partial class CombatHudController3D : CanvasLayer
             _bossHealthValue.Text = $"Boss HP {BossHealthText}";
         }
 
-        BossPhaseNumber = _boss?.PhaseNumber ?? 0;
-        BossPhaseCount = _boss?.PhaseCount ?? 0;
-        BossAttackText = _boss?.CurrentAttackId ?? string.Empty;
-        BossPhaseText = _boss == null
-            ? string.Empty
-            : $"Phase {BossPhaseNumber}/{Mathf.Max(1, BossPhaseCount)} · {_boss.CurrentPhaseId} · {BossAttackText}";
+        if (_boss == null || !IsValid(_boss))
+        {
+            BossPhaseNumber = 0;
+            BossPhaseCount = 0;
+            BossPhaseText = string.Empty;
+            BossAttackText = string.Empty;
+            if (IsValid(_bossPhaseLabel))
+            {
+                _bossPhaseLabel.Text = string.Empty;
+            }
+
+            return;
+        }
+
+        BossPhaseNumber = MetaInt(_boss, "boss_phase_index", 0) + 1;
+        BossPhaseCount = MetaInt(_boss, "boss_phase_count", 3);
+        BossAttackText = MetaString(_boss, "boss_current_attack_id", string.Empty);
+        var phaseId = MetaString(_boss, "boss_phase_id", "phase-1");
+        BossPhaseText = $"Phase {BossPhaseNumber}/{Mathf.Max(1, BossPhaseCount)} · {phaseId} · {BossAttackText}";
         if (IsValid(_bossPhaseLabel))
         {
             _bossPhaseLabel.Text = BossPhaseText;
         }
+
+    }
+
+    private static int MetaInt(Node node, string key, int fallback)
+    {
+        return node.HasMeta(key) ? node.GetMeta(key).AsInt32() : fallback;
+    }
+
+    private static string MetaString(Node node, string key, string fallback)
+    {
+        return node.HasMeta(key) ? node.GetMeta(key).AsString() : fallback;
     }
 
     private void RefreshMapLevel()

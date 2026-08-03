@@ -23,7 +23,6 @@ public partial class DamageNumberSpawner3D : Node3D
     {
         ProcessMode = ProcessModeEnum.Pausable;
         AddToGroup("damage_number_spawners_3d");
-        CallDeferred(nameof(BindMapSources));
     }
 
     public override void _ExitTree()
@@ -62,22 +61,6 @@ public partial class DamageNumberSpawner3D : Node3D
         if (GodotObject.IsInstanceValid(source))
         {
             source.DamageTaken -= OnDamageTaken;
-        }
-    }
-
-    private void BindMapSources()
-    {
-        if (!IsInsideTree())
-        {
-            return;
-        }
-
-        foreach (var node in GetTree().GetNodesInGroup("damage_feedback_sources_3d"))
-        {
-            if (node is DamageFeedbackSource3D source)
-            {
-                Register(source);
-            }
         }
     }
 
