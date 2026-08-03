@@ -102,6 +102,15 @@ The Stage 8 smokes execute Quiet/Crossfire/Siege through the real encounter
 director and verify one-shot wave/completion signals, old-map release,
 route-driven map plans, and deterministic Atlas save recovery.
 
+The Character Mastery & Combat Depth round keeps character progression owned by
+the run: `TotalExperience` and `AllocatedPassiveNodeIds` are persisted beside
+the existing equipment, support, stash, reward, and Atlas state. Temporary
+combat state is intentionally not a mid-frame save contract: active Burning,
+Chilled, and Shocked effects, Elite current health, Boss phase, live wave
+enemies, and Boss hazards are discarded on restore. A Playing restore rebuilds
+the current map and encounter with clean transient combat state, then reapplies
+the saved Run/Build state atomically.
+
 ## Run the playable slice
 
 Open the repository with Godot 4.7.1 .NET and run the main scene. On
@@ -125,6 +134,9 @@ and key regression smokes remain part of CI.
 | T | Move the selected item between Inventory and Stash |
 | C | Reforge the selected item |
 | O / P | Attach / detach the Primary Volley support |
+| V | Toggle the Passive panel during Build Management |
+| Up / Down | Select an item or passive node |
+| G | Allocate the selected passive node |
 | B | Complete Build Management and open route choice |
 | R | Restart after Game Over / Map Complete |
 
