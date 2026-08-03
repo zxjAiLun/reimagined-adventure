@@ -372,9 +372,10 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         }
 
         var navigationVelocity = direction.LengthSquared() > 0.001f
-            ? direction * _moveSpeed
+            ? direction * (_moveSpeed * (float)(_ailments?.MoveSpeedMultiplier ?? 1.0))
             : Vector3.Zero;
-        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, _moveSpeed)
+        var movementSpeed = _moveSpeed * (float)(_ailments?.MoveSpeedMultiplier ?? 1.0);
+        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, movementSpeed)
             ?? navigationVelocity;
         if (direction.LengthSquared() > 0.001f)
         {

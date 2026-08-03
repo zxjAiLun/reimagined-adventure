@@ -299,10 +299,11 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         var previousPosition = GlobalPosition;
         _navigation.SetTarget(_player.GlobalPosition);
         var direction = _navigation.GetDesiredDirection(GlobalPosition, frameDelta);
+        var movementSpeed = MoveSpeed * (float)(_ailments?.MoveSpeedMultiplier ?? 1.0);
         var navigationVelocity = direction.LengthSquared() > 0.001f
-            ? direction * MoveSpeed
+            ? direction * movementSpeed
             : Vector3.Zero;
-        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, MoveSpeed)
+        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, movementSpeed)
             ?? navigationVelocity;
         if (direction.LengthSquared() > 0.001f && !NavigationMovementSuppressed)
         {
