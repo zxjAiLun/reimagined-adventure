@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Arpg.Domain;
 using Godot;
 
@@ -16,6 +17,7 @@ public partial class BossPhase3DRegressionSmoke : Node
     private BrimstoneColossusController3D _boss;
     private PlayerController3D _player;
     private GameFlowController3D _flow;
+    private PlayerBuildController3D _build;
     private HealthComponent _playerHealth;
     private int _ringHealthBefore;
     private int _phaseTwoAdds;
@@ -28,6 +30,19 @@ public partial class BossPhase3DRegressionSmoke : Node
     private bool _barrageTargetMoved;
     private int _observedBarrageCount;
     private int _barrageLaunchCountBefore;
+    private bool _ringPauseRequested;
+    private bool _ringPauseVerified;
+    private float _ringProgressBeforePause;
+    private int _ringImpactBeforePause;
+    private int _ringHealthBeforePause;
+    private bool _barragePauseRequested;
+    private bool _barragePauseVerified;
+    private float _barrageProgressBeforePause;
+    private int _barrageLaunchBeforePause;
+    private int _barrageHealthBeforePause;
+    private bool _lavaPauseRequested;
+    private bool _lavaPauseVerified;
+    private float _lavaProgressBeforePause;
 
     public override void _Ready()
     {
@@ -103,6 +118,9 @@ public partial class BossPhase3DRegressionSmoke : Node
 
         _player ??= _arena.GetNodeOrNull<PlayerController3D>("Player3D");
         _flow ??= _arena.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        _build ??= _arena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D")
+            ?.GetParent()?.GetNodeOrNull<PlayerBuildController3D>("Player3D/PlayerBuildController3D");
+        _build ??= _player?.GetNodeOrNull<PlayerBuildController3D>("PlayerBuildController3D");
         _playerHealth ??= _player?.GetNodeOrNull<HealthComponent>("HealthComponent");
 
         _boss ??= _arena.GetNodeOrNull<BrimstoneColossusController3D>("BrimstoneColossus3D");
@@ -189,6 +207,51 @@ public partial class BossPhase3DRegressionSmoke : Node
             _ringHealthBefore = _player.CurrentHealth;
         }
 
+        if (_ringTelegraphObserved && !_ringPauseRequested)
+        {
+            var activeRing = GetActiveRing();
+            if (activeRing != null)
+            {
+                _ringPauseRequested = true;
+                _ringProgressBeforePause = activeRing.Progress;
+                _ringImpactBeforePause = MetaInt(_boss, "boss_molten_ring_impact_count");
+                _ringHealthBeforePause = _player.CurrentHealth;
+                SendKey(Key.I);
+            }
+        }
+
+        if (_ringPauseRequested && !_ringPauseVerified)
+        {
+            if (_build?.IsOpen != true || !GetTree().Paused)
+            {
+                return;
+            }
+
+            if (_elapsed < 0.95)
+            {
+                return;
+            }
+
+            var pausedRing = GetActiveRing();
+            if (pausedRing == null
+                || Math.Abs(pausedRing.Progress - _ringProgressBeforePause) > 0.001f
+                || MetaInt(_boss, "boss_molten_ring_impact_count") != _ringImpactBeforePause
+                || _player.CurrentHealth != _ringHealthBeforePause)
+            {
+                Fail("inventory pause advanced Molten Ring");
+                return;
+            }
+
+            SendKey(Key.I);
+            _ringPauseVerified = true;
+            return;
+        }
+
+        if (_ringPauseVerified && _build?.IsOpen == true)
+        {
+            return;
+        }
+
         if (MetaInt(_boss, "boss_molten_ring_impact_count") < 1)
         {
             return;
@@ -244,6 +307,52 @@ public partial class BossPhase3DRegressionSmoke : Node
             return;
         }
 
+        if (!_barragePauseRequested)
+        {
+            var activeTelegraph = FindNodeRecursive<LineTelegraph3D>(this);
+            if (activeTelegraph != null && activeTelegraph.IsActive)
+            {
+                _barragePauseRequested = true;
+                _barrageProgressBeforePause = activeTelegraph.Progress;
+                _barrageLaunchBeforePause = MetaInt(_boss, "boss_ember_barrage_launch_count");
+                _barrageHealthBeforePause = _player.CurrentHealth;
+                SendKey(Key.I);
+            }
+        }
+
+        if (_barragePauseRequested && !_barragePauseVerified)
+        {
+            if (_build?.IsOpen != true || !GetTree().Paused)
+            {
+                return;
+            }
+
+            if (_elapsed < 0.95)
+            {
+                return;
+            }
+
+            var pausedTelegraph = FindNodeRecursive<LineTelegraph3D>(this);
+            if (pausedTelegraph == null
+                || !pausedTelegraph.IsActive
+                || Math.Abs(pausedTelegraph.Progress - _barrageProgressBeforePause) > 0.001f
+                || MetaInt(_boss, "boss_ember_barrage_launch_count") != _barrageLaunchBeforePause
+                || _player.CurrentHealth != _barrageHealthBeforePause)
+            {
+                Fail("inventory pause advanced Ember Barrage");
+                return;
+            }
+
+            SendKey(Key.I);
+            _barragePauseVerified = true;
+            return;
+        }
+
+        if (_barragePauseVerified && _build?.IsOpen == true)
+        {
+            return;
+        }
+
         if (!_barrageTargetMoved)
         {
             _player.GlobalPosition = _boss.GlobalPosition + new Vector3(-4.0f, 0.0f, 2.0f);
@@ -279,6 +388,49 @@ public partial class BossPhase3DRegressionSmoke : Node
         if (MetaLong(_boss, "boss_last_hazard_seed") == 0)
         {
             Fail("lava eruption did not publish a deterministic non-zero seed");
+            return;
+        }
+
+        var lava = FindNodeRecursive<BossLavaEruption3D>(this);
+        var lavaTelegraph = lava?.GetChildren().OfType<CombatTelegraph3D>().FirstOrDefault();
+        if (lava != null && lavaTelegraph != null && !_lavaPauseRequested)
+        {
+            _lavaPauseRequested = true;
+            _lavaPauseVerified = false;
+            _lavaProgressBeforePause = lavaTelegraph.Progress;
+            _lavaCountBeforePause = MetaInt(_boss, "boss_lava_eruption_count");
+            SendKey(Key.I);
+        }
+
+        if (_lavaPauseRequested && !_lavaPauseVerified)
+        {
+            if (_build?.IsOpen != true || !GetTree().Paused)
+            {
+                return;
+            }
+
+            if (_elapsed < 0.95)
+            {
+                return;
+            }
+
+            var pausedLava = FindNodeRecursive<BossLavaEruption3D>(this);
+            var pausedLavaTelegraph = pausedLava?.GetChildren().OfType<CombatTelegraph3D>().FirstOrDefault();
+            if (pausedLavaTelegraph == null
+                || Math.Abs(pausedLavaTelegraph.Progress - _lavaProgressBeforePause) > 0.001f
+                || MetaInt(_boss, "boss_lava_eruption_count") != _lavaCountBeforePause)
+            {
+                Fail("inventory pause advanced Lava Eruption");
+                return;
+            }
+
+            SendKey(Key.I);
+            _lavaPauseVerified = true;
+            return;
+        }
+
+        if (_lavaPauseVerified && _build?.IsOpen == true)
+        {
             return;
         }
 
@@ -321,7 +473,7 @@ public partial class BossPhase3DRegressionSmoke : Node
         }
 
         _complete = true;
-        GD.Print("BOSS_PHASE_3D_REGRESSION_PASS phases=true adds=true ring=true ring_geometry=true barrage=true barrage_lock=true lava=true deterministic_seed=true pause_cancel=true death_cleanup=true map_complete=true");
+        GD.Print("BOSS_PHASE_3D_REGRESSION_PASS phases=true adds=true ring=true ring_geometry=true barrage=true barrage_lock=true lava=true deterministic_seed=true inventory_pause_ring=true inventory_pause_barrage=true inventory_pause_lava=true pause_cancel=true death_cleanup=true map_complete=true");
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
@@ -439,6 +591,17 @@ public partial class BossPhase3DRegressionSmoke : Node
 
     private static Vector3 MetaVector3(Node node, string key) =>
         node.HasMeta(key) ? node.GetMeta(key).AsVector3() : Vector3.Zero;
+
+    private void SendKey(Key key)
+    {
+        var input = new InputEventKey
+        {
+            Keycode = key,
+            PhysicalKeycode = key,
+            Pressed = true,
+        };
+        GetViewport().PushInput(input);
+    }
 
     private void Fail(string reason)
     {

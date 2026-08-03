@@ -28,7 +28,7 @@ internal sealed class BossPhaseRuntime3D
 
     private readonly BrimstoneColossusController3D _boss;
     private readonly HealthComponent _health;
-    private readonly GameFlowController3D _flow;
+    private GameFlowController3D _flow;
     private readonly List<LineTelegraph3D> _activeBarrageTelegraphs = new();
     private readonly List<Vector3> _lockedBarrageDirections = new();
 
@@ -81,12 +81,24 @@ internal sealed class BossPhaseRuntime3D
         _boss = boss ?? throw new ArgumentNullException(nameof(boss));
         _health = boss.GetNodeOrNull<HealthComponent>("HealthComponent");
         _flow = FindMapFlow(boss);
+        if (_flow != null)
+        {
+            _flow.StateChanged += OnFlowStateChanged;
+        }
+
         Configure();
     }
 
     internal void Tick(float delta)
     {
         if (!_initialized)
+        {
+            return;
+        }
+
+        // GameFlow runs Always so it can process restart and result input, but
+        // an inventory pause must still freeze this map-local combat clock.
+        if (_boss.IsInsideTree() && _boss.GetTree().Paused)
         {
             return;
         }
@@ -175,6 +187,32 @@ internal sealed class BossPhaseRuntime3D
 
         _activeLavaEruption = null;
         SetBossMeta("boss_active_barrage_telegraph_count", 0);
+    }
+
+    internal bool BelongsToMap(Node mapRoot) =>
+        mapRoot != null
+        && _flow != null
+        && GodotObject.IsInstanceValid(_flow)
+        && _flow.GetParent() == mapRoot;
+
+    internal void Dispose()
+    {
+        if (_flow != null)
+        {
+            _flow.StateChanged -= OnFlowStateChanged;
+            _flow = null;
+        }
+
+        Cancel();
+    }
+
+    private void OnFlowStateChanged(int state)
+    {
+        if (state != (int)GameFlowState.Playing)
+        {
+            Cancel();
+            _state = AttackState.Idle;
+        }
     }
 
     private void Configure()
@@ -869,11 +907,19 @@ internal static class BossPhaseRuntimeRegistry3D
         Runtimes.Add(boss, new BossPhaseRuntime3D(boss));
     }
 
-    internal static void TickAll(float delta)
+    internal static void TickForMap(Node mapRoot, float delta)
     {
+        if (mapRoot == null)
+        {
+            return;
+        }
+
         foreach (var runtime in Runtimes.Values.ToArray())
         {
-            runtime.Tick(delta);
+            if (runtime.BelongsToMap(mapRoot))
+            {
+                runtime.Tick(delta);
+            }
         }
     }
 
@@ -881,7 +927,7 @@ internal static class BossPhaseRuntimeRegistry3D
     {
         if (boss != null && Runtimes.Remove(boss, out var runtime))
         {
-            runtime.Cancel();
+            runtime.Dispose();
         }
     }
 }

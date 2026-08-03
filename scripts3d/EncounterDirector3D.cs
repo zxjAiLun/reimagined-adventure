@@ -199,7 +199,17 @@ public partial class EncounterDirector3D : Node
         }
 
         var mapModifier = runSession.CurrentMapModifier?.Effects ?? new MapModifierStats();
-        var dropItemLevel = runSession.CurrentMapPlan.DropItemLevel;
+        var dropItemLevel = MapScaling.ItemLevel(runSession.CurrentMapLevel, mapModifier);
+        try
+        {
+            dropItemLevel = runSession.CurrentMapPlan.DropItemLevel;
+        }
+        catch (InvalidOperationException)
+        {
+            // A legacy/test arena can own a RunSession without a resolved
+            // encounter plan. Add context still remains deterministic using
+            // the same map-level scaling fallback as the normal plan.
+        }
         var encounterId = string.IsNullOrWhiteSpace(CurrentEncounterId)
             ? runSession.CurrentEncounterId
             : CurrentEncounterId;

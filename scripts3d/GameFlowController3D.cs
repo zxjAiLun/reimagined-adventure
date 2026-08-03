@@ -41,7 +41,10 @@ public partial class GameFlowController3D : Node
 
     public override void _PhysicsProcess(double delta)
     {
-        BossPhaseRuntimeRegistry3D.TickAll((float)delta);
+        // Each map flow advances only the Boss runtimes owned by its own map.
+        // This prevents overlapping map instances from double-ticking or
+        // advancing one another during a deferred map replacement.
+        BossPhaseRuntimeRegistry3D.TickForMap(GetParent(), (float)delta);
     }
 
     public override void _ExitTree()
