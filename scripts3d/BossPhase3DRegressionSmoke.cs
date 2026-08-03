@@ -22,6 +22,12 @@ public partial class BossPhase3DRegressionSmoke : Node
     private int _lavaCountBeforePause;
     private Vector3 _barrageDirection0;
     private int _barrageProjectileCountBefore;
+    private bool _bossEventsBound;
+    private bool _ringTelegraphObserved;
+    private bool _barrageTelegraphObserved;
+    private bool _barrageTargetMoved;
+    private int _observedBarrageCount;
+    private int _barrageLaunchCountBefore;
 
     public override void _Ready()
     {
@@ -79,6 +85,14 @@ public partial class BossPhase3DRegressionSmoke : Node
         }
     }
 
+    public override void _ExitTree()
+    {
+        if (_bossEventsBound && GodotObject.IsInstanceValid(_boss))
+        {
+            _boss.BossAttackStarted -= OnBossAttackStarted;
+        }
+    }
+
     private void BindRuntime()
     {
         _arena ??= GetNodeOrNull<TestArena3D>("Arena3D");
@@ -102,6 +116,12 @@ public partial class BossPhase3DRegressionSmoke : Node
                 _arena.AddChild(_boss);
                 _boss.GlobalPosition = Vector3.Zero;
             }
+        }
+
+        if (!_bossEventsBound && _boss != null)
+        {
+            _boss.BossAttackStarted += OnBossAttackStarted;
+            _bossEventsBound = true;
         }
 
         var director = _arena.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
@@ -149,18 +169,26 @@ public partial class BossPhase3DRegressionSmoke : Node
             return;
         }
 
-        if (MetaString(_boss, "boss_current_attack_id") != "molten_ring")
+        if (MetaInt(_boss, "boss_molten_ring_count") < 1
+            && MetaString(_boss, "boss_current_attack_id") != "molten_ring")
         {
             return;
         }
 
-        if (!FindActiveRing())
+        if (MetaInt(_boss, "boss_molten_ring_impact_count") == 0
+            && !_ringTelegraphObserved
+            && !FindActiveRing())
         {
             Fail("Molten Ring did not create a visible telegraph");
             return;
         }
 
-        _ringHealthBefore = _player.CurrentHealth;
+        if (!_ringTelegraphObserved && FindActiveRing())
+        {
+            _ringTelegraphObserved = true;
+            _ringHealthBefore = _player.CurrentHealth;
+        }
+
         if (MetaInt(_boss, "boss_molten_ring_impact_count") < 1)
         {
             return;
@@ -169,7 +197,7 @@ public partial class BossPhase3DRegressionSmoke : Node
         var ringPassed = MetaInt(_boss, "boss_molten_ring_impact_count") == 1
             && _player.CurrentHealth < _ringHealthBefore
             && !FindActiveRing();
-        if (!ringPassed)
+        if (!ringPassed || !_ringTelegraphObserved)
         {
             var activeRing = GetActiveRing();
             Fail($"Molten Ring impact contract failed hp={_player.CurrentHealth}/{_ringHealthBefore} active={activeRing != null} player={_player.GlobalPosition} boss={_boss.GlobalPosition} ring={(activeRing == null ? "none" : $"{activeRing.StartPosition} inner={activeRing.InnerRadius} outer={activeRing.OuterRadius} isActive={activeRing.IsActive}")}");
@@ -205,22 +233,24 @@ public partial class BossPhase3DRegressionSmoke : Node
 
     private void VerifyEmberBarrage()
     {
-        if (MetaString(_boss, "boss_current_attack_id") != "ember_barrage")
+        if (_observedBarrageCount == 0)
         {
             return;
         }
 
-        var telegraphCount = ActiveLineTelegraphCount();
-        if (telegraphCount != 3)
+        if (!_barrageTelegraphObserved)
         {
-            Fail($"Ember Barrage did not create three telegraphs: {telegraphCount}");
+            Fail("Ember Barrage did not create three telegraphs");
             return;
         }
 
-        _barrageDirection0 = FindFirstLineDirection();
-        _barrageProjectileCountBefore = EnemyProjectileCount();
-        _player.GlobalPosition = _boss.GlobalPosition + new Vector3(-4.0f, 0.0f, 2.0f);
-        if (MetaInt(_boss, "boss_ember_barrage_launch_count") == 0)
+        if (!_barrageTargetMoved)
+        {
+            _player.GlobalPosition = _boss.GlobalPosition + new Vector3(-4.0f, 0.0f, 2.0f);
+            _barrageTargetMoved = true;
+        }
+
+        if (MetaInt(_boss, "boss_ember_barrage_launch_count") <= _barrageLaunchCountBefore)
         {
             return;
         }
@@ -292,6 +322,9 @@ public partial class BossPhase3DRegressionSmoke : Node
 
         _complete = true;
         GD.Print("BOSS_PHASE_3D_REGRESSION_PASS phases=true adds=true ring=true ring_geometry=true barrage=true barrage_lock=true lava=true deterministic_seed=true pause_cancel=true death_cleanup=true map_complete=true");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         GetTree().Quit();
     }
 
@@ -302,8 +335,8 @@ public partial class BossPhase3DRegressionSmoke : Node
 
     private RingTelegraph3D GetActiveRing()
     {
-        var node = GetTree().GetFirstNodeInGroup("combat_telegraphs_3d");
-        if (node is RingTelegraph3D ring && ring.IsActive)
+        var ring = FindNodeRecursive<RingTelegraph3D>(this);
+        if (ring != null && ring.IsActive)
         {
             return ring;
         }
@@ -313,22 +346,68 @@ public partial class BossPhase3DRegressionSmoke : Node
 
     private int ActiveLineTelegraphCount()
     {
-        var node = GetTree().GetFirstNodeInGroup("combat_telegraphs_3d");
-        return node is LineTelegraph3D line
-            && line.IsActive
-            ? MetaInt(_boss, "boss_active_barrage_telegraph_count")
-            : 0;
+        return CountActiveLineTelegraphs(this);
     }
 
     private Vector3 FindFirstLineDirection()
     {
-        var node = GetTree().GetFirstNodeInGroup("combat_telegraphs_3d");
-        if (node is LineTelegraph3D line && line.IsActive)
+        var line = FindNodeRecursive<LineTelegraph3D>(this);
+        if (line != null && line.IsActive)
         {
             return line.LockedDirection;
         }
 
         return Vector3.Zero;
+    }
+
+    private static T FindNodeRecursive<T>(Node node)
+        where T : Node
+    {
+        if (node is T match)
+        {
+            return match;
+        }
+
+        for (var index = 0; index < node.GetChildCount(); index++)
+        {
+            var childMatch = FindNodeRecursive<T>(node.GetChild(index));
+            if (childMatch != null)
+            {
+                return childMatch;
+            }
+        }
+
+        return null;
+    }
+
+    private static int CountActiveLineTelegraphs(Node node)
+    {
+        var count = node is LineTelegraph3D line && line.IsActive ? 1 : 0;
+        for (var index = 0; index < node.GetChildCount(); index++)
+        {
+            count += CountActiveLineTelegraphs(node.GetChild(index));
+        }
+
+        return count;
+    }
+
+
+    private void OnBossAttackStarted(string attackId)
+    {
+        if (attackId == "molten_ring")
+        {
+            _ringTelegraphObserved = FindActiveRing();
+            _ringHealthBefore = _player?.CurrentHealth ?? 0;
+        }
+        else if (attackId == "ember_barrage")
+        {
+            _observedBarrageCount = MetaInt(_boss, "boss_ember_barrage_count");
+            _barrageTelegraphObserved = ActiveLineTelegraphCount() == 3;
+            _barrageDirection0 = FindFirstLineDirection();
+            _barrageProjectileCountBefore = EnemyProjectileCount();
+            _barrageLaunchCountBefore = MetaInt(_boss, "boss_ember_barrage_launch_count");
+            _barrageTargetMoved = false;
+        }
     }
 
     private int EnemyProjectileCount()

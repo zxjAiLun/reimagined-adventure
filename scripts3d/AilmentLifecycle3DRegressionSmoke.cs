@@ -189,6 +189,9 @@ public partial class AilmentLifecycle3DRegressionSmoke : Node
         }
 
         GD.Print("AILMENT_LIFECYCLE_3D_REGRESSION_PASS stronger_replaces=true weaker_preserves=true pause=true death_clear=true save_clean=true");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         GetTree().Quit(0);
     }
 

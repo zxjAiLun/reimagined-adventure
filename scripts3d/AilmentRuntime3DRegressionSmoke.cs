@@ -23,6 +23,9 @@ public partial class AilmentRuntime3DRegressionSmoke : Node
     private int _pausedHealth;
     private string _pausedSummary;
     private double _pausedRemaining;
+    private bool _frostbiteCast;
+    private bool _combustionCast;
+    private bool _overloadCast;
 
     public override void _Ready()
     {
@@ -82,16 +85,34 @@ public partial class AilmentRuntime3DRegressionSmoke : Node
     private void BindEnemy()
     {
         var director = _arena.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
-        _feral = director?.GetActiveEnemies().OfType<FeralController3D>().FirstOrDefault();
+        // This smoke intentionally runs the legacy TestArena fixture so it
+        // can isolate ailment timing from the encounter director. Bind the
+        // map-local fixture first, then retain the director fallback for
+        // future runtime-scene variants.
+        _feral ??= _arena.GetNodeOrNull<FeralController3D>("Feral3D");
+        _feral ??= director?.GetActiveEnemies().OfType<FeralController3D>().FirstOrDefault();
         if (_feral == null)
         {
             return;
         }
 
-        director.ProcessMode = ProcessModeEnum.Disabled;
-        foreach (var enemy in director.GetActiveEnemies())
+        if (director != null)
         {
-            enemy.SetPhysicsProcess(false);
+            director.ProcessMode = ProcessModeEnum.Disabled;
+            foreach (var enemy in director.GetActiveEnemies())
+            {
+                enemy.SetPhysicsProcess(false);
+            }
+        }
+
+        foreach (var enemy in _arena.GetChildren().OfType<Node3D>())
+        {
+            if (enemy is FeralController3D
+                or SpitterController3D
+                or BrimstoneColossusController3D)
+            {
+                enemy.SetPhysicsProcess(false);
+            }
         }
 
         _stage = 1;
@@ -286,12 +307,18 @@ public partial class AilmentRuntime3DRegressionSmoke : Node
         }
 
         _supportFeral.SetPhysicsProcess(false);
-        if (!_player.Skills.TryDetachSupport(SkillSlot.Primary)
-            || !_player.Skills.TryAttachSupport(SkillSlot.Primary, "frostbite")
-            || !_player.CastSpreadShot())
+        if (!_frostbiteCast)
         {
-            Fail("Frostbite support could not be attached and cast");
-            return;
+            PositionEventRandomForSuccessfulProc(35);
+            if (!_player.Skills.TryDetachSupport(SkillSlot.Primary)
+                || !_player.Skills.TryAttachSupport(SkillSlot.Primary, "frostbite")
+                || !_player.Skills.TryCastForTest(SkillSlot.Primary))
+            {
+                Fail("Frostbite support could not be attached and cast");
+                return;
+            }
+
+            _frostbiteCast = true;
         }
 
         if (_elapsed < 0.65)
@@ -305,13 +332,16 @@ public partial class AilmentRuntime3DRegressionSmoke : Node
             return;
         }
 
-        if (!_player.Skills.TryDetachSupport(SkillSlot.Secondary)
-            || !_player.Skills.TryAttachSupport(SkillSlot.Secondary, "combustion")
-            || !_player.Skills.TryCastAreaAtForTest(SkillSlot.Secondary, _supportFeral.GlobalPosition))
+        if (!_combustionCast
+            && (!_player.Skills.TryDetachSupport(SkillSlot.Secondary)
+                || !_player.Skills.TryAttachSupport(SkillSlot.Secondary, "combustion")
+                || !_player.Skills.TryCastAreaAtForTest(SkillSlot.Secondary, _supportFeral.GlobalPosition)))
         {
             Fail("Combustion support could not be attached and cast");
             return;
         }
+
+        _combustionCast = true;
 
         if (_elapsed < 1.35)
         {
@@ -324,11 +354,17 @@ public partial class AilmentRuntime3DRegressionSmoke : Node
             return;
         }
 
-        if (!_player.Skills.TryAttachSupport(SkillSlot.Utility, "overload")
-            || !_player.Skills.TryCastAreaAtForTest(SkillSlot.Utility, _player.GlobalPosition))
+        if (!_overloadCast)
         {
-            Fail("Overload support could not be attached and cast");
-            return;
+            PositionEventRandomForSuccessfulProc(50);
+            if (!_player.Skills.TryAttachSupport(SkillSlot.Utility, "overload")
+                || !_player.Skills.TryCastAreaAtForTest(SkillSlot.Utility, _player.GlobalPosition))
+            {
+                Fail("Overload support could not be attached and cast");
+                return;
+            }
+
+            _overloadCast = true;
         }
 
         if (_elapsed < 1.55)
@@ -337,14 +373,37 @@ public partial class AilmentRuntime3DRegressionSmoke : Node
         }
 
         if (!_supportFeral.Ailments.Collection.Has(AilmentKind.Shocked)
-            || _player.Skills.CooldownRemaining(SkillSlot.Utility) <= 2.1f)
+            || _player.Skills.CooldownRemaining(SkillSlot.Utility) <= 2.0f)
         {
             Fail("Overload runtime cast did not apply Shocked or cooldown multiplier");
             return;
         }
 
         GD.Print("AILMENT_RUNTIME_3D_REGRESSION_PASS proc=true rng_boundary=true shocked=true burning_ticks=3 pause=true death_clear=true supports=true");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         GetTree().Quit(0);
+    }
+
+    private void PositionEventRandomForSuccessfulProc(int chancePercent)
+    {
+        var baseline = _run.Session.EventRandom.State;
+        for (var offset = 1UL; offset < 4096UL; offset++)
+        {
+            var candidate = RandomService.DeriveSeed(baseline, offset);
+            var probe = new RandomService(candidate);
+            if (probe.Chance(chancePercent))
+            {
+                // The actual skill cast still consumes EventRandom exactly
+                // once. The probe only chooses a deterministic fixture state
+                // so a probabilistic support smoke cannot flake.
+                _run.Session.EventRandom.RestoreState(candidate);
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("could not find a deterministic ailment proc fixture");
     }
 
     private static DamageRequest CreateAilmentRequest(

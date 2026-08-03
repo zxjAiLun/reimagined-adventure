@@ -445,8 +445,8 @@ public partial class FeralController3D : CharacterBody3D, ICombatTarget, IEnemyS
         }
 
         var sourceId = string.IsNullOrWhiteSpace(SpawnEncounterId)
-            ? $"feral:{GetPath()}"
-            : $"feral:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
+            ? $"feral:map-{_runSession.CurrentMapLevel}:{GetPath()}"
+            : $"feral:map-{_runSession.CurrentMapLevel}:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
         ExperienceAwarded = EliteModifier == null
             ? _runSession.TryAwardExperience(ExperienceSourceKind.Feral, sourceId)
             : _runSession.TryAwardEliteExperience(ExperienceSourceKind.Feral, sourceId);

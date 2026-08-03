@@ -326,6 +326,9 @@ public partial class EliteRuntime3DRegressionSmoke : Node
 
         _complete = true;
         GD.Print("ELITE_RUNTIME_3D_REGRESSION_PASS pre_ready=true stats=true frostbound=true volcanic=true active_counts=true xp_once=true loot=true pause_cancel=true resource_isolated=true");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         GetTree().Quit();
     }
 

@@ -93,13 +93,16 @@ public partial class CharacterProgression3DRegressionSmoke : Node
         }
 
         _director.ProcessMode = ProcessModeEnum.Pausable;
+        _player.ApplyRestoredHealth(_player.MaxHealth);
         _elapsed = 0.0;
         _stage = 1;
     }
 
     private void KillFirstWave()
     {
-        if (_director.CurrentWaveIndex < 0 || _director.GetActiveEnemies().Count == 0)
+        if (_director.CurrentWaveIndex < 0
+            || _director.CurrentWaveSpawnedCount < _director.CurrentWaveTargetCount
+            || _director.GetActiveEnemies().Count == 0)
         {
             return;
         }
@@ -124,13 +127,20 @@ public partial class CharacterProgression3DRegressionSmoke : Node
             KillEnemy(enemy);
         }
 
+        foreach (var enemy in enemies)
+        {
+            enemy.ProcessMode = ProcessModeEnum.Disabled;
+        }
+
         _elapsed = 0.0;
         _stage = 2;
     }
 
     private void KillSecondWave()
     {
-        if (_director.CurrentWaveIndex < 1 || _director.GetActiveEnemies().Count == 0)
+        if (_director.CurrentWaveIndex < 1
+            || _director.CurrentWaveSpawnedCount < _director.CurrentWaveTargetCount
+            || _director.GetActiveEnemies().Count == 0)
         {
             return;
         }
@@ -146,7 +156,9 @@ public partial class CharacterProgression3DRegressionSmoke : Node
 
     private void KillBossWave()
     {
-        if (_director.CurrentWaveIndex < 2 || _director.GetActiveEnemies().Count == 0)
+        if (_director.CurrentWaveIndex < 2
+            || _director.CurrentWaveSpawnedCount < _director.CurrentWaveTargetCount
+            || _director.GetActiveEnemies().Count == 0)
         {
             return;
         }
@@ -239,6 +251,9 @@ public partial class CharacterProgression3DRegressionSmoke : Node
 
         _complete = true;
         GD.Print($"CHARACTER_PROGRESSION_3D_REGRESSION_PASS xp={_run.TotalExperience} level={_run.CharacterLevel} passive=sharpened-bolt");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         GetTree().Quit(0);
     }
 

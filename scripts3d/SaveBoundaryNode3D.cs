@@ -235,6 +235,11 @@ public partial class SaveBoundaryNode3D : Node
                 }
             }
 
+            // Ailments are intentionally not part of the save contract. A
+            // successful restore starts the current map's transient combat
+            // state clean, just like a freshly instantiated map.
+            _player.Ailments?.ResetPresentation();
+
             error = string.Empty;
             return true;
         }

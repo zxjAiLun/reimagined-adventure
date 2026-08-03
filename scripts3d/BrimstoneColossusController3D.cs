@@ -571,8 +571,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         }
 
         var sourceId = string.IsNullOrWhiteSpace(SpawnEncounterId)
-            ? $"boss:{GetPath()}"
-            : $"boss:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
+            ? $"boss:map-{_runSession.CurrentMapLevel}:{GetPath()}"
+            : $"boss:map-{_runSession.CurrentMapLevel}:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
         ExperienceAwarded = _runSession.TryAwardExperience(ExperienceSourceKind.Boss, sourceId);
     }
 

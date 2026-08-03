@@ -515,8 +515,8 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         }
 
         var sourceId = string.IsNullOrWhiteSpace(SpawnEncounterId)
-            ? $"spitter:{GetPath()}"
-            : $"spitter:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
+            ? $"spitter:map-{_runSession.CurrentMapLevel}:{GetPath()}"
+            : $"spitter:map-{_runSession.CurrentMapLevel}:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
         ExperienceAwarded = EliteModifier == null
             ? _runSession.TryAwardExperience(ExperienceSourceKind.Spitter, sourceId)
             : _runSession.TryAwardEliteExperience(ExperienceSourceKind.Spitter, sourceId);

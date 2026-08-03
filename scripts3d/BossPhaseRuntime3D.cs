@@ -80,7 +80,7 @@ internal sealed class BossPhaseRuntime3D
     {
         _boss = boss ?? throw new ArgumentNullException(nameof(boss));
         _health = boss.GetNodeOrNull<HealthComponent>("HealthComponent");
-        _flow = boss.GetParent()?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        _flow = FindMapFlow(boss);
         Configure();
     }
 
@@ -825,6 +825,20 @@ internal sealed class BossPhaseRuntime3D
             if (director != null)
             {
                 return director;
+            }
+        }
+
+        return null;
+    }
+
+    private static GameFlowController3D FindMapFlow(Node actor)
+    {
+        for (var current = actor; current != null; current = current.GetParent())
+        {
+            var flow = current.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+            if (flow != null)
+            {
+                return flow;
             }
         }
 

@@ -162,6 +162,17 @@ public partial class RunSessionNode : Node
         }
     }
 
+    public override void _ExitTree()
+    {
+        // Godot's managed Array wrappers must be finalized while the native
+        // runtime is still alive. This also covers the ordinary main-scene
+        // shutdown path, which does not have a regression smoke to flush them
+        // before calling SceneTree.Quit().
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
+
     public bool TryAwardExperience(ExperienceSourceKind source, string sourceInstanceId)
     {
         var amount = source == ExperienceSourceKind.Elite
@@ -525,17 +536,23 @@ public partial class RunSessionNode : Node
             || _currentMap == null
             || !IsInstanceValid(_currentMap))
         {
+            GD.PushError(
+                $"LoadSelectedMap precondition failed atlas={HasFormalAtlas} pending={_pendingAtlasMapId} "
+                + $"complete={IsCurrentMapCompleteWithReward()} build={IsBuildIntermissionReadyForRoute()} "
+                + $"scene={MapScene != null} map={_currentMap != null && IsInstanceValid(_currentMap)}");
             return false;
         }
 
         var flow = GetTree().GetFirstNodeInGroup("game_flows_3d") as GameFlowController3D;
         if (flow == null || !flow.PrepareNextMap())
         {
+            GD.PushError($"LoadSelectedMap could not prepare next map flow={flow?.State}");
             return false;
         }
 
         var save3d = _currentMap.GetNodeOrNull<SaveBoundaryNode3D>("SaveBoundary3D")
             ?? GetTree().GetFirstNodeInGroup("save_boundaries_3d") as SaveBoundaryNode3D;
+
         var previousLevel = Session.MapLevel;
         var previousAtlasId = _currentAtlasMapId;
         var previousPendingId = _pendingAtlasMapId;
@@ -555,9 +572,13 @@ public partial class RunSessionNode : Node
             ResolveCurrentEncounterIfNeeded();
             EmitSignal(SignalName.MapLevelChanged, Session.MapLevel);
 
-            if (save3d == null || !save3d.TrySaveCurrentRun(out _))
+            var saveError = string.Empty;
+            var saved = save3d != null && save3d.TrySaveCurrentRun(out saveError);
+            if (!saved)
             {
-                throw new InvalidOperationException("could not save selected atlas route");
+                GD.PushError($"Could not save selected atlas route: {saveError}");
+                throw new InvalidOperationException(
+                    $"could not save selected atlas route: {saveError}");
             }
 
             _restoreNextMapState = true;
@@ -569,8 +590,9 @@ public partial class RunSessionNode : Node
             CallDeferred(nameof(InstantiateMap));
             return true;
         }
-        catch
+        catch (Exception exception)
         {
+            GD.PushError($"LoadSelectedMap failed after transition preparation: {exception.Message}");
             Session.SetMapLevel(previousLevel);
             MapLevel = previousLevel;
             _currentAtlasMapId = previousAtlasId;

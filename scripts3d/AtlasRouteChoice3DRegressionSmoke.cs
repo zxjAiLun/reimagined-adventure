@@ -198,7 +198,8 @@ public partial class AtlasRouteChoice3DRegressionSmoke : Node
         _map2Verified = false;
         if (!_route.TryConfirm())
         {
-            Fail("selected Atlas route could not be confirmed");
+            Fail($"selected Atlas route could not be confirmed active={_route.ChoiceActive} selected={_route.SelectedMapId} "
+                + $"pending={_run.PendingAtlasMapId} flow={_flow.State} build={_firstArena.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D")?.Phase}");
         }
     }
 
