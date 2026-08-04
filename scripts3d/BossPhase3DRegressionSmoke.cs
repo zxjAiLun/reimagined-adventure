@@ -35,11 +35,27 @@ public partial class BossPhase3DRegressionSmoke : Node
     private float _ringProgressBeforePause;
     private int _ringImpactBeforePause;
     private int _ringHealthBeforePause;
+    private double _ringNormalStartedAt;
+    private double _ringNormalDuration;
+    private double _ringChilledStartedAt;
+    private double _ringChilledDuration;
+    private bool _ringNormalTimingVerified;
+    private bool _ringChilledTimingVerified;
+    private bool _ringChilledApplied;
     private bool _barragePauseRequested;
     private bool _barragePauseVerified;
     private float _barrageProgressBeforePause;
     private int _barrageLaunchBeforePause;
     private int _barrageHealthBeforePause;
+    private double _barrageNormalStartedAt;
+    private double _barrageNormalDuration;
+    private double _barrageChilledStartedAt;
+    private double _barrageChilledDuration;
+    private int _barrageNormalLaunchBefore;
+    private int _barrageChilledLaunchBefore;
+    private bool _barrageNormalTimingVerified;
+    private bool _barrageChilledTimingVerified;
+    private bool _barrageChilledApplied;
     private bool _lavaPauseRequested;
     private bool _lavaPauseVerified;
     private float _lavaProgressBeforePause;
@@ -157,6 +173,7 @@ public partial class BossPhase3DRegressionSmoke : Node
             return;
         }
 
+        _playerHealth?.SetMaxHealth(10000);
         _player.GlobalPosition = _boss.GlobalPosition + new Vector3(3.0f, 0.0f, 0.0f);
         if (MetaString(_boss, "boss_phase_id") != "phase-1")
         {
@@ -207,7 +224,48 @@ public partial class BossPhase3DRegressionSmoke : Node
             _ringHealthBefore = _player.CurrentHealth;
         }
 
-        if (_ringTelegraphObserved && !_ringPauseRequested)
+        if (!_ringNormalTimingVerified)
+        {
+            if (_ringNormalStartedAt <= 0.0
+                || MetaInt(_boss, "boss_molten_ring_impact_count") < 1
+                || FindActiveRing())
+            {
+                return;
+            }
+
+            _ringNormalDuration = NowSeconds() - _ringNormalStartedAt;
+            AssertChilledTimingBaseline(
+                "Molten Ring normal",
+                _ringNormalDuration);
+            _ringNormalTimingVerified = true;
+            return;
+        }
+
+        if (!_ringChilledTimingVerified)
+        {
+            if (!_ringChilledApplied
+                || _ringChilledStartedAt <= 0.0
+                || MetaInt(_boss, "boss_molten_ring_impact_count") < 2
+                || FindActiveRing())
+            {
+                return;
+            }
+
+            _ringChilledDuration = NowSeconds() - _ringChilledStartedAt;
+            AssertChilledActionTiming(
+                "Molten Ring",
+                _ringNormalDuration,
+                _ringChilledDuration);
+            _ringChilledTimingVerified = true;
+            return;
+        }
+
+        if (MetaInt(_boss, "boss_molten_ring_count") < 3)
+        {
+            return;
+        }
+
+        if (!_ringPauseRequested)
         {
             var activeRing = GetActiveRing();
             if (activeRing != null)
@@ -252,13 +310,13 @@ public partial class BossPhase3DRegressionSmoke : Node
             return;
         }
 
-        if (MetaInt(_boss, "boss_molten_ring_impact_count") < 1)
+        if (MetaInt(_boss, "boss_molten_ring_impact_count") < 3)
         {
             return;
         }
 
-        var ringPassed = MetaInt(_boss, "boss_molten_ring_impact_count") == 1
-            && _player.CurrentHealth < _ringHealthBefore
+        var ringPassed = MetaInt(_boss, "boss_molten_ring_impact_count") >= 3
+            && _player.CurrentHealth < _ringHealthBeforePause
             && !FindActiveRing();
         if (!ringPassed || !_ringTelegraphObserved)
         {
@@ -289,6 +347,13 @@ public partial class BossPhase3DRegressionSmoke : Node
             return;
         }
 
+        if (_boss.Ailments?.Collection.Has(AilmentKind.Chilled) == true)
+        {
+            Fail("Phase 2 Chilled did not expire before the Phase 3 baseline attack");
+            return;
+        }
+
+        _boss.Ailments?.ResetPresentation();
         _player.GlobalPosition = _boss.GlobalPosition + new Vector3(3.0f, 0.0f, 0.0f);
         _stage = 3;
         _elapsed = 0.0;
@@ -304,6 +369,42 @@ public partial class BossPhase3DRegressionSmoke : Node
         if (!_barrageTelegraphObserved)
         {
             Fail("Ember Barrage did not create three telegraphs");
+            return;
+        }
+
+        if (!_barrageNormalTimingVerified)
+        {
+            if (_barrageNormalStartedAt <= 0.0
+                || MetaInt(_boss, "boss_ember_barrage_launch_count") <= _barrageNormalLaunchBefore
+                || MetaInt(_boss, "boss_active_barrage_telegraph_count") != 0)
+            {
+                return;
+            }
+
+            _barrageNormalDuration = NowSeconds() - _barrageNormalStartedAt;
+            AssertChilledTimingBaseline(
+                "Ember Barrage normal",
+                _barrageNormalDuration);
+            _barrageNormalTimingVerified = true;
+            return;
+        }
+
+        if (!_barrageChilledTimingVerified)
+        {
+            if (!_barrageChilledApplied
+                || _barrageChilledStartedAt <= 0.0
+                || MetaInt(_boss, "boss_ember_barrage_launch_count") <= _barrageChilledLaunchBefore
+                || MetaInt(_boss, "boss_active_barrage_telegraph_count") != 0)
+            {
+                return;
+            }
+
+            _barrageChilledDuration = NowSeconds() - _barrageChilledStartedAt;
+            AssertChilledActionTiming(
+                "Ember Barrage",
+                _barrageNormalDuration,
+                _barrageChilledDuration);
+            _barrageChilledTimingVerified = true;
             return;
         }
 
@@ -473,7 +574,9 @@ public partial class BossPhase3DRegressionSmoke : Node
         }
 
         _complete = true;
-        GD.Print("BOSS_PHASE_3D_REGRESSION_PASS phases=true adds=true ring=true ring_geometry=true barrage=true barrage_lock=true lava=true deterministic_seed=true inventory_pause_ring=true inventory_pause_barrage=true inventory_pause_lava=true pause_cancel=true death_cleanup=true map_complete=true");
+        var ringRatio = _ringChilledDuration / _ringNormalDuration;
+        var barrageRatio = _barrageChilledDuration / _barrageNormalDuration;
+        GD.Print($"BOSS_PHASE_3D_REGRESSION_PASS phases=true adds=true ring=true ring_action_speed=true ring_ratio={ringRatio:0.00} ring_geometry=true barrage=true barrage_action_speed=true barrage_ratio={barrageRatio:0.00} barrage_lock=true lava=true deterministic_seed=true inventory_pause_ring=true inventory_pause_barrage=true inventory_pause_lava=true pause_cancel=true death_cleanup=true map_complete=true");
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
@@ -548,17 +651,88 @@ public partial class BossPhase3DRegressionSmoke : Node
     {
         if (attackId == "molten_ring")
         {
+            var ringCount = MetaInt(_boss, "boss_molten_ring_count");
+            if (ringCount == 1)
+            {
+                _ringNormalStartedAt = NowSeconds();
+            }
+            else if (ringCount == 2)
+            {
+                ApplyBossChilled("boss_phase_smoke_ring_chilled");
+                _ringChilledApplied = true;
+                _ringChilledStartedAt = NowSeconds();
+            }
+
             _ringTelegraphObserved = FindActiveRing();
             _ringHealthBefore = _player?.CurrentHealth ?? 0;
         }
         else if (attackId == "ember_barrage")
         {
-            _observedBarrageCount = MetaInt(_boss, "boss_ember_barrage_count");
+            var barrageCount = MetaInt(_boss, "boss_ember_barrage_count");
+            _observedBarrageCount = barrageCount;
             _barrageTelegraphObserved = ActiveLineTelegraphCount() == 3;
             _barrageDirection0 = FindFirstLineDirection();
             _barrageProjectileCountBefore = EnemyProjectileCount();
             _barrageLaunchCountBefore = MetaInt(_boss, "boss_ember_barrage_launch_count");
             _barrageTargetMoved = false;
+            if (barrageCount == 1)
+            {
+                _barrageNormalStartedAt = NowSeconds();
+                _barrageNormalLaunchBefore = _barrageLaunchCountBefore;
+            }
+            else if (barrageCount == 2)
+            {
+                ApplyBossChilled("boss_phase_smoke_barrage_chilled");
+                _barrageChilledApplied = true;
+                _barrageChilledStartedAt = NowSeconds();
+                _barrageChilledLaunchBefore = _barrageLaunchCountBefore;
+            }
+        }
+    }
+
+    private void ApplyBossChilled(string sourceId)
+    {
+        var result = _boss.ApplyDamage(new DamageRequest(
+            1,
+            DamageType.Physical,
+            sourceId,
+            CombatFaction.Player,
+            false,
+            new AilmentApplicationDefinition(AilmentKind.Chilled, 100)));
+        if (result.DamageApplied <= 0
+            || !_boss.Ailments.Collection.Has(AilmentKind.Chilled))
+        {
+            throw new InvalidOperationException(
+                $"Boss Chilled application failed result={result.DamageApplied} summary={_boss.Ailments.Summary}");
+        }
+    }
+
+    private static double NowSeconds() => Time.GetTicksMsec() / 1000.0;
+
+    private static void AssertChilledTimingBaseline(string attack, double duration)
+    {
+        if (duration < 0.1 || duration > 5.0)
+        {
+            throw new InvalidOperationException(
+                $"{attack} timing was not measurable duration={duration:0.000}s");
+        }
+    }
+
+    private static void AssertChilledActionTiming(
+        string attack,
+        double normalDuration,
+        double chilledDuration)
+    {
+        AssertChilledTimingBaseline(attack + " chilled", chilledDuration);
+        var ratio = chilledDuration / normalDuration;
+        var expected = 1.0
+            / (1.0 - AilmentCollection.ChilledPotencyPercent / 100.0);
+        var minimumExpected = expected - 0.15;
+        var maximumExpected = expected + 0.30;
+        if (ratio < minimumExpected || ratio > maximumExpected)
+        {
+            throw new InvalidOperationException(
+                $"{attack} Chilled action timing ratio was {ratio:0.000} normal={normalDuration:0.000}s chilled={chilledDuration:0.000}s expected={expected:0.000} range={minimumExpected:0.000}..{maximumExpected:0.000}");
         }
     }
 

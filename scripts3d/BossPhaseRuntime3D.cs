@@ -118,8 +118,15 @@ internal sealed class BossPhaseRuntime3D
             return;
         }
 
+        var actionSpeedMultiplier = (float)(_boss.Ailments?.ActionSpeedMultiplier ?? 1.0);
+        if (!float.IsFinite(actionSpeedMultiplier) || actionSpeedMultiplier < 0.0f)
+        {
+            actionSpeedMultiplier = 1.0f;
+        }
+
+        var actionDelta = Mathf.Max(0.0f, delta) * actionSpeedMultiplier;
         EvaluatePhase();
-        TickLava(delta);
+        TickLava(actionDelta);
         if (_phaseIndex == 0)
         {
             return;
@@ -131,31 +138,31 @@ internal sealed class BossPhaseRuntime3D
                 TryBeginNextAttack();
                 break;
             case AttackState.RingWindup:
-                TickRingWindup(delta);
+                TickRingWindup(actionDelta);
                 break;
             case AttackState.RingImpact:
                 EnterRecovery();
                 break;
             case AttackState.SpearWindup:
-                TickSpearWindup(delta);
+                TickSpearWindup(actionDelta);
                 break;
             case AttackState.SpearLaunch:
                 EnterRecovery();
                 break;
             case AttackState.SlamWindup:
-                TickSlamWindup(delta);
+                TickSlamWindup(actionDelta);
                 break;
             case AttackState.SlamImpact:
                 EnterRecovery();
                 break;
             case AttackState.BarrageWindup:
-                TickBarrageWindup(delta);
+                TickBarrageWindup(actionDelta);
                 break;
             case AttackState.BarrageLaunch:
                 EnterRecovery();
                 break;
             case AttackState.Recovery:
-                _stateRemaining -= Mathf.Max(0.0f, delta);
+                _stateRemaining -= actionDelta;
                 if (_stateRemaining <= 0.0f)
                 {
                     _state = AttackState.Idle;

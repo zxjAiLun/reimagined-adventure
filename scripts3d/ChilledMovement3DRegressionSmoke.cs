@@ -24,6 +24,8 @@ public partial class ChilledMovement3DRegressionSmoke : Node
         SpitterRetreatChilled,
         EliteNormal,
         EliteChilled,
+        BossNormal,
+        BossChilled,
     }
 
     private Stage _stage;
@@ -35,6 +37,7 @@ public partial class ChilledMovement3DRegressionSmoke : Node
     private FeralController3D _feral;
     private SpitterController3D _spitter;
     private FeralController3D _elite;
+    private BrimstoneColossusController3D _boss;
     private Vector3 _startPosition;
     private float _feralNormalDisplacement;
     private float _feralChilledDisplacement;
@@ -44,6 +47,8 @@ public partial class ChilledMovement3DRegressionSmoke : Node
     private float _spitterRetreatChilledDisplacement;
     private float _eliteNormalDisplacement;
     private float _eliteChilledDisplacement;
+    private float _bossNormalDisplacement;
+    private float _bossChilledDisplacement;
 
     public override void _Ready()
     {
@@ -71,6 +76,7 @@ public partial class ChilledMovement3DRegressionSmoke : Node
             _player ??= _arena?.GetNodeOrNull<PlayerController3D>("Player3D");
             _feral ??= _arena?.GetNodeOrNull<FeralController3D>("Feral3D");
             _spitter ??= _arena?.GetNodeOrNull<SpitterController3D>("Spitter3D");
+            _boss ??= _arena?.GetNodeOrNull<BrimstoneColossusController3D>("BrimstoneColossus3D");
 
             switch (_stage)
             {
@@ -112,6 +118,12 @@ public partial class ChilledMovement3DRegressionSmoke : Node
                     break;
                 case Stage.EliteChilled:
                     MeasureEliteChilled();
+                    break;
+                case Stage.BossNormal:
+                    MeasureBossNormal();
+                    break;
+                case Stage.BossChilled:
+                    MeasureBossChilled();
                     break;
             }
         }
@@ -407,12 +419,61 @@ public partial class ChilledMovement3DRegressionSmoke : Node
 
         _eliteChilledDisplacement = HorizontalDistance(_startPosition, _elite.GlobalPosition);
         AssertChilledRatio("Frenzied elite", _eliteNormalDisplacement, _eliteChilledDisplacement);
+        if (_boss == null)
+        {
+            Fail("legacy Boss fixture was not available for Phase 1 movement measurement");
+            return;
+        }
+
+        _player.GlobalPosition = new Vector3(7.0f, 0.0f, 5.0f);
+        _boss.GlobalPosition = new Vector3(-7.0f, 0.0f, -5.0f);
+        _boss.Ailments.ResetPresentation();
+        _boss.Navigation?.Stop();
+        _boss.SetPhysicsProcess(true);
+        _stage = Stage.BossNormal;
+        _stageElapsed = 0.0;
+        _startPosition = _boss.GlobalPosition;
+    }
+
+    private void MeasureBossNormal()
+    {
+        if (_stageElapsed < 0.75)
+        {
+            return;
+        }
+
+        _bossNormalDisplacement = HorizontalDistance(_startPosition, _boss.GlobalPosition);
+        _boss.GlobalPosition = new Vector3(-7.0f, 0.0f, -5.0f);
+        _boss.Navigation?.Stop();
+        var result = _boss.ApplyDamage(ChillRequest("boss_phase_one_chilled_movement"));
+        if (result.DamageApplied <= 0
+            || !_boss.Ailments.Collection.Has(AilmentKind.Chilled))
+        {
+            Fail("Boss Phase 1 Chilled was not applied for movement measurement");
+            return;
+        }
+
+        _stage = Stage.BossChilled;
+        _stageElapsed = 0.0;
+        _startPosition = _boss.GlobalPosition;
+    }
+
+    private void MeasureBossChilled()
+    {
+        if (_stageElapsed < 0.75)
+        {
+            return;
+        }
+
+        _bossChilledDisplacement = HorizontalDistance(_startPosition, _boss.GlobalPosition);
+        AssertChilledRatio("Boss Phase 1", _bossNormalDisplacement, _bossChilledDisplacement);
         _complete = true;
         GD.Print(
             $"CHILLED_MOVEMENT_3D_REGRESSION_PASS feral={_feralChilledDisplacement / _feralNormalDisplacement:0.00} "
             + $"spitter_approach={_spitterApproachChilledDisplacement / _spitterApproachNormalDisplacement:0.00} "
             + $"spitter_retreat={_spitterRetreatChilledDisplacement / _spitterRetreatNormalDisplacement:0.00} "
-            + $"elite={_eliteChilledDisplacement / _eliteNormalDisplacement:0.00} pause=true expiry=true");
+            + $"elite={_eliteChilledDisplacement / _eliteNormalDisplacement:0.00} "
+            + $"boss_phase1={_bossChilledDisplacement / _bossNormalDisplacement:0.00} pause=true expiry=true");
         GetTree().Quit();
     }
 
