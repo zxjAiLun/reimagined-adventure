@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Arpg.Domain;
@@ -5,8 +6,7 @@ using Godot;
 
 public partial class MapRewardNode3D : Node
 {
-    [Signal]
-    public delegate void RewardChosenEventHandler(string rewardId);
+    public event Action<string> RewardChosen;
 
     [Export] public MapRewardSetResource DefinitionResource { get; set; }
 
@@ -80,7 +80,7 @@ public partial class MapRewardNode3D : Node
         ChosenRewardIndex = index;
         _chosen = true;
         _choiceActive = false;
-        EmitSignal(SignalName.RewardChosen, reward.Id);
+        RewardChosen?.Invoke(reward.Id);
         RefreshOverlay();
         return true;
     }
@@ -96,7 +96,7 @@ public partial class MapRewardNode3D : Node
         ChosenRewardIndex = index;
         _chosen = true;
         _choiceActive = false;
-        EmitSignal(SignalName.RewardChosen, ChosenReward.Id);
+        RewardChosen?.Invoke(ChosenReward.Id);
         RefreshOverlay();
         return true;
     }

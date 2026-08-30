@@ -15,7 +15,10 @@ public sealed class DamageRequest
         DamageType damageType,
         string sourceId,
         CombatFaction sourceFaction,
-        bool canHitSameFaction = false)
+        bool canHitSameFaction = false,
+        AilmentApplicationDefinition? ailment = null,
+        double ailmentDurationMultiplier = 1.0,
+        double damageOverTimeMultiplier = 1.0)
     {
         if (rawDamage < 0)
         {
@@ -37,11 +40,30 @@ public sealed class DamageRequest
             throw new ArgumentOutOfRangeException(nameof(sourceFaction), sourceFaction, "Unknown combat faction.");
         }
 
+        if (!double.IsFinite(ailmentDurationMultiplier) || ailmentDurationMultiplier < 0.0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ailmentDurationMultiplier),
+                "Ailment duration multiplier must be finite and non-negative.");
+        }
+
+        if (!double.IsFinite(damageOverTimeMultiplier) || damageOverTimeMultiplier < 0.0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(damageOverTimeMultiplier),
+                "Damage over time multiplier must be finite and non-negative.");
+        }
+
+        ailment?.Validate();
+
         RawDamage = rawDamage;
         DamageType = damageType;
         SourceId = sourceId;
         SourceFaction = sourceFaction;
         CanHitSameFaction = canHitSameFaction;
+        Ailment = ailment;
+        AilmentDurationMultiplier = ailmentDurationMultiplier;
+        DamageOverTimeMultiplier = damageOverTimeMultiplier;
     }
 
     public int RawDamage { get; }
@@ -49,4 +71,17 @@ public sealed class DamageRequest
     public string SourceId { get; }
     public CombatFaction SourceFaction { get; }
     public bool CanHitSameFaction { get; }
+    public AilmentApplicationDefinition? Ailment { get; }
+    public double AilmentDurationMultiplier { get; }
+    public double DamageOverTimeMultiplier { get; }
+
+    public DamageRequest WithRawDamage(int rawDamage) => new(
+        rawDamage,
+        DamageType,
+        SourceId,
+        SourceFaction,
+        CanHitSameFaction,
+        Ailment,
+        AilmentDurationMultiplier,
+        DamageOverTimeMultiplier);
 }

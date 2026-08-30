@@ -11,11 +11,8 @@ using Godot;
 /// </summary>
 public partial class BuildIntermissionController3D : Node
 {
-    [Signal]
-    public delegate void PhaseChangedEventHandler(int phase);
-
-    [Signal]
-    public delegate void BuildDataChangedEventHandler();
+    public event Action<int>? PhaseChanged;
+    public event Action? BuildDataChanged;
 
     public MapCompletePhase Phase { get; private set; } = MapCompletePhase.RewardChoice;
     public Stash Stash { get; } = Stash.CreateDefault();
@@ -34,13 +31,15 @@ public partial class BuildIntermissionController3D : Node
     private RunSessionNode _run = null!;
     private string _selectedStashItemId = string.Empty;
     private bool _exiting;
+    private int _bindAttempts;
 
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
         SetProcessUnhandledInput(true);
         AddToGroup("build_intermissions_3d");
-        CallDeferred(nameof(BindRuntime));
+        _bindAttempts = 0;
+        ScheduleBindRetry();
     }
 
     public override void _ExitTree()
@@ -67,7 +66,7 @@ public partial class BuildIntermissionController3D : Node
         }
 
         Phase = MapCompletePhase.RouteChoice;
-        EmitSignal(SignalName.PhaseChanged, (int)Phase);
+        PhaseChanged?.Invoke((int)Phase);
         return true;
     }
 
@@ -298,7 +297,7 @@ public partial class BuildIntermissionController3D : Node
         return false;
     }
 
-    private void NotifyBuildDataChanged() => EmitSignal(SignalName.BuildDataChanged);
+    private void NotifyBuildDataChanged() => BuildDataChanged?.Invoke();
 
     public bool CanRestore(
         IReadOnlyList<Item> stashItems,
@@ -381,7 +380,7 @@ public partial class BuildIntermissionController3D : Node
         Currency.Restore(forgeFragments);
         Phase = phase;
         _selectedStashItemId = Stash.Items.FirstOrDefault()?.Id ?? string.Empty;
-        EmitSignal(SignalName.PhaseChanged, (int)Phase);
+        PhaseChanged?.Invoke((int)Phase);
         NotifyBuildDataChanged();
         if (Phase == MapCompletePhase.BuildManagement)
         {
@@ -405,11 +404,20 @@ public partial class BuildIntermissionController3D : Node
         _run = MapRuntimeScope3D.FindRunSession(this);
         if (_player == null || _rewards == null || _flow == null || _run == null)
         {
-            CallDeferred(nameof(BindRuntime));
+            ScheduleBindRetry();
             return;
         }
 
         _rewards.RewardChosen += OnRewardChosen;
+    }
+
+    private void ScheduleBindRetry()
+    {
+        if (!_exiting && IsInsideTree() && _bindAttempts < 2)
+        {
+            _bindAttempts++;
+            CallDeferred(nameof(BindRuntime));
+        }
     }
 
     private void OnRewardChosen(string rewardId)
@@ -428,7 +436,7 @@ public partial class BuildIntermissionController3D : Node
         }
 
         Phase = MapCompletePhase.BuildManagement;
-        EmitSignal(SignalName.PhaseChanged, (int)Phase);
+        PhaseChanged?.Invoke((int)Phase);
         _build?.Open();
     }
 }

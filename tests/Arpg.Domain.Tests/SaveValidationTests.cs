@@ -97,6 +97,8 @@ public sealed class SaveValidationTests
             MapLevel = 3,
             PlayerMaxHealth = 125,
             PlayerCurrentHealth = 107,
+            TotalExperience = 130,
+            AwardedExperienceSourceIds = ["feral:map-1:quiet:wave-1:1", "spitter:map-1:quiet:wave-1:2"],
             InventoryItems = [inventoryItem],
             EquippedWeapon = equippedItem,
             PassiveAllocatedIndices = [0, 1],
@@ -108,9 +110,33 @@ public sealed class SaveValidationTests
 
         Assert.Equal(inventoryItem.Id, restored.InventoryItems[0].Id);
         Assert.Equal(equippedItem.Id, restored.EquippedWeapon!.Id);
+        Assert.Equal(
+            ["feral:map-1:quiet:wave-1:1", "spitter:map-1:quiet:wave-1:2"],
+            restored.AwardedExperienceSourceIds);
         Assert.Equal([0, 1], restored.PassiveAllocatedIndices);
         Assert.Equal(["quiet-coast", "hardened-frontier"], restored.AtlasUnlockedMapIds);
         Assert.Equal(["quiet-coast"], restored.AtlasCompletedMapIds);
+    }
+
+    [Fact]
+    public void NullEquippedValueIsRejectedBeforeCrossCollectionChecks()
+    {
+        var generator = new LootGenerator(9127);
+        var stashItem = generator.GenerateWeaponDrop(1);
+        var snapshot = new SaveSnapshot
+        {
+            EquippedItemsBySlot = new Dictionary<EquipmentSlot, Item>
+            {
+                [EquipmentSlot.Armor] = null!,
+            },
+            StashItems = [stashItem],
+        };
+
+        var exception = Record.Exception(() => snapshot.TryValidate(out _));
+
+        Assert.Null(exception);
+        Assert.False(snapshot.TryValidate(out var error));
+        Assert.NotEmpty(error);
     }
 
     [Fact]
@@ -145,6 +171,30 @@ public sealed class SaveValidationTests
     }
 
     [Fact]
+    public void StablePassiveAllocationRoundTripsOnlyWhenExperienceCoversItsCost()
+    {
+        var state = new MinimalRunState
+        {
+            TotalExperience = 130,
+            AllocatedPassiveNodeIds = ["sharpened-bolt", "rapid-fire"],
+        };
+
+        var snapshot = SaveSnapshot.Capture(state);
+        var restored = snapshot.Restore();
+
+        Assert.Equal(130, restored.TotalExperience);
+        Assert.Equal(["sharpened-bolt", "rapid-fire"], restored.AllocatedPassiveNodeIds);
+
+        var invalid = new SaveSnapshot
+        {
+            TotalExperience = 50,
+            AllocatedPassiveNodeIds = ["sharpened-bolt", "rapid-fire"],
+        };
+        Assert.False(invalid.TryValidate(out var error));
+        Assert.NotEmpty(error);
+    }
+
+    [Fact]
     public void NullSaveCollectionsAreRejectedWithoutThrowing()
     {
         var malformed = new SaveSnapshot
@@ -162,6 +212,27 @@ public sealed class SaveValidationTests
         });
 
         Assert.Null(exception);
+    }
+
+    [Fact]
+    public void AwardedExperienceLedgerRejectsNullDuplicateAndOversizedEntries()
+    {
+        var nullLedger = new SaveSnapshot { AwardedExperienceSourceIds = null! };
+        var duplicateLedger = new SaveSnapshot
+        {
+            AwardedExperienceSourceIds = ["feral-1", "feral-1"],
+        };
+        var oversizedLedger = new SaveSnapshot
+        {
+            AwardedExperienceSourceIds = Enumerable
+                .Range(0, SaveSnapshot.MaxAwardedExperienceSourceIds + 1)
+                .Select(index => $"feral-{index}")
+                .ToArray(),
+        };
+
+        Assert.False(nullLedger.TryValidate(out _));
+        Assert.False(duplicateLedger.TryValidate(out _));
+        Assert.False(oversizedLedger.TryValidate(out _));
     }
 
     [Fact]

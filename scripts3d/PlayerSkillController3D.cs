@@ -69,7 +69,9 @@ public partial class PlayerSkillController3D : Node
         foreach (var slot in Enum.GetValues<SkillSlot>())
         {
             var previous = _cooldowns[slot];
-            _cooldowns[slot] = Mathf.Max(0.0f, previous - frameDelta);
+            _cooldowns[slot] = Mathf.Max(
+                0.0f,
+                previous - frameDelta * (float)_player.AilmentActionSpeedMultiplier);
             changed |= !Mathf.IsEqualApprox(previous, _cooldowns[slot]);
         }
 

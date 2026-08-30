@@ -48,6 +48,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
     public RunSessionNode RunSession => _runSession;
     public PlayerController3D TargetPlayer => _player;
+    public AilmentComponent3D Ailments => _ailments;
     public Vector3 LockedSlamCenter { get; private set; }
     public Vector3 LastSlamTelegraphCenter { get; private set; }
     public float LastSlamTelegraphRadius { get; private set; }
@@ -62,20 +63,37 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     public int AppliedMaxHealth { get; private set; }
     public int AppliedPrimaryDamage { get; private set; }
     public int AppliedSecondaryDamage { get; private set; }
+    public int AppliedRingDamage { get; private set; }
+    public int AppliedBarrageDamage { get; private set; }
     public int AppliedDropItemLevel { get; private set; } = 1;
     public string SpawnEncounterId { get; private set; } = string.Empty;
     public string SpawnWaveId { get; private set; } = string.Empty;
     public int SpawnOrdinal { get; private set; }
     public int SpawnContextAppliedCount { get; private set; }
+    public bool ExperienceAwarded { get; private set; }
     public float MoveSpeed => _moveSpeed;
     public float MagmaSlamPreparationSeconds => _slamPreparationSeconds;
     public float FlameSpearPreparationSeconds => _spearPreparationSeconds;
     public float RecoverySeconds => _recoverySeconds;
 
+    internal event Action<int, string> BossPhaseChanged;
+    internal event Action<string> BossAttackStarted;
+
+    internal void NotifyBossPhaseChanged(int phaseIndex, string phaseId)
+    {
+        BossPhaseChanged?.Invoke(phaseIndex, phaseId);
+    }
+
+    internal void NotifyBossAttackStarted(string attackId)
+    {
+        BossAttackStarted?.Invoke(attackId);
+    }
+
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
     private HitFlash3D _hitFlash;
     private DeathFeedback3D _deathFeedback;
+    private AilmentComponent3D _ailments;
     private PlayerController3D _player;
     private RunSessionNode _runSession;
     private Label3D _healthLabel;
@@ -99,6 +117,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
     private EnemyCrowdAgent3D _crowdAgent;
     private EnemySpawnContext3D _spawnContext;
     private bool _spawnContextApplied;
+    private CombatFaction _lastPositiveDamageSourceFaction = CombatFaction.Neutral;
 
     public void ConfigureBeforeReady(EnemySpawnContext3D context)
     {
@@ -134,6 +153,16 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             context.MapLevel,
             modifier,
             bossScaling);
+        var scaledRingDamage = MapScaling.BossContactDamage(
+            definition.Attack(BossAttackKind.MoltenRing).Damage,
+            context.MapLevel,
+            modifier,
+            bossScaling);
+        var scaledBarrageDamage = MapScaling.BossContactDamage(
+            definition.Attack(BossAttackKind.EmberBarrage).Damage,
+            context.MapLevel,
+            modifier,
+            bossScaling);
         health.SetMaxHealth(scaledHealth);
 
         var agent = GetNodeOrNull<NavigationAgent3D>("NavigationAgent3D");
@@ -149,6 +178,8 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         AppliedMaxHealth = scaledHealth;
         AppliedPrimaryDamage = scaledSlamDamage;
         AppliedSecondaryDamage = scaledSpearDamage;
+        AppliedRingDamage = scaledRingDamage;
+        AppliedBarrageDamage = scaledBarrageDamage;
         AppliedDropItemLevel = context.DropItemLevel;
         SpawnEncounterId = context.EncounterId;
         SpawnWaveId = context.WaveId;
@@ -164,23 +195,34 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         _damageFeedback = GetNodeOrNull<DamageFeedbackSource3D>("DamageFeedbackSource3D");
         _hitFlash = GetNodeOrNull<HitFlash3D>("HitFlash3D");
         _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
+        _ailments = GetNodeOrNull<AilmentComponent3D>("AilmentComponent3D");
         _health.Died += OnDied;
+        _health.DamageTaken += OnDamageTaken;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
         _runSession = _spawnContext?.RunSession ?? MapRuntimeScope3D.FindRunSession(this);
-        ApplyDefinition(DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus());
+        var definition = DefinitionResource?.ToDomain() ?? BossLibrary.BrimstoneColossus();
+        ApplyDefinition(definition);
         if (!_spawnContextApplied)
         {
             AppliedMaxHealth = _health.MaxHealth;
             AppliedPrimaryDamage = Mathf.RoundToInt(_slamDamage);
             AppliedSecondaryDamage = Mathf.RoundToInt(_spearDamage);
+            AppliedRingDamage = definition.Attack(BossAttackKind.MoltenRing).Damage;
+            AppliedBarrageDamage = definition.Attack(BossAttackKind.EmberBarrage).Damage;
             SpawnOrdinal = 0;
         }
 
         _player = _spawnContext?.Player;
         _player ??= MapRuntimeScope3D.FindPlayer(this);
         RefreshVisuals();
+        BossPhaseRuntimeRegistry3D.Register(this);
+    }
+
+    public override void _ExitTree()
+    {
+        BossPhaseRuntimeRegistry3D.Remove(this);
     }
 
     public override void _PhysicsProcess(double delta)
@@ -211,7 +253,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
                 break;
             case BrimstoneColossusState3D.PreparingSlam:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
                 _activeSlamTelegraph?.SetProgress(
                     1.0f - _stateRemaining / Mathf.Max(0.01f, _slamPreparationSeconds));
                 if (_stateRemaining <= 0.0f)
@@ -227,7 +269,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
                 break;
             case BrimstoneColossusState3D.PreparingSpear:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
                 _activeSpearTelegraph?.SetProgress(
                     1.0f - _stateRemaining / Mathf.Max(0.01f, _spearPreparationSeconds));
                 if (_stateRemaining <= 0.0f)
@@ -243,7 +285,7 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
                 break;
             case BrimstoneColossusState3D.Recovering:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
                 if (_stateRemaining <= 0.0f)
                 {
                     State = BrimstoneColossusState3D.Idle;
@@ -266,15 +308,26 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
             return new DamageResult(0, false);
         }
 
-        var result = _health.ApplyDamage(request);
+        var incomingRequest = _ailments?.ModifyIncomingDamage(request) ?? request;
+        var result = _health.ApplyDamage(incomingRequest);
         if (result.DamageApplied > 0)
         {
+            _lastPositiveDamageSourceFaction = request.SourceFaction;
             _damageFeedback?.Publish(result);
             _hitFlash?.Trigger();
+            _ailments?.ApplyFromDamage(request, result.DamageApplied);
         }
 
         RefreshVisuals();
         return result;
+    }
+
+    private void OnDamageTaken(DamageRequest request, DamageResult result)
+    {
+        if (result.DamageApplied > 0)
+        {
+            _lastPositiveDamageSourceFaction = request.SourceFaction;
+        }
     }
 
     private void FindPlayer()
@@ -319,9 +372,10 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         }
 
         var navigationVelocity = direction.LengthSquared() > 0.001f
-            ? direction * _moveSpeed
+            ? direction * (_moveSpeed * (float)(_ailments?.MoveSpeedMultiplier ?? 1.0))
             : Vector3.Zero;
-        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, _moveSpeed)
+        var movementSpeed = _moveSpeed * (float)(_ailments?.MoveSpeedMultiplier ?? 1.0);
+        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, movementSpeed)
             ?? navigationVelocity;
         if (direction.LengthSquared() > 0.001f)
         {
@@ -495,8 +549,32 @@ public partial class BrimstoneColossusController3D : CharacterBody3D, ICombatTar
         CollisionMask = 0;
         SetPhysicsProcess(false);
         _deathFeedback?.Play();
+        AwardExperienceIfEligible();
         SpawnDrop();
         RefreshVisuals();
+    }
+
+    private void AwardExperienceIfEligible()
+    {
+        if (ExperienceAwarded
+            || _lastPositiveDamageSourceFaction != CombatFaction.Player)
+        {
+            return;
+        }
+
+        _runSession ??= MapRuntimeScope3D.FindRunSession(this);
+        _player ??= MapRuntimeScope3D.FindPlayer(this);
+        var map = GetParent()?.GetParent();
+        var flow = map?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        if (_runSession == null || _player?.IsAlive != true || flow?.State != GameFlowState.Playing)
+        {
+            return;
+        }
+
+        var sourceId = string.IsNullOrWhiteSpace(SpawnEncounterId)
+            ? $"boss:map-{_runSession.CurrentMapLevel}:{GetPath()}"
+            : $"boss:map-{_runSession.CurrentMapLevel}:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
+        ExperienceAwarded = _runSession.TryAwardExperience(ExperienceSourceKind.Boss, sourceId);
     }
 
     private void SpawnDrop()

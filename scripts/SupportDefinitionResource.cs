@@ -19,6 +19,8 @@ public partial class SupportDefinitionResource : Resource
     [Export] public float ExtraSpreadAngleDegrees { get; set; }
     [Export] public int RequiredDamageType { get; set; } = -1;
     [Export] public float ElementalDamageMultiplier { get; set; } = 1.0f;
+    [Export] public int AilmentKind { get; set; } = -1;
+    [Export] public int AilmentChancePercent { get; set; }
 
     public SupportDefinition ToDomain()
     {
@@ -37,6 +39,9 @@ public partial class SupportDefinitionResource : Resource
                 ? null
                 : (DamageType)RequiredDamageType,
             ElementalDamageMultiplier = ElementalDamageMultiplier,
+            Ailment = AilmentKind < 0
+                ? null
+                : new AilmentApplicationDefinition((AilmentKind)AilmentKind, AilmentChancePercent),
         };
         definition.Validate();
         return definition;

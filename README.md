@@ -102,6 +102,15 @@ The Stage 8 smokes execute Quiet/Crossfire/Siege through the real encounter
 director and verify one-shot wave/completion signals, old-map release,
 route-driven map plans, and deterministic Atlas save recovery.
 
+The Character Mastery & Combat Depth round keeps character progression owned by
+the run: `TotalExperience` and `AllocatedPassiveNodeIds` are persisted beside
+the existing equipment, support, stash, reward, and Atlas state. Temporary
+combat state is intentionally not a mid-frame save contract: active Burning,
+Chilled, and Shocked effects, Elite current health, Boss phase, live wave
+enemies, and Boss hazards are discarded on restore. A Playing restore rebuilds
+the current map and encounter with clean transient combat state, then reapplies
+the saved Run/Build state atomically.
+
 ## Run the playable slice
 
 Open the repository with Godot 4.7.1 .NET and run the main scene. On
@@ -125,6 +134,9 @@ and key regression smokes remain part of CI.
 | T | Move the selected item between Inventory and Stash |
 | C | Reforge the selected item |
 | O / P | Attach / detach the Primary Volley support |
+| V | Toggle the Passive panel during Build Management |
+| Up / Down | Select an item or passive node |
+| G | Allocate the selected passive node |
 | B | Complete Build Management and open route choice |
 | R | Restart after Game Over / Map Complete |
 
@@ -197,7 +209,22 @@ for equip/unequip, bidirectional stash transfer, reforge, support changes, UI
 labels, and build completion; `MalformedSave3DRegressionSmoke.tscn` verifies
 file-level null-collection and malformed-JSON rejection without live-state
 mutation; `MapScope3DRegressionSmoke.tscn` verifies overlapping-map drop
-ownership and local build-flow access. CI runs 39 smoke scenes in total.
+ownership and local build-flow access. The mastery round adds
+`CharacterProgression3DRegressionSmoke.tscn` and
+`PassiveTree3DRegressionSmoke.tscn` for run-owned XP, stable passive IDs,
+legacy migration, build allocation, and save recovery;
+`AilmentRuntime3DRegressionSmoke.tscn` and
+`AilmentLifecycle3DRegressionSmoke.tscn` for Burning, Chilled, Shocked,
+pause/death cleanup, and isolated ailment RNG; and
+`EliteSelection3DRegressionSmoke.tscn` and
+`EliteRuntime3DRegressionSmoke.tscn` for deterministic modifier selection,
+pre-ready elite scaling, rewards, and combat presentation.
+`BossPhase3DRegressionSmoke.tscn` covers Brimstone phase thresholds, the
+phase-two add wave, Molten Ring, Ember Barrage, deterministic Lava Eruption,
+pause cancellation, death cleanup, and Map Complete. The end-to-end
+`MasteryCombatDepth3DRegressionSmoke.tscn` ties support loadout, progression,
+passive damage, ailments, and save restore together. CI runs 47 smoke scenes
+in total.
 
 ## Migration boundaries
 

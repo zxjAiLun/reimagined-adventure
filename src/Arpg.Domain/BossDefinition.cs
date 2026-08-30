@@ -4,6 +4,8 @@ public enum BossAttackKind
 {
     MagmaSlam,
     FlameSpear,
+    MoltenRing,
+    EmberBarrage,
 }
 
 public sealed class BossAttackDefinition
@@ -45,6 +47,7 @@ public sealed class BossDefinition
     public double MoveSpeed { get; init; }
     public double RecoverySeconds { get; init; }
     public IReadOnlyList<BossAttackDefinition> Attacks { get; init; } = Array.Empty<BossAttackDefinition>();
+    public IReadOnlyList<BossPhaseDefinition> Phases { get; init; } = Array.Empty<BossPhaseDefinition>();
 
     public BossAttackDefinition Attack(BossAttackKind kind)
     {
@@ -78,6 +81,37 @@ public sealed class BossDefinition
             {
                 throw new ArgumentException($"Boss attack {attack.Kind} is defined more than once.", nameof(Attacks));
             }
+        }
+
+        if (Phases == null || Phases.Count == 0)
+        {
+            return;
+        }
+
+        var phaseIds = new HashSet<string>(StringComparer.Ordinal);
+        var attackKinds = kinds;
+        var previousThreshold = 101;
+        foreach (var phase in Phases)
+        {
+            ArgumentNullException.ThrowIfNull(phase);
+            phase.Validate(attackKinds);
+            if (!phaseIds.Add(phase.Id))
+            {
+                throw new ArgumentException($"Boss phase '{phase.Id}' is defined more than once.", nameof(Phases));
+            }
+
+            if (phase.EnterAtHealthPercent >= previousThreshold)
+            {
+                throw new ArgumentException("Boss phase health thresholds must strictly decrease.", nameof(Phases));
+            }
+
+            previousThreshold = phase.EnterAtHealthPercent;
+        }
+
+        if (Phases[0].EnterAtHealthPercent != 100
+            || Phases[^1].EnterAtHealthPercent <= 0)
+        {
+            throw new ArgumentException("Boss phases must start at 100% and end above 0%.", nameof(Phases));
         }
     }
 }
@@ -116,6 +150,52 @@ public static class BossLibrary
                 Radius = 0.0,
                 Range = 520.0,
             },
+            new BossAttackDefinition
+            {
+                Id = "molten_ring",
+                Name = "Molten Ring",
+                Kind = BossAttackKind.MoltenRing,
+                DamageType = DamageType.Fire,
+                Damage = 12,
+                PreparationSeconds = 0.80,
+                Radius = 4.5,
+                Range = 0.0,
+            },
+            new BossAttackDefinition
+            {
+                Id = "ember_barrage",
+                Name = "Ember Barrage",
+                Kind = BossAttackKind.EmberBarrage,
+                DamageType = DamageType.Fire,
+                Damage = 8,
+                PreparationSeconds = 0.35,
+                Radius = 0.0,
+                Range = 8.0,
+            },
+        ],
+        Phases =
+        [
+            new BossPhaseDefinition(
+                "phase-1",
+                100,
+                [BossAttackKind.MagmaSlam, BossAttackKind.FlameSpear],
+                1.0,
+                null,
+                null),
+            new BossPhaseDefinition(
+                "phase-2",
+                70,
+                [BossAttackKind.MoltenRing, BossAttackKind.FlameSpear, BossAttackKind.MagmaSlam],
+                1.0,
+                "phase2-adds",
+                "molten-ring"),
+            new BossPhaseDefinition(
+                "phase-3",
+                35,
+                [BossAttackKind.EmberBarrage, BossAttackKind.MoltenRing, BossAttackKind.MagmaSlam, BossAttackKind.FlameSpear],
+                0.70,
+                null,
+                "lava-eruption"),
         ],
     };
 }

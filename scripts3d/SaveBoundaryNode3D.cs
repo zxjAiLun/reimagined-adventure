@@ -57,6 +57,11 @@ public partial class SaveBoundaryNode3D : Node
             PlayerMaxHealth = _player.MaxHealth,
             PlayerCurrentHealth = _player.CurrentHealth,
             RewardStats = _player.RewardStats,
+            TotalExperience = _runSession?.TotalExperience ?? 0,
+            AwardedExperienceSourceIds = _runSession?.AwardedExperienceSourceIds.ToArray()
+                ?? Array.Empty<string>(),
+            AllocatedPassiveNodeIds = _runSession?.PassiveTree.AllocatedNodeIds.ToArray()
+                ?? Array.Empty<string>(),
             InventoryItemIds = items.Select(item => item.Id).ToArray(),
             InventoryItems = items,
             EquippedWeaponId = _player.EquippedWeapon?.Id,
@@ -96,6 +101,27 @@ public partial class SaveBoundaryNode3D : Node
             return false;
         }
 
+        var targetPassiveStats = Stats.Neutral;
+        if (_runSession != null
+            && !_runSession.CanRestoreProgression(
+                state.TotalExperience,
+                state.AllocatedPassiveNodeIds,
+                state.AwardedExperienceSourceIds,
+                out targetPassiveStats))
+        {
+            error = "saved 3D passive progression is invalid";
+            return false;
+        }
+
+        if (_runSession == null
+            && (state.TotalExperience != 0
+                || state.AllocatedPassiveNodeIds.Count > 0
+                || state.AwardedExperienceSourceIds.Count > 0))
+        {
+            error = "saved 3D passive progression has no run owner";
+            return false;
+        }
+
         if (_player == null
             || state.InventoryItems.Count == 0 && state.InventoryItemIds.Count > 0
             || !state.InventoryItems.All(item => item != null)
@@ -104,6 +130,7 @@ public partial class SaveBoundaryNode3D : Node
                 state.InventoryItems,
                 targetEquipment,
                 state.RewardStats,
+                targetPassiveStats,
                 out var targetMaxHealth)
             || _player.Skills == null
             || !_player.Skills.CanRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot)
@@ -145,6 +172,15 @@ public partial class SaveBoundaryNode3D : Node
             }
 
             _player.SetRewardStats(state.RewardStats);
+            if (_runSession != null
+                && !_runSession.TryRestoreProgression(
+                    state.TotalExperience,
+                    state.AllocatedPassiveNodeIds,
+                    state.AwardedExperienceSourceIds))
+            {
+                throw new InvalidOperationException("saved 3D passive progression is invalid");
+            }
+
             if (!_player.Skills.TryRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot))
             {
                 throw new InvalidOperationException("saved 3D skill loadout is invalid");
@@ -205,6 +241,11 @@ public partial class SaveBoundaryNode3D : Node
                 }
             }
 
+            // Ailments are intentionally not part of the save contract. A
+            // successful restore starts the current map's transient combat
+            // state clean, just like a freshly instantiated map.
+            _player.Ailments?.ResetPresentation();
+
             error = string.Empty;
             return true;
         }
@@ -238,6 +279,11 @@ public partial class SaveBoundaryNode3D : Node
             PlayerMaxHealth = _player.MaxHealth,
             PlayerCurrentHealth = _player.CurrentHealth,
             RewardStats = _player.RewardStats,
+            TotalExperience = _runSession?.TotalExperience ?? 0,
+            AwardedExperienceSourceIds = _runSession?.AwardedExperienceSourceIds.ToArray()
+                ?? Array.Empty<string>(),
+            AllocatedPassiveNodeIds = _runSession?.PassiveTree.AllocatedNodeIds.ToArray()
+                ?? Array.Empty<string>(),
             InventoryItemIds = items.Select(item => item.Id).ToArray(),
             InventoryItems = items,
             EquippedWeaponId = _player.EquippedWeapon?.Id,
@@ -289,6 +335,15 @@ public partial class SaveBoundaryNode3D : Node
             }
 
             _player.SetRewardStats(state.RewardStats);
+            if (_runSession != null
+                && !_runSession.TryRestoreProgression(
+                    state.TotalExperience,
+                    state.AllocatedPassiveNodeIds,
+                    state.AwardedExperienceSourceIds))
+            {
+                throw new InvalidOperationException("could not restore passive progression");
+            }
+
             if (!_player.Skills.TryRestoreLoadout(state.UnlockedSupportIds, state.SupportIdBySkillSlot))
             {
                 throw new InvalidOperationException("could not restore skill loadout");

@@ -24,15 +24,25 @@ public partial class CombatHudController3D : CanvasLayer
     public int CurrentWaveNumber { get; private set; }
     public int TotalWaveCount { get; private set; }
     public int ActiveEnemyCount { get; private set; }
+    public int ActiveEliteCount { get; private set; }
+    public int CharacterLevel { get; private set; }
+    public int TotalExperience { get; private set; }
+    public int UnspentPassivePoints { get; private set; }
+    public string ProgressionText { get; private set; } = "Lv 1 · XP 0/50 · Passive 0";
+    public string PlayerAilmentsText { get; private set; } = "none";
     public bool BossPanelVisible { get; private set; }
     public int BossCurrentHealth { get; private set; }
     public int BossMaxHealth { get; private set; }
     public string BossHealthText { get; private set; } = "0/0";
     public double BossHealthBarValue => _bossHealthBar?.Value ?? BossCurrentHealth;
     public double BossHealthBarMax => _bossHealthBar?.MaxValue ?? BossMaxHealth;
-
+    public int BossPhaseNumber { get; private set; }
+    public int BossPhaseCount { get; private set; }
+    public string BossPhaseText { get; private set; } = "Phase 1/3";
+    public string BossAttackText { get; private set; } = string.Empty;
     private PlayerController3D _player;
     private HealthComponent _playerHealth;
+    private AilmentComponent3D _playerAilments;
     private PlayerSkillController3D _skills;
     private BrimstoneColossusController3D _boss;
     private EncounterDirector3D _encounterDirector;
@@ -46,6 +56,8 @@ public partial class CombatHudController3D : CanvasLayer
     private Label _spreadDamageLabel;
     private Label _mapModifierLabel;
     private Label _encounterLabel;
+    private Label _progressionLabel;
+    private Label _ailmentsLabel;
     private Label _skillPrimary;
     private Label _skillSecondary;
     private Label _skillUtility;
@@ -53,6 +65,7 @@ public partial class CombatHudController3D : CanvasLayer
     private Control _bossPanel;
     private ProgressBar _bossHealthBar;
     private Label _bossHealthValue;
+    private Label _bossPhaseLabel;
     private Label _flowStateLabel;
     private bool _bound;
     private bool _bossBound;
@@ -96,6 +109,8 @@ public partial class CombatHudController3D : CanvasLayer
         _spreadDamageLabel = GetNodeOrNull<Label>("PlayerPanel/SpreadDamage");
         _mapModifierLabel = GetNodeOrNull<Label>("PlayerPanel/MapModifier");
         _encounterLabel = GetNodeOrNull<Label>("PlayerPanel/Encounter");
+        _progressionLabel = GetNodeOrNull<Label>("PlayerPanel/Progression");
+        _ailmentsLabel = GetNodeOrNull<Label>("PlayerPanel/Ailments");
         _skillPrimary = GetNodeOrNull<Label>("SkillPanel/Primary");
         _skillSecondary = GetNodeOrNull<Label>("SkillPanel/Secondary");
         _skillUtility = GetNodeOrNull<Label>("SkillPanel/Utility");
@@ -103,6 +118,7 @@ public partial class CombatHudController3D : CanvasLayer
         _bossPanel = GetNodeOrNull<Control>("BossPanel");
         _bossHealthBar = GetNodeOrNull<ProgressBar>("BossPanel/BossHpBar");
         _bossHealthValue = GetNodeOrNull<Label>("BossPanel/BossHpValue");
+        _bossPhaseLabel = GetNodeOrNull<Label>("BossPanel/BossPhase");
         _flowStateLabel = GetNodeOrNull<Label>("PlayerPanel/FlowState");
     }
 
@@ -125,6 +141,7 @@ public partial class CombatHudController3D : CanvasLayer
         var mapPlayer = _map.GetNodeOrNull<PlayerController3D>("Player3D");
         var mapSkills = mapPlayer?.GetNodeOrNull<PlayerSkillController3D>("PlayerSkillController3D");
         var mapPlayerHealth = mapPlayer?.GetNodeOrNull<HealthComponent>("HealthComponent");
+        var mapPlayerAilments = mapPlayer?.GetNodeOrNull<AilmentComponent3D>("AilmentComponent3D");
         var mapDirector = _map.GetNodeOrNull<EncounterDirector3D>("EncounterDirector3D");
         var mapFlow = _map.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
         var mapRunSession = _map.GetParent() as RunSessionNode
@@ -135,9 +152,11 @@ public partial class CombatHudController3D : CanvasLayer
             || !IsValid(_playerHealth)
             || !IsValid(_flow)
             || !IsValid(_runSession)
+            || !IsValid(_playerAilments)
             || !ReferenceEquals(_player, mapPlayer)
             || !ReferenceEquals(_skills, mapSkills)
             || !ReferenceEquals(_playerHealth, mapPlayerHealth)
+            || !ReferenceEquals(_playerAilments, mapPlayerAilments)
             || !ReferenceEquals(_encounterDirector, mapDirector)
             || !ReferenceEquals(_flow, mapFlow)
             || !ReferenceEquals(_runSession, mapRunSession)))
@@ -148,11 +167,13 @@ public partial class CombatHudController3D : CanvasLayer
         _player = mapPlayer;
         _skills = mapSkills;
         _playerHealth = mapPlayerHealth;
+        _playerAilments = mapPlayerAilments;
         _encounterDirector = mapDirector;
         _flow = mapFlow;
         _runSession = mapRunSession;
 
-        if (_player == null || _skills == null || _playerHealth == null || _flow == null || _runSession == null)
+        if (_player == null || _skills == null || _playerHealth == null
+            || _playerAilments == null || _flow == null || _runSession == null)
         {
             ScheduleBindRetry();
             return;
@@ -167,11 +188,14 @@ public partial class CombatHudController3D : CanvasLayer
         }
 
         _playerHealth.HealthChanged += OnPlayerHealthChanged;
+        _playerAilments.AilmentsChanged += OnPlayerAilmentsChanged;
         _player.StatsChanged += OnPlayerStatsChanged;
         _player.EquipmentChanged += OnPlayerEquipmentChanged;
         _skills.CooldownsChanged += OnCooldownsChanged;
         _flow.StateChanged += OnFlowStateChanged;
         _runSession.MapLevelChanged += OnMapLevelChanged;
+        _runSession.CharacterProgressionChanged += OnCharacterProgressionChanged;
+        _runSession.PassiveAllocationChanged += OnPassiveAllocationChanged;
         _runSession.MapModifierResolved += OnMapModifierResolved;
         _runSession.EncounterPlanResolved += OnEncounterPlanResolved;
         BindDirectorSignals();
@@ -212,6 +236,8 @@ public partial class CombatHudController3D : CanvasLayer
 
         _bossHealth.HealthChanged += OnBossHealthChanged;
         _bossHealth.Died += OnBossDied;
+        _boss.BossPhaseChanged += OnBossPhaseChanged;
+        _boss.BossAttackStarted += OnBossAttackStarted;
         _bossBound = true;
         RefreshBoss();
     }
@@ -224,6 +250,12 @@ public partial class CombatHudController3D : CanvasLayer
             _bossHealth.Died -= OnBossDied;
         }
 
+        if (IsValid(_boss))
+        {
+            _boss.BossPhaseChanged -= OnBossPhaseChanged;
+            _boss.BossAttackStarted -= OnBossAttackStarted;
+        }
+
         _boss = null;
         _bossHealth = null;
         _bossBound = false;
@@ -234,6 +266,11 @@ public partial class CombatHudController3D : CanvasLayer
         if (IsValid(_playerHealth))
         {
             _playerHealth.HealthChanged -= OnPlayerHealthChanged;
+        }
+
+        if (IsValid(_playerAilments))
+        {
+            _playerAilments.AilmentsChanged -= OnPlayerAilmentsChanged;
         }
 
         if (IsValid(_player))
@@ -255,6 +292,8 @@ public partial class CombatHudController3D : CanvasLayer
         if (IsValid(_runSession))
         {
             _runSession.MapLevelChanged -= OnMapLevelChanged;
+            _runSession.CharacterProgressionChanged -= OnCharacterProgressionChanged;
+            _runSession.PassiveAllocationChanged -= OnPassiveAllocationChanged;
             _runSession.MapModifierResolved -= OnMapModifierResolved;
             _runSession.EncounterPlanResolved -= OnEncounterPlanResolved;
         }
@@ -265,6 +304,7 @@ public partial class CombatHudController3D : CanvasLayer
             _encounterDirector.WaveStarted -= OnWaveStarted;
             _encounterDirector.WaveCleared -= OnWaveCleared;
             _encounterDirector.ActiveEnemyCountChanged -= OnActiveEnemyCountChanged;
+            _encounterDirector.ActiveEliteCountChanged -= OnActiveEliteCountChanged;
             _encounterDirector.EncounterCompleted -= OnEncounterCompleted;
         }
 
@@ -275,6 +315,8 @@ public partial class CombatHudController3D : CanvasLayer
 
     private void OnPlayerHealthChanged(int currentHealth, int maxHealth) => RefreshPlayerHealth();
 
+    private void OnPlayerAilmentsChanged(string summary) => RefreshAilments();
+
     private void OnPlayerStatsChanged() => RefreshPlayerStats();
 
     private void OnPlayerEquipmentChanged() => RefreshPlayerStats();
@@ -284,6 +326,10 @@ public partial class CombatHudController3D : CanvasLayer
     private void OnBossHealthChanged(int currentHealth, int maxHealth) => RefreshBoss();
 
     private void OnBossDied() => RefreshBoss();
+
+    private void OnBossPhaseChanged(int phaseIndex, string phaseId) => RefreshBoss();
+
+    private void OnBossAttackStarted(string attackId) => RefreshBoss();
 
     private void OnBossSpawned(Node3D boss)
     {
@@ -306,6 +352,10 @@ public partial class CombatHudController3D : CanvasLayer
         RefreshEncounter();
     }
 
+    private void OnCharacterProgressionChanged(int level, int totalExperience, int unspentPoints) => RefreshProgression();
+
+    private void OnPassiveAllocationChanged(string nodeId) => RefreshProgression();
+
     private void OnMapModifierResolved(string modifierId, int mapLevel) => RefreshMapModifier();
 
     private void OnEncounterPlanResolved(string encounterId, int encounterTier, int mapLevel)
@@ -321,6 +371,8 @@ public partial class CombatHudController3D : CanvasLayer
 
     private void OnActiveEnemyCountChanged(int activeEnemyCount) => RefreshEncounter();
 
+    private void OnActiveEliteCountChanged(int activeEliteCount) => RefreshEncounter();
+
     private void OnEncounterCompleted() => RefreshEncounter();
 
     private void RefreshAll()
@@ -332,6 +384,8 @@ public partial class CombatHudController3D : CanvasLayer
         RefreshMapLevel();
         RefreshMapModifier();
         RefreshEncounter();
+        RefreshProgression();
+        RefreshAilments();
         RefreshFlowState();
     }
 
@@ -411,6 +465,41 @@ public partial class CombatHudController3D : CanvasLayer
         {
             _bossHealthValue.Text = $"Boss HP {BossHealthText}";
         }
+
+        if (_boss == null || !IsValid(_boss))
+        {
+            BossPhaseNumber = 0;
+            BossPhaseCount = 0;
+            BossPhaseText = string.Empty;
+            BossAttackText = string.Empty;
+            if (IsValid(_bossPhaseLabel))
+            {
+                _bossPhaseLabel.Text = string.Empty;
+            }
+
+            return;
+        }
+
+        BossPhaseNumber = MetaInt(_boss, "boss_phase_index", 0) + 1;
+        BossPhaseCount = MetaInt(_boss, "boss_phase_count", 3);
+        BossAttackText = MetaString(_boss, "boss_current_attack_id", string.Empty);
+        var phaseId = MetaString(_boss, "boss_phase_id", "phase-1");
+        BossPhaseText = $"Phase {BossPhaseNumber}/{Mathf.Max(1, BossPhaseCount)} · {phaseId} · {BossAttackText}";
+        if (IsValid(_bossPhaseLabel))
+        {
+            _bossPhaseLabel.Text = BossPhaseText;
+        }
+
+    }
+
+    private static int MetaInt(Node node, string key, int fallback)
+    {
+        return node.HasMeta(key) ? node.GetMeta(key).AsInt32() : fallback;
+    }
+
+    private static string MetaString(Node node, string key, string fallback)
+    {
+        return node.HasMeta(key) ? node.GetMeta(key).AsString() : fallback;
     }
 
     private void RefreshMapLevel()
@@ -450,10 +539,36 @@ public partial class CombatHudController3D : CanvasLayer
             ?? _runSession?.CurrentEncounterDefinition?.Waves?.Count
             ?? 0;
         ActiveEnemyCount = _encounterDirector?.ActiveEnemyCount ?? 0;
-        EncounterText = $"Encounter: {displayName} · Tier {EncounterTier}\nWave {CurrentWaveNumber} / {TotalWaveCount} · {ActiveEnemyCount} enemies";
+        ActiveEliteCount = _encounterDirector?.ActiveEliteCount ?? 0;
+        EncounterText = $"Encounter: {displayName} · Tier {EncounterTier}\nWave {CurrentWaveNumber} / {TotalWaveCount} · {ActiveEnemyCount} enemies · {ActiveEliteCount} elites";
         if (IsValid(_encounterLabel))
         {
             _encounterLabel.Text = EncounterText;
+        }
+    }
+
+    private void RefreshProgression()
+    {
+        var progression = _runSession?.CharacterProgression;
+        CharacterLevel = progression?.Level ?? 1;
+        TotalExperience = progression?.TotalExperience ?? 0;
+        UnspentPassivePoints = progression?.UnspentPassivePoints ?? 0;
+        var nextThreshold = CharacterLevel >= CharacterProgressionState.MaximumLevel
+            ? CharacterProgressionState.ExperienceThresholds[^1]
+            : CharacterProgressionState.ExperienceThresholds[CharacterLevel];
+        ProgressionText = $"Lv {CharacterLevel} · XP {TotalExperience}/{nextThreshold} · Passive {UnspentPassivePoints}";
+        if (IsValid(_progressionLabel))
+        {
+            _progressionLabel.Text = ProgressionText;
+        }
+    }
+
+    private void RefreshAilments()
+    {
+        PlayerAilmentsText = _playerAilments?.Summary ?? "none";
+        if (IsValid(_ailmentsLabel))
+        {
+            _ailmentsLabel.Text = $"Ailments: {(string.IsNullOrWhiteSpace(PlayerAilmentsText) ? "none" : PlayerAilmentsText)}";
         }
     }
 
@@ -468,6 +583,7 @@ public partial class CombatHudController3D : CanvasLayer
         _encounterDirector.WaveStarted += OnWaveStarted;
         _encounterDirector.WaveCleared += OnWaveCleared;
         _encounterDirector.ActiveEnemyCountChanged += OnActiveEnemyCountChanged;
+        _encounterDirector.ActiveEliteCountChanged += OnActiveEliteCountChanged;
         _encounterDirector.EncounterCompleted += OnEncounterCompleted;
         _directorBound = true;
     }

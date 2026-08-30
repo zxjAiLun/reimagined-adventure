@@ -19,17 +19,10 @@ public partial class DamageFeedbackSource3D : Node3D
 
     public override void _ExitTree()
     {
-        if (GetTree() == null)
+        var spawner = FindMapSpawner();
+        if (spawner != null)
         {
-            return;
-        }
-
-        foreach (var node in GetTree().GetNodesInGroup("damage_number_spawners_3d"))
-        {
-            if (node is DamageNumberSpawner3D spawner)
-            {
-                spawner.Unregister(this);
-            }
+            spawner.Unregister(this);
         }
     }
 
@@ -50,12 +43,24 @@ public partial class DamageFeedbackSource3D : Node3D
             return;
         }
 
-        foreach (var node in GetTree().GetNodesInGroup("damage_number_spawners_3d"))
+        var spawner = FindMapSpawner();
+        if (spawner != null)
         {
-            if (node is DamageNumberSpawner3D spawner)
+            spawner.Register(this);
+        }
+    }
+
+    private DamageNumberSpawner3D FindMapSpawner()
+    {
+        for (var current = GetParent(); current != null; current = current.GetParent())
+        {
+            var spawner = current.GetNodeOrNull<DamageNumberSpawner3D>("DamageNumberSpawner3D");
+            if (spawner != null)
             {
-                spawner.Register(this);
+                return spawner;
             }
         }
+
+        return null;
     }
 }

@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/PlayerController3D.cs" id="1_player"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
@@ -14,6 +14,8 @@
 [ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="12_death_feedback"]
 [ext_resource type="Script" path="res://scripts3d/PlayerBuildController3D.cs" id="13_build"]
 [ext_resource type="PackedScene" path="res://scenes3d/InventoryScreen3D.tscn" id="14_inventory_screen"]
+[ext_resource type="Script" path="res://scripts3d/AilmentComponent3D.cs" id="15_ailment"]
+[ext_resource type="Script" path="res://scripts3d/AilmentPresentation3D.cs" id="16_ailment_presentation"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.55
@@ -50,6 +52,16 @@ mesh = SubResource("CapsuleMesh_player")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")
 MaxHealth = 100
+
+[node name="AilmentComponent3D" type="Node" parent="."]
+script = ExtResource("15_ailment")
+
+[node name="AilmentPresentation3D" type="Label3D" parent="."]
+position = Vector3(0, 2.0, 0)
+script = ExtResource("16_ailment_presentation")
+modulate = Color(1, 0.82, 0.4, 1)
+font_size = 22
+outline_size = 6
 
 [node name="DamageFeedbackSource3D" type="Node3D" parent="."]
 position = Vector3(0, 1.55, 0)

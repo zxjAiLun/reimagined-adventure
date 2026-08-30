@@ -28,11 +28,21 @@ public partial class RunSessionNode : Node
     [Signal]
     public delegate void RouteSelectedEventHandler(string mapId);
 
+    [Signal]
+    public delegate void CharacterProgressionChangedEventHandler(
+        int level,
+        int totalExperience,
+        int unspentPoints);
+
+    [Signal]
+    public delegate void PassiveAllocationChangedEventHandler(string nodeId);
+
     [Export] public long RunSeed { get; set; } = (long)RandomService.DefaultSeed;
     [Export] public int MapLevel { get; set; } = 1;
     [Export] public PackedScene MapScene { get; set; }
     [Export] public MapModifierCatalogResource3D MapModifierCatalog { get; set; }
     [Export] public EncounterCatalogResource3D EncounterCatalog { get; set; }
+    [Export] public PassiveTreeResource PassiveTreeResource { get; set; }
     [Export] public NodePath AtlasPath { get; set; } = new("Atlas3D");
 
     private RunSession _session;
@@ -65,6 +75,11 @@ public partial class RunSessionNode : Node
     private bool _resolvedEncounterUsingLegacyPlan;
     private RunMapPlan3D _currentMapPlan;
     private bool _useLegacyPlanResolution;
+    private CharacterProgressionState _characterProgression;
+    private PassiveTreeState _passiveTree;
+    private HashSet<string> _awardedExperienceSourceIds = new(StringComparer.Ordinal);
+    private RunSessionNode _signalOwner;
+    private readonly HashSet<RunSessionNode> _linkedSessions = new();
 
     public RunSession Session => _session ?? throw new InvalidOperationException("RunSessionNode is not ready.");
     public int ItemSequence => Session.ItemSequence;
@@ -99,16 +114,31 @@ public partial class RunSessionNode : Node
     public bool UsesLegacyPlanResolution => _useLegacyPlanResolution;
     public TestArena3D CurrentMap3D => _currentMap as TestArena3D;
     public RunMapPlan3D CurrentMapPlan => _currentMapPlan ?? CreateCurrentMapPlan();
+    public CharacterProgressionState CharacterProgression =>
+        _characterProgression ?? throw new InvalidOperationException("RunSessionNode progression is not ready.");
+    public PassiveTreeState PassiveTree =>
+        _passiveTree ?? throw new InvalidOperationException("RunSessionNode passive tree is not ready.");
+    public int CharacterLevel => CharacterProgression.Level;
+    public int TotalExperience => CharacterProgression.TotalExperience;
+    public int UnspentPassivePoints => CharacterProgression.UnspentPassivePoints;
+    public Stats PassiveStats => PassiveTree.CombinedStats();
+    public IReadOnlyCollection<string> AwardedExperienceSourceIds => _awardedExperienceSourceIds;
 
     public override void _Ready()
     {
-        foreach (var node in GetTree().GetNodesInGroup("run_sessions"))
+        var existing = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
+        if (existing != null)
         {
-            if (node is RunSessionNode existing && existing != this && existing._session != null)
+            if (existing != this && existing._session != null)
             {
                 _session = existing._session;
                 _lootGenerator = existing._lootGenerator;
                 _craftingGenerator = existing._craftingGenerator;
+                _characterProgression = existing._characterProgression;
+                _passiveTree = existing._passiveTree;
+                _awardedExperienceSourceIds = existing._awardedExperienceSourceIds;
+                _signalOwner = existing._signalOwner ?? existing;
+                _signalOwner._linkedSessions.Add(this);
                 AddToGroup("run_sessions");
                 return;
             }
@@ -118,6 +148,11 @@ public partial class RunSessionNode : Node
         _session = new RunSession(seed, Mathf.Max(1, MapLevel));
         _lootGenerator = Session.CreateLootGenerator();
         _craftingGenerator = Session.CreateCraftingGenerator();
+        _characterProgression = new CharacterProgressionState();
+        _passiveTree = new PassiveTreeState(
+            PassiveTreeResource?.ToDomain() ?? PassiveTreeLibrary.MasterySlice());
+        _signalOwner = this;
+        _linkedSessions.Add(this);
         AddToGroup("run_sessions");
         InitializeAtlas();
         ResolveCurrentMapModifierIfNeeded();
@@ -125,6 +160,223 @@ public partial class RunSessionNode : Node
         if (MapScene != null)
         {
             CallDeferred(nameof(InstantiateMap));
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        // Godot's managed Array wrappers must be finalized while the native
+        // runtime is still alive. This also covers the ordinary main-scene
+        // shutdown path, which does not have a regression smoke to flush them
+        // before calling SceneTree.Quit().
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
+
+    public bool TryAwardExperience(ExperienceSourceKind source, string sourceInstanceId)
+    {
+        var amount = source == ExperienceSourceKind.Elite
+            ? ExperienceRewards.EliteExperience(ExperienceSourceKind.Feral)
+            : ExperienceRewards.BaseExperience(source);
+        return TryAwardExperience(amount, sourceInstanceId);
+    }
+
+    public bool TryAwardEliteExperience(ExperienceSourceKind baseSource, string sourceInstanceId)
+    {
+        return TryAwardExperience(ExperienceRewards.EliteExperience(baseSource), sourceInstanceId);
+    }
+
+    public bool TryAwardExperience(int amount, string sourceInstanceId)
+    {
+        if (amount <= 0
+            || string.IsNullOrWhiteSpace(sourceInstanceId)
+            || !_awardedExperienceSourceIds.Add(sourceInstanceId))
+        {
+            return false;
+        }
+
+        CharacterProgression.AwardExperience(amount);
+        NotifyProgressionChanged();
+        return true;
+    }
+
+    public bool TryAllocatePassive(string nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId)
+            || !IsBuildManagementOpen())
+        {
+            return false;
+        }
+
+        if (!PassiveTree.TryAllocate(nodeId, CharacterProgression))
+        {
+            return false;
+        }
+
+        NotifyProgressionChanged();
+        NotifyPassiveAllocationChanged(nodeId);
+        ApplyPassiveStatsToCurrentMap();
+        return true;
+    }
+
+    public bool CanRestoreProgression(
+        int totalExperience,
+        IEnumerable<string> allocatedNodeIds,
+        out Stats passiveStats)
+    {
+        return CanRestoreProgression(
+            totalExperience,
+            allocatedNodeIds,
+            _awardedExperienceSourceIds,
+            out passiveStats);
+    }
+
+    public bool CanRestoreProgression(
+        int totalExperience,
+        IEnumerable<string> allocatedNodeIds,
+        IEnumerable<string> awardedExperienceSourceIds,
+        out Stats passiveStats)
+    {
+        passiveStats = Stats.Neutral;
+        if (totalExperience < 0
+            || allocatedNodeIds == null
+            || awardedExperienceSourceIds == null)
+        {
+            return false;
+        }
+
+        var requested = allocatedNodeIds.ToArray();
+        var awarded = awardedExperienceSourceIds.ToArray();
+        if (awarded.Length > SaveSnapshot.MaxAwardedExperienceSourceIds
+            || awarded.Any(string.IsNullOrWhiteSpace)
+            || awarded.Distinct(StringComparer.Ordinal).Count() != awarded.Length)
+        {
+            return false;
+        }
+
+        var candidateProgression = new CharacterProgressionState(totalExperience);
+        var pointCost = requested.Sum(nodeId =>
+            PassiveTree.Nodes.FirstOrDefault(node => node.Id == nodeId)?.PointCost ?? 0);
+        if (!PassiveTree.CanRestore(requested, pointCost)
+            || pointCost > candidateProgression.TotalPassivePointsEarned)
+        {
+            return false;
+        }
+
+        passiveStats = CalculatePassiveStats(requested, pointCost);
+        return true;
+    }
+
+    public bool TryRestoreProgression(int totalExperience, IEnumerable<string> allocatedNodeIds)
+    {
+        return TryRestoreProgression(
+            totalExperience,
+            allocatedNodeIds,
+            _awardedExperienceSourceIds);
+    }
+
+    public bool TryRestoreProgression(
+        int totalExperience,
+        IEnumerable<string> allocatedNodeIds,
+        IEnumerable<string> awardedExperienceSourceIds)
+    {
+        if (allocatedNodeIds == null || awardedExperienceSourceIds == null)
+        {
+            return false;
+        }
+
+        var requested = allocatedNodeIds.ToArray();
+        var awarded = awardedExperienceSourceIds.ToArray();
+        if (!CanRestoreProgression(totalExperience, requested, awarded, out _))
+        {
+            return false;
+        }
+
+        var pointCost = requested.Sum(nodeId =>
+            PassiveTree.Nodes.First(node => node.Id == nodeId).PointCost);
+        var candidateProgression = new CharacterProgressionState(totalExperience, pointCost);
+        var candidateTree = CreatePassiveTreeState();
+        if (!candidateTree.TryRestore(requested, pointCost))
+        {
+            return false;
+        }
+
+        var candidateLedger = awarded.ToHashSet(StringComparer.Ordinal);
+        ReplaceProgressionState(candidateProgression, candidateTree, candidateLedger);
+        ApplyPassiveStatsToCurrentMap();
+        NotifyProgressionChanged();
+        foreach (var nodeId in requested)
+        {
+            NotifyPassiveAllocationChanged(nodeId);
+        }
+
+        return true;
+    }
+
+    private Stats CalculatePassiveStats(IReadOnlyList<string> nodeIds, int pointCost)
+    {
+        var candidateTree = CreatePassiveTreeState();
+        candidateTree.Restore(nodeIds, pointCost);
+        return candidateTree.CombinedStats();
+    }
+
+    private PassiveTreeState CreatePassiveTreeState() => new(new PassiveTreeDefinition
+    {
+        Nodes = PassiveTree.Nodes,
+    });
+
+    private void ReplaceProgressionState(
+        CharacterProgressionState progression,
+        PassiveTreeState passiveTree,
+        HashSet<string> awardedExperienceSourceIds)
+    {
+        var owner = _signalOwner ?? this;
+        foreach (var session in owner._linkedSessions.ToArray())
+        {
+            if (session == null || !GodotObject.IsInstanceValid(session))
+            {
+                owner._linkedSessions.Remove(session);
+                continue;
+            }
+
+            session._characterProgression = progression;
+            session._passiveTree = passiveTree;
+            session._awardedExperienceSourceIds = awardedExperienceSourceIds;
+        }
+    }
+
+    private void NotifyProgressionChanged()
+    {
+        var owner = _signalOwner ?? this;
+        foreach (var session in owner._linkedSessions.ToArray())
+        {
+            if (session == null || !GodotObject.IsInstanceValid(session))
+            {
+                owner._linkedSessions.Remove(session);
+                continue;
+            }
+
+            session.EmitSignal(
+                SignalName.CharacterProgressionChanged,
+                CharacterProgression.Level,
+                CharacterProgression.TotalExperience,
+                CharacterProgression.UnspentPassivePoints);
+        }
+    }
+
+    private void NotifyPassiveAllocationChanged(string nodeId)
+    {
+        var owner = _signalOwner ?? this;
+        foreach (var session in owner._linkedSessions.ToArray())
+        {
+            if (session == null || !GodotObject.IsInstanceValid(session))
+            {
+                owner._linkedSessions.Remove(session);
+                continue;
+            }
+
+            session.EmitSignal(SignalName.PassiveAllocationChanged, nodeId);
         }
     }
 
@@ -349,17 +601,23 @@ public partial class RunSessionNode : Node
             || _currentMap == null
             || !IsInstanceValid(_currentMap))
         {
+            GD.PushError(
+                $"LoadSelectedMap precondition failed atlas={HasFormalAtlas} pending={_pendingAtlasMapId} "
+                + $"complete={IsCurrentMapCompleteWithReward()} build={IsBuildIntermissionReadyForRoute()} "
+                + $"scene={MapScene != null} map={_currentMap != null && IsInstanceValid(_currentMap)}");
             return false;
         }
 
         var flow = GetTree().GetFirstNodeInGroup("game_flows_3d") as GameFlowController3D;
         if (flow == null || !flow.PrepareNextMap())
         {
+            GD.PushError($"LoadSelectedMap could not prepare next map flow={flow?.State}");
             return false;
         }
 
         var save3d = _currentMap.GetNodeOrNull<SaveBoundaryNode3D>("SaveBoundary3D")
             ?? GetTree().GetFirstNodeInGroup("save_boundaries_3d") as SaveBoundaryNode3D;
+
         var previousLevel = Session.MapLevel;
         var previousAtlasId = _currentAtlasMapId;
         var previousPendingId = _pendingAtlasMapId;
@@ -379,9 +637,13 @@ public partial class RunSessionNode : Node
             ResolveCurrentEncounterIfNeeded();
             EmitSignal(SignalName.MapLevelChanged, Session.MapLevel);
 
-            if (save3d == null || !save3d.TrySaveCurrentRun(out _))
+            var saveError = string.Empty;
+            var saved = save3d != null && save3d.TrySaveCurrentRun(out saveError);
+            if (!saved)
             {
-                throw new InvalidOperationException("could not save selected atlas route");
+                GD.PushError($"Could not save selected atlas route: {saveError}");
+                throw new InvalidOperationException(
+                    $"could not save selected atlas route: {saveError}");
             }
 
             _restoreNextMapState = true;
@@ -393,8 +655,9 @@ public partial class RunSessionNode : Node
             CallDeferred(nameof(InstantiateMap));
             return true;
         }
-        catch
+        catch (Exception exception)
         {
+            GD.PushError($"LoadSelectedMap failed after transition preparation: {exception.Message}");
             Session.SetMapLevel(previousLevel);
             MapLevel = previousLevel;
             _currentAtlasMapId = previousAtlasId;
@@ -571,6 +834,7 @@ public partial class RunSessionNode : Node
         }
 
         AddChild(_currentMap);
+        ApplyPassiveStatsToCurrentMap();
         if (_restoreNextMapState)
         {
             _restoreNextMapState = false;
@@ -778,5 +1042,19 @@ public partial class RunSessionNode : Node
         {
             GD.PushError($"Could not restore next-map run state: {restoreError}");
         }
+    }
+
+    private bool IsBuildManagementOpen()
+    {
+        var build = _currentMap?.GetNodeOrNull<BuildIntermissionController3D>("BuildIntermission3D");
+        var flow = _currentMap?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        return build?.IsBuildManagement == true
+            && flow?.State == GameFlowState.MapComplete;
+    }
+
+    private void ApplyPassiveStatsToCurrentMap()
+    {
+        var player = _currentMap?.GetNodeOrNull<PlayerController3D>("Player3D");
+        player?.SetPassiveStats(PassiveStats);
     }
 }

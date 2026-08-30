@@ -6,7 +6,8 @@ namespace Arpg.Domain;
 /// </summary>
 public sealed class SkillLoadout
 {
-    public static IReadOnlyList<string> DefaultUnlockedSupportIds => ["volley", "amplify"];
+    public static IReadOnlyList<string> DefaultUnlockedSupportIds =>
+        ["volley", "amplify", "frostbite", "combustion", "overload"];
 
     private readonly SkillBar _skillBar;
     private readonly Dictionary<SkillSlot, string> _supportIds = new();

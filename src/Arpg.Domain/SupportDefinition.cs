@@ -10,6 +10,9 @@ public enum SupportKind
     Concentration,
     Echo,
     ElementalFocus,
+    Frostbite,
+    Combustion,
+    Overload,
 }
 
 /// <summary>
@@ -29,6 +32,7 @@ public sealed class SupportDefinition
     public double ExtraSpreadAngleDegrees { get; init; }
     public DamageType? RequiredDamageType { get; init; }
     public double ElementalDamageMultiplier { get; init; } = 1.0;
+    public AilmentApplicationDefinition? Ailment { get; init; }
 
     public void Validate()
     {
@@ -65,6 +69,8 @@ public sealed class SupportDefinition
         {
             throw new ArgumentOutOfRangeException(nameof(ExtraSpreadAngleDegrees));
         }
+
+        Ailment?.Validate();
     }
 
     private static void ValidateMultiplier(string name, double value)
@@ -142,6 +148,30 @@ public static class SupportLibrary
             RequiredDamageType = DamageType.Fire,
             ElementalDamageMultiplier = 1.28,
         },
+        new SupportDefinition
+        {
+            Id = "frostbite",
+            Name = "Frostbite",
+            Kind = SupportKind.Frostbite,
+            DamageMultiplier = 0.90,
+            Ailment = new AilmentApplicationDefinition(AilmentKind.Chilled, 35),
+        },
+        new SupportDefinition
+        {
+            Id = "combustion",
+            Name = "Combustion",
+            Kind = SupportKind.Combustion,
+            DamageMultiplier = 0.90,
+            Ailment = new AilmentApplicationDefinition(AilmentKind.Burning, 40),
+        },
+        new SupportDefinition
+        {
+            Id = "overload",
+            Name = "Overload",
+            Kind = SupportKind.Overload,
+            CooldownMultiplier = 1.15,
+            Ailment = new AilmentApplicationDefinition(AilmentKind.Shocked, 50),
+        },
     ];
 
     public static IReadOnlyList<SupportDefinition> All => Supports;
@@ -167,6 +197,13 @@ public static class SupportLibrary
             SupportKind.Quickcast => skill.CastType != SkillCastType.Dash,
             SupportKind.Trailblazer => skill.CastType == SkillCastType.Dash,
             SupportKind.ElementalFocus => support.RequiredDamageType == skill.DamageType,
+            SupportKind.Frostbite => skill.CastType == SkillCastType.Projectile,
+            SupportKind.Combustion => skill.Slot == SkillSlot.Secondary
+                && skill.IsArea
+                && skill.DamageType == DamageType.Fire,
+            SupportKind.Overload => skill.Slot == SkillSlot.Utility
+                && skill.IsArea
+                && skill.DamageType == DamageType.Lightning,
             _ => false,
         };
     }

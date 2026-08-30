@@ -124,6 +124,22 @@ theme_override_font_sizes/font_size = 12
 autowrap_mode = 2
 text = "Encounter: Quiet Coast Skirmish · Tier 1\nWave 0 / 3 · 0 enemies"
 
+[node name="Progression" type="Label" parent="PlayerPanel"]
+offset_left = 16.0
+offset_top = 270.0
+offset_right = 382.0
+offset_bottom = 294.0
+theme_override_colors/font_color = Color(0.82, 0.92, 1, 1)
+text = "Lv 1 · XP 0/50 · Passive 0"
+
+[node name="Ailments" type="Label" parent="PlayerPanel"]
+offset_left = 16.0
+offset_top = 300.0
+offset_right = 382.0
+offset_bottom = 324.0
+theme_override_colors/font_color = Color(1, 0.82, 0.4, 1)
+text = "Ailments: none"
+
 [node name="SkillPanel" type="Panel" parent="."]
 offset_left = 24.0
 offset_top = 390.0
@@ -163,7 +179,7 @@ text = "Space Dash CD 0.00"
 offset_left = 760.0
 offset_top = 24.0
 offset_right = 1128.0
-offset_bottom = 145.0
+offset_bottom = 172.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="BossTitle" type="Label" parent="BossPanel"]
@@ -188,6 +204,15 @@ offset_top = 80.0
 offset_right = 340.0
 offset_bottom = 104.0
 text = "Boss HP 0/0"
+
+[node name="BossPhase" type="Label" parent="BossPanel"]
+offset_left = 16.0
+offset_top = 106.0
+offset_right = 352.0
+offset_bottom = 130.0
+theme_override_colors/font_color = Color(1, 0.78, 0.42, 1)
+theme_override_font_sizes/font_size = 12
+text = "Phase 1/3 · phase-1"
 
 [node name="ResultOverlay" type="Label" parent="."]
 visible = false

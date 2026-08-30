@@ -33,7 +33,8 @@ public partial class PlayerMotor3D : Node
             0.0f,
             movement.Y)
             * MoveSpeed
-            * (float)_player.EffectiveStats.MoveSpeedMultiplier;
+            * (float)(_player.EffectiveStats.MoveSpeedMultiplier
+                * _player.AilmentMoveSpeedMultiplier);
         _player.MoveAndSlide();
         ClampToArena();
     }

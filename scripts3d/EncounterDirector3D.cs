@@ -19,23 +19,13 @@ public enum EncounterDirectorState3D
 /// </summary>
 public partial class EncounterDirector3D : Node
 {
-    [Signal]
-    public delegate void EncounterCompletedEventHandler();
-
-    [Signal]
-    public delegate void WaveStartedEventHandler(int waveIndex, string waveId);
-
-    [Signal]
-    public delegate void EnemySpawnedEventHandler(Node3D enemy);
-
-    [Signal]
-    public delegate void BossSpawnedEventHandler(Node3D boss);
-
-    [Signal]
-    public delegate void WaveClearedEventHandler(int waveIndex, string waveId);
-
-    [Signal]
-    public delegate void ActiveEnemyCountChangedEventHandler(int activeEnemyCount);
+    public event Action EncounterCompleted;
+    public event Action<int, string> WaveStarted;
+    public event Action<Node3D> EnemySpawned;
+    public event Action<Node3D> BossSpawned;
+    public event Action<int, string> WaveCleared;
+    public event Action<int> ActiveEnemyCountChanged;
+    public event Action<int> ActiveEliteCountChanged;
 
     [Export] public EncounterDefinitionResource3D DefinitionResource { get; set; }
     [Export] public bool Enabled { get; set; } = true;
@@ -55,6 +45,10 @@ public partial class EncounterDirector3D : Node
     public int EncounterCompletedCount { get; private set; }
     public int CurrentWaveSpawnedCount { get; private set; }
     public int CurrentWaveTargetCount { get; private set; }
+    public int BossAddSpawnCount { get; private set; }
+    public int ActiveEliteCount => GetActiveEnemies()
+        .Count(enemy => enemy is IEliteRuntime3D elite
+            && !string.IsNullOrWhiteSpace(elite.EliteModifierId));
     public string LastSpawnPointId { get; private set; } = string.Empty;
     public Node3D ActiveBoss => _spawnedEnemies
         .OfType<BrimstoneColossusController3D>()
@@ -162,7 +156,118 @@ public partial class EncounterDirector3D : Node
             .ToArray();
     }
 
+    /// <summary>
+    /// Test-only registration for a dynamically configured enemy. Production
+    /// encounters use SpawnNextEnemy; this keeps lifecycle assertions on the
+    /// same active-count accounting without exposing the spawn state machine.
+    /// </summary>
+    public bool RegisterExternalEnemyForTest(Node3D enemy)
+    {
+        if (enemy == null
+            || _spawnedEnemies.Contains(enemy)
+            || enemy.GetNodeOrNull<HealthComponent>("HealthComponent") == null)
+        {
+            return false;
+        }
+
+        TrackEnemy(enemy);
+        ActiveEliteCountChanged?.Invoke(ActiveEliteCount);
+        return true;
+    }
+
+    /// <summary>
+    /// Spawns map-local adds requested by a live boss phase. Adds use the
+    /// normal pre-ready configuration and active-enemy accounting, but are
+    /// deliberately outside the current wave target so the encounter cannot
+    /// advance until every add is dead.
+    /// </summary>
+    public int TrySpawnBossAdds(string waveId, int count)
+    {
+        if (count <= 0
+            || _enemyContainer == null
+            || _player == null
+            || !GodotObject.IsInstanceValid(_player))
+        {
+            return 0;
+        }
+
+        var runSession = MapRuntimeScope3D.FindRunSession(this);
+        var scene = GD.Load<PackedScene>("res://scenes3d/Feral3D.tscn");
+        if (runSession == null || scene == null)
+        {
+            return 0;
+        }
+
+        var mapModifier = runSession.CurrentMapModifier?.Effects ?? new MapModifierStats();
+        var dropItemLevel = MapScaling.ItemLevel(runSession.CurrentMapLevel, mapModifier);
+        try
+        {
+            dropItemLevel = runSession.CurrentMapPlan.DropItemLevel;
+        }
+        catch (InvalidOperationException)
+        {
+            // A legacy/test arena can own a RunSession without a resolved
+            // encounter plan. Add context still remains deterministic using
+            // the same map-level scaling fallback as the normal plan.
+        }
+        var encounterId = string.IsNullOrWhiteSpace(CurrentEncounterId)
+            ? runSession.CurrentEncounterId
+            : CurrentEncounterId;
+        var added = 0;
+        for (var index = 0; index < count; index++)
+        {
+            var spawnPoint = ChooseBossAddSpawnPoint();
+            if (spawnPoint == null)
+            {
+                break;
+            }
+
+            var enemy = scene.Instantiate<FeralController3D>();
+            enemy.Name = $"FeralBossAdd_{CurrentWaveIndex + 1}_{BossAddSpawnCount + added + 1}";
+            var context = new EnemySpawnContext3D(
+                runSession,
+                _player,
+                runSession.CurrentMapLevel,
+                encounterId,
+                string.IsNullOrWhiteSpace(waveId) ? "boss-adds" : waveId,
+                _spawnedEnemies.Count + 1,
+                1,
+                mapModifier,
+                dropItemLevel,
+                false,
+                true);
+            try
+            {
+                context.Validate();
+                enemy.ConfigureBeforeReady(context);
+                _enemyContainer.AddChild(enemy);
+                enemy.GlobalPosition = new Vector3(
+                    spawnPoint.GlobalPosition.X,
+                    0.0f,
+                    spawnPoint.GlobalPosition.Z);
+            }
+            catch (Exception exception)
+            {
+                GD.PushError($"Could not configure boss add {enemy.Name}: {exception.Message}");
+                enemy.QueueFree();
+                continue;
+            }
+
+            TrackEnemy(enemy);
+            SpawnedEnemyCount++;
+            BossAddSpawnCount++;
+            added++;
+            LastSpawnPointId = spawnPoint.SpawnPointId;
+            EnemySpawned?.Invoke(enemy);
+            ActiveEliteCountChanged?.Invoke(ActiveEliteCount);
+        }
+
+        return added;
+    }
+
     public bool IsEncounterComplete() => State == EncounterDirectorState3D.Completed;
+
+    public void RaiseEncounterCompletedForTest() => EncounterCompleted?.Invoke();
 
     private void CollectSpawnPoints()
     {
@@ -172,9 +277,12 @@ public partial class EncounterDirector3D : Node
             return;
         }
 
-        foreach (var child in root.GetChildren().OfType<EncounterSpawnPoint3D>())
+        for (var index = 0; index < root.GetChildCount(); index++)
         {
-            _spawnPoints.Add(child);
+            if (root.GetChild(index) is EncounterSpawnPoint3D child)
+            {
+                _spawnPoints.Add(child);
+            }
         }
     }
 
@@ -184,7 +292,7 @@ public partial class EncounterDirector3D : Node
         {
             State = EncounterDirectorState3D.Completed;
             EncounterCompletedCount++;
-            EmitSignal(SignalName.EncounterCompleted);
+            EncounterCompleted?.Invoke();
             return;
         }
 
@@ -195,7 +303,7 @@ public partial class EncounterDirector3D : Node
         _entrySpawned = 0;
         _spawnRemaining = 0.0f;
         State = EncounterDirectorState3D.Spawning;
-        EmitSignal(SignalName.WaveStarted, waveIndex, _waves[waveIndex].WaveId);
+        WaveStarted?.Invoke(waveIndex, _waves[waveIndex].WaveId);
     }
 
     private void TickSpawning(float delta)
@@ -220,10 +328,7 @@ public partial class EncounterDirector3D : Node
         {
             if (_clearedWaves.Add(CurrentWaveIndex))
             {
-                EmitSignal(
-                    SignalName.WaveCleared,
-                    CurrentWaveIndex,
-                    wave.WaveId);
+                WaveCleared?.Invoke(CurrentWaveIndex, wave.WaveId);
             }
 
             if (CurrentWaveIndex + 1 >= _waves.Count)
@@ -265,6 +370,17 @@ public partial class EncounterDirector3D : Node
         var mapLevel = runSession.CurrentMapLevel;
         var modifier = runSession.CurrentMapModifier?.Effects ?? new MapModifierStats();
         var dropItemLevel = runSession.CurrentMapPlan.DropItemLevel;
+        var eliteSelection = EliteSelection.Select(
+            runSession.Session.RunSeed,
+            runSession.CurrentEncounterSeed,
+            mapLevel,
+            CurrentWaveIndex,
+            CurrentWaveSpawnedCount + 1,
+            enemy is BrimstoneColossusController3D,
+            runSession.CurrentMapModifierId);
+        var eliteModifier = string.IsNullOrWhiteSpace(eliteSelection.EliteModifierId)
+            ? null
+            : EliteModifierLibrary.Find(eliteSelection.EliteModifierId);
         var context = new EnemySpawnContext3D(
             runSession,
             _player,
@@ -275,7 +391,11 @@ public partial class EncounterDirector3D : Node
             entry.NavigationLayers,
             modifier,
             dropItemLevel,
-            enemy is BrimstoneColossusController3D);
+            enemy is BrimstoneColossusController3D)
+        {
+            EliteModifier = eliteModifier,
+            EliteSelectionSeed = eliteSelection.SelectionSeed,
+        };
         try
         {
             context.Validate();
@@ -309,11 +429,12 @@ public partial class EncounterDirector3D : Node
         CurrentWaveSpawnedCount++;
         SpawnedEnemyCount++;
         LastSpawnPointId = spawnPoint.SpawnPointId;
-        EmitSignal(SignalName.EnemySpawned, enemy);
+        EnemySpawned?.Invoke(enemy);
+        ActiveEliteCountChanged?.Invoke(ActiveEliteCount);
         if (enemy is BrimstoneColossusController3D boss)
         {
             SpawnedBossCount++;
-            EmitSignal(SignalName.BossSpawned, boss);
+            BossSpawned?.Invoke(boss);
         }
 
         return true;
@@ -334,6 +455,34 @@ public partial class EncounterDirector3D : Node
         {
             var point = candidates[(_spawnPointCursor + offset) % candidates.Length];
             if (point.CanSpawn(_player, navigationLayers, _spawnedEnemies))
+            {
+                _spawnPointCursor = (_spawnPointCursor + offset + 1) % candidates.Length;
+                return point;
+            }
+        }
+
+        return null;
+    }
+
+    private EncounterSpawnPoint3D ChooseBossAddSpawnPoint()
+    {
+        if (_spawnPoints.Count == 0)
+        {
+            return null;
+        }
+
+        var candidates = _spawnPoints
+            .Where(point => point.SpawnPointId == "feral" || point.SpawnPointId == "mixed")
+            .ToArray();
+        if (candidates.Length == 0)
+        {
+            candidates = _spawnPoints.ToArray();
+        }
+
+        for (var offset = 0; offset < candidates.Length; offset++)
+        {
+            var point = candidates[(_spawnPointCursor + offset) % candidates.Length];
+            if (point.CanSpawn(_player, 1, _spawnedEnemies))
             {
                 _spawnPointCursor = (_spawnPointCursor + offset + 1) % candidates.Length;
                 return point;
@@ -367,7 +516,7 @@ public partial class EncounterDirector3D : Node
         if (health.IsAlive)
         {
             ActiveEnemyCount++;
-            EmitSignal(SignalName.ActiveEnemyCountChanged, ActiveEnemyCount);
+            ActiveEnemyCountChanged?.Invoke(ActiveEnemyCount);
         }
         else
         {
@@ -393,7 +542,8 @@ public partial class EncounterDirector3D : Node
 
             _countedDead.Add(enemy);
             ActiveEnemyCount = Mathf.Max(0, ActiveEnemyCount - 1);
-            EmitSignal(SignalName.ActiveEnemyCountChanged, ActiveEnemyCount);
+            ActiveEnemyCountChanged?.Invoke(ActiveEnemyCount);
+            ActiveEliteCountChanged?.Invoke(ActiveEliteCount);
         }
     }
 }

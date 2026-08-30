@@ -39,6 +39,14 @@ public partial class GameFlowController3D : Node
         RefreshOverlay();
     }
 
+    public override void _PhysicsProcess(double delta)
+    {
+        // Each map flow advances only the Boss runtimes owned by its own map.
+        // This prevents overlapping map instances from double-ticking or
+        // advancing one another during a deferred map replacement.
+        BossPhaseRuntimeRegistry3D.TickForMap(GetParent(), (float)delta);
+    }
+
     public override void _ExitTree()
     {
         _exiting = true;
@@ -226,6 +234,13 @@ public partial class GameFlowController3D : Node
 
     private void OnBossDied()
     {
+        if (_encounterDirector?.IsOperational == true)
+        {
+            // EncounterCompleted is the authoritative completion boundary in
+            // the wave runtime; boss phase adds must be cleared first.
+            return;
+        }
+
         CompleteMap();
     }
 

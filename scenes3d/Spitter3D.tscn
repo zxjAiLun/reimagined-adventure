@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/SpitterController3D.cs" id="1_spitter"]
 [ext_resource type="Script" path="res://scripts/HealthComponent.cs" id="2_health"]
@@ -10,6 +10,8 @@
 [ext_resource type="Script" path="res://scripts3d/DeathFeedback3D.cs" id="8_death_feedback"]
 [ext_resource type="Script" path="res://scripts3d/EnemyNavigation3D.cs" id="9_enemy_navigation"]
 [ext_resource type="Script" path="res://scripts3d/EnemyCrowdAgent3D.cs" id="10_crowd_agent"]
+[ext_resource type="Script" path="res://scripts3d/AilmentComponent3D.cs" id="11_ailment"]
+[ext_resource type="Script" path="res://scripts3d/AilmentPresentation3D.cs" id="12_ailment_presentation"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_spitter"]
 radius = 0.45
@@ -70,6 +72,16 @@ mesh = SubResource("CapsuleMesh_spitter")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")
 MaxHealth = 24
+
+[node name="AilmentComponent3D" type="Node" parent="."]
+script = ExtResource("11_ailment")
+
+[node name="AilmentPresentation3D" type="Label3D" parent="."]
+position = Vector3(0, 1.85, 0)
+script = ExtResource("12_ailment_presentation")
+modulate = Color(1, 0.82, 0.4, 1)
+font_size = 18
+outline_size = 5
 
 [node name="DamageFeedbackSource3D" type="Node3D" parent="."]
 position = Vector3(0, 1.35, 0)

@@ -99,7 +99,18 @@ jobs:
             "res://scenes3d/BuildIntermission3DRegressionSmoke.tscn",
             "res://scenes3d/BuildcraftSaveRecovery3DRegressionSmoke.tscn",
             "res://scenes3d/MalformedSave3DRegressionSmoke.tscn",
-            "res://scenes3d/MapScope3DRegressionSmoke.tscn"
+            "res://scenes3d/MapScope3DRegressionSmoke.tscn",
+            "res://scenes3d/CharacterProgression3DRegressionSmoke.tscn",
+            "res://scenes3d/FreshSessionExperience3DRegressionSmoke.tscn",
+            "res://scenes3d/PassiveTree3DRegressionSmoke.tscn",
+            "res://scenes3d/AilmentRuntime3DRegressionSmoke.tscn",
+            "res://scenes3d/AilmentLifecycle3DRegressionSmoke.tscn",
+            "res://scenes3d/ChilledMovement3DRegressionSmoke.tscn",
+            "res://scenes3d/EliteSelection3DRegressionSmoke.tscn",
+            "res://scenes3d/EliteRuntime3DRegressionSmoke.tscn",
+            "res://scenes3d/BossPhase3DRegressionSmoke.tscn",
+            "res://scenes3d/BossPhaseMapIsolation3DRegressionSmoke.tscn",
+            "res://scenes3d/MasteryCombatDepth3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"

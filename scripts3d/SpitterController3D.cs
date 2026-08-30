@@ -18,7 +18,7 @@ public enum SpitterState3D
 /// 3D ranged enemy adapter. Aim chooses the attack, Windup locks its target
 /// direction, Launch creates one projectile, and Recovery gates the next shot.
 /// </summary>
-public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnemySpawnConfigurable3D
+public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnemySpawnConfigurable3D, IEliteRuntime3D
 {
     [Export] public float MoveSpeed { get; set; } = 2.0f;
     [Export] public float PreferredRange { get; set; } = 6.0f;
@@ -53,6 +53,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     public EnemyCrowdAgent3D CrowdAgent => _crowdAgent;
     public RunSessionNode RunSession => _runSession;
     public PlayerController3D TargetPlayer => _player;
+    public AilmentComponent3D Ailments => _ailments;
     public Vector3 NavigationTargetPosition => _navigation?.TargetPosition ?? Vector3.Zero;
     public int AppliedMapLevel { get; private set; } = 1;
     public int AppliedMaxHealth { get; private set; }
@@ -63,11 +64,19 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     public string SpawnWaveId { get; private set; } = string.Empty;
     public int SpawnOrdinal { get; private set; }
     public int SpawnContextAppliedCount { get; private set; }
+    public bool ExperienceAwarded { get; private set; }
+    public EliteModifierDefinition EliteModifier { get; private set; }
+    public string EliteModifierId => EliteModifier?.Id ?? string.Empty;
+    public ulong EliteSelectionSeed { get; private set; }
+    public int EliteAppliedCount { get; private set; }
+    public VolcanicDeathEffect3D ActiveVolcanicDeathEffect { get; private set; }
+    public bool IsBossAdd { get; private set; }
 
     private HealthComponent _health;
     private DamageFeedbackSource3D _damageFeedback;
     private HitFlash3D _hitFlash;
     private DeathFeedback3D _deathFeedback;
+    private AilmentComponent3D _ailments;
     private PlayerController3D _player;
     private RunSessionNode _runSession;
     private Label3D _healthLabel;
@@ -80,6 +89,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     private EnemyCrowdAgent3D _crowdAgent;
     private EnemySpawnContext3D _spawnContext;
     private bool _spawnContextApplied;
+    private CombatFaction _lastPositiveDamageSourceFaction = CombatFaction.Neutral;
 
     public void ConfigureBeforeReady(EnemySpawnContext3D context)
     {
@@ -101,6 +111,18 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         var baseDamage = ProjectileDamage;
         var scaledHealth = MapScaling.EnemyHp(baseHealth, context.MapLevel, context.MapModifier);
         var scaledDamage = MapScaling.EnemyDamage(baseDamage, context.MapLevel, context.MapModifier);
+        if (context.EliteModifier != null)
+        {
+            scaledHealth = EliteRuntime3D.ScaleInt(scaledHealth, context.EliteModifier.HealthMultiplier);
+            scaledDamage = EliteRuntime3D.ScaleInt(scaledDamage, context.EliteModifier.DamageMultiplier);
+            MoveSpeed *= (float)context.EliteModifier.MoveSpeedMultiplier;
+            TelegraphSeconds /= (float)context.EliteModifier.ActionSpeedMultiplier;
+            RecoverySeconds /= (float)context.EliteModifier.ActionSpeedMultiplier;
+            health.Armor += context.EliteModifier.ArmorBonus;
+            EliteModifier = context.EliteModifier;
+            EliteSelectionSeed = context.EliteSelectionSeed;
+            EliteAppliedCount++;
+        }
         health.SetMaxHealth(scaledHealth);
         ProjectileDamage = scaledDamage;
 
@@ -121,6 +143,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         SpawnEncounterId = context.EncounterId;
         SpawnWaveId = context.WaveId;
         SpawnOrdinal = context.SpawnOrdinal;
+        IsBossAdd = context.IsBossAdd;
     }
 
     public override void _Ready()
@@ -132,7 +155,9 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         _damageFeedback = GetNodeOrNull<DamageFeedbackSource3D>("DamageFeedbackSource3D");
         _hitFlash = GetNodeOrNull<HitFlash3D>("HitFlash3D");
         _deathFeedback = GetNodeOrNull<DeathFeedback3D>("DeathFeedback3D");
+        _ailments = GetNodeOrNull<AilmentComponent3D>("AilmentComponent3D");
         _health.Died += OnDied;
+        _health.DamageTaken += OnDamageTaken;
         _healthLabel = GetNodeOrNull<Label3D>("HealthLabel");
         _navigation = GetNodeOrNull<EnemyNavigation3D>("EnemyNavigation3D");
         _crowdAgent = GetNodeOrNull<EnemyCrowdAgent3D>("EnemyCrowdAgent3D");
@@ -158,7 +183,10 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         }
 
         var frameDelta = (float)delta;
-        _attackCooldownRemaining = Mathf.Max(0.0f, _attackCooldownRemaining - frameDelta);
+        var actionSpeedMultiplier = (float)(_ailments?.ActionSpeedMultiplier ?? 1.0);
+        _attackCooldownRemaining = Mathf.Max(
+            0.0f,
+            _attackCooldownRemaining - frameDelta * actionSpeedMultiplier);
         if (_player == null || !GodotObject.IsInstanceValid(_player))
         {
             FindPlayer();
@@ -183,7 +211,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
                     break;
                 }
 
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * actionSpeedMultiplier;
                 if (_stateRemaining <= 0.0f)
                 {
                     BeginWindup();
@@ -192,7 +220,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
                 break;
             case SpitterState3D.Windup:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * actionSpeedMultiplier;
                 _activeTelegraph?.SetProgress(
                     1.0f - _stateRemaining / Mathf.Max(0.01f, TelegraphSeconds));
                 if (_stateRemaining <= 0.0f)
@@ -208,7 +236,7 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
                 break;
             case SpitterState3D.Recovery:
                 Velocity = Vector3.Zero;
-                _stateRemaining -= frameDelta;
+                _stateRemaining -= frameDelta * actionSpeedMultiplier;
                 if (_stateRemaining <= 0.0f)
                 {
                     State = SpitterState3D.HoldingRange;
@@ -237,15 +265,26 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
             return new DamageResult(0, false);
         }
 
-        var result = _health.ApplyDamage(request);
+        var incomingRequest = _ailments?.ModifyIncomingDamage(request) ?? request;
+        var result = _health.ApplyDamage(incomingRequest);
         if (result.DamageApplied > 0)
         {
+            _lastPositiveDamageSourceFaction = request.SourceFaction;
             _damageFeedback?.Publish(result);
             _hitFlash?.Trigger();
+            _ailments?.ApplyFromDamage(request, result.DamageApplied);
         }
 
         RefreshVisuals();
         return result;
+    }
+
+    private void OnDamageTaken(DamageRequest request, DamageResult result)
+    {
+        if (result.DamageApplied > 0)
+        {
+            _lastPositiveDamageSourceFaction = request.SourceFaction;
+        }
     }
 
     private void FindPlayer()
@@ -309,10 +348,11 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         var previousPosition = GlobalPosition;
         _navigation.SetTarget(targetPosition);
         var direction = _navigation.GetDesiredDirection(GlobalPosition, frameDelta);
+        var movementSpeed = MoveSpeed * (float)(_ailments?.MoveSpeedMultiplier ?? 1.0);
         var navigationVelocity = direction.LengthSquared() > 0.001f
-            ? direction * MoveSpeed
+            ? direction * movementSpeed
             : Vector3.Zero;
-        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, MoveSpeed)
+        Velocity = _crowdAgent?.CombineNavigationVelocity(navigationVelocity, movementSpeed)
             ?? navigationVelocity;
         if (direction.LengthSquared() > 0.001f)
         {
@@ -389,13 +429,18 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         var projectile = ProjectileScene.Instantiate<BasicProjectile3D>();
         GetParent().AddChild(projectile);
         projectile.GlobalPosition = GlobalPosition + LockedDirection * 0.8f + Vector3.Up * 0.55f;
-        projectile.Launch(
-            LockedDirection,
-            new DamageRequest(
+        var request = EliteModifier == null
+            ? new DamageRequest(
                 ProjectileDamage,
                 DamageType.Poison,
                 "spitter_acid_3d",
-                CombatFaction.Enemy));
+                CombatFaction.Enemy)
+            : EliteRuntime3D.BuildEnemyAttack(
+                EliteModifier,
+                ProjectileDamage,
+                DamageType.Poison,
+                "spitter_acid_3d");
+        projectile.Launch(LockedDirection, request);
         LastLaunchDirection = projectile.LaunchDirection;
         ProjectileShotCount++;
     }
@@ -430,8 +475,52 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
         CollisionMask = 0;
         SetPhysicsProcess(false);
         _deathFeedback?.Play();
+        AwardExperienceIfEligible();
         SpawnDrop();
+        SpawnVolcanicDeathEffect();
         RefreshVisuals();
+    }
+
+    private void SpawnVolcanicDeathEffect()
+    {
+        var deathEffect = EliteModifier?.DeathEffect;
+        var map = GetParent()?.GetParent() as Node3D;
+        if (deathEffect == null || map == null)
+        {
+            return;
+        }
+
+        ActiveVolcanicDeathEffect = new VolcanicDeathEffect3D();
+        map.AddChild(ActiveVolcanicDeathEffect);
+        ActiveVolcanicDeathEffect.Configure(
+            GlobalPosition,
+            deathEffect,
+            EliteRuntime3D.ScaleInt(AppliedPrimaryDamage, deathEffect.DamageMultiplier));
+    }
+
+    private void AwardExperienceIfEligible()
+    {
+        if (ExperienceAwarded
+            || _lastPositiveDamageSourceFaction != CombatFaction.Player)
+        {
+            return;
+        }
+
+        _runSession ??= MapRuntimeScope3D.FindRunSession(this);
+        _player ??= MapRuntimeScope3D.FindPlayer(this);
+        var map = GetParent()?.GetParent();
+        var flow = map?.GetNodeOrNull<GameFlowController3D>("GameFlow3D");
+        if (_runSession == null || _player?.IsAlive != true || flow?.State != GameFlowState.Playing)
+        {
+            return;
+        }
+
+        var sourceId = string.IsNullOrWhiteSpace(SpawnEncounterId)
+            ? $"spitter:map-{_runSession.CurrentMapLevel}:{GetPath()}"
+            : $"spitter:map-{_runSession.CurrentMapLevel}:{SpawnEncounterId}:{SpawnWaveId}:{SpawnOrdinal}";
+        ExperienceAwarded = EliteModifier == null
+            ? _runSession.TryAwardExperience(ExperienceSourceKind.Spitter, sourceId)
+            : _runSession.TryAwardEliteExperience(ExperienceSourceKind.Spitter, sourceId);
     }
 
     private void SpawnDrop()
@@ -454,9 +543,18 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
             return;
         }
 
+        if (IsBossAdd)
+        {
+            return;
+        }
+
+        var isElite = EliteModifier != null;
         var result = _runSession.GenerateDrops(
-            new ItemRollContext(AppliedDropItemLevel, LootSourceKind.Spitter),
-            LootDropProfiles.Spitter);
+            new ItemRollContext(
+                AppliedDropItemLevel,
+                isElite ? LootSourceKind.Elite : LootSourceKind.Spitter,
+                RarityMultiplier: isElite ? 1.5 : 1.0),
+            isElite ? LootDropProfiles.Elite : LootDropProfiles.Spitter);
         _runSession.TryAwardForgeFragments(result.ForgeFragments);
         foreach (var item in result.Items)
         {
@@ -481,7 +579,8 @@ public partial class SpitterController3D : CharacterBody3D, ICombatTarget, IEnem
     {
         if (_healthLabel != null)
         {
-            _healthLabel.Text = $"SPITTER 3D {CurrentHealth}/{MaxHealth}\n{State}";
+            var eliteTag = EliteModifier == null ? string.Empty : $"\n{EliteRuntime3D.DisplayTag(EliteModifier)}";
+            _healthLabel.Text = $"SPITTER 3D {CurrentHealth}/{MaxHealth}\n{State}{eliteTag}";
         }
     }
 }

@@ -21,6 +21,15 @@ offset_bottom = 54.0
 theme_override_font_sizes/font_size = 28
 text = "BUILD / INVENTORY"
 
+[node name="Mode" type="Label" parent="Panel"]
+offset_left = 620.0
+offset_top = 22.0
+offset_right = 980.0
+offset_bottom = 50.0
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 16
+text = "Panel: INVENTORY"
+
 [node name="Items" type="Label" parent="Panel"]
 offset_left = 24.0
 offset_top = 70.0
@@ -28,6 +37,15 @@ offset_right = 500.0
 offset_bottom = 520.0
 theme_override_font_sizes/font_size = 18
 text = "Inventory: empty"
+
+[node name="Passives" type="Label" parent="Panel"]
+visible = false
+offset_left = 24.0
+offset_top = 70.0
+offset_right = 980.0
+offset_bottom = 575.0
+theme_override_font_sizes/font_size = 16
+text = "Passive Tree"
 
 [node name="Equipment" type="Label" parent="Panel"]
 offset_left = 520.0

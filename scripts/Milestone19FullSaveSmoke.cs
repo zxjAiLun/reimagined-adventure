@@ -26,10 +26,18 @@ public partial class Milestone19FullSaveSmoke : Node2D
         }
 
         var savedEquippedId = inventory.EquippedWeapon?.Id;
+        var legacyPassiveRejected = !save.TrySaveCurrentRun(out var legacySaveError)
+            && legacySaveError.Contains("passive allocation", System.StringComparison.OrdinalIgnoreCase);
+        if (!legacyPassiveRejected)
+        {
+            Fail($"legacy passive allocation should be rejected without earned XP: {legacySaveError}");
+            return;
+        }
+
+        passiveTree.TryRestore(System.Array.Empty<int>());
         var saveSucceeded = save.TrySaveCurrentRun(out var saveError);
         player.ApplyDamage(new DamageRequest(20, DamageType.Physical, "milestone19_mutation"));
         inventory.TryEquipItem(0);
-        passiveTree.TryRestore(System.Array.Empty<int>());
 
         var applied = save.TryLoadAndApplyLastRun(out var restored, out var loadError);
         var valid = saveSucceeded
@@ -40,7 +48,7 @@ public partial class Milestone19FullSaveSmoke : Node2D
             && inventory.ItemCount == 1
             && player.MaxHealth == 100
             && player.CurrentHealth == 100
-            && passiveTree.State.IsAllocated(0)
+            && !passiveTree.State.IsAllocated(0)
             && atlas.State.IsCompleted("quiet-coast");
 
         new MinimalSaveService().Delete();
@@ -50,7 +58,7 @@ public partial class Milestone19FullSaveSmoke : Node2D
             return;
         }
 
-        GD.Print("MILESTONE19_FULL_SAVE_PASS items=true passive=true atlas=true");
+        GD.Print("MILESTONE19_FULL_SAVE_PASS items=true legacy_passive_rejected=true atlas=true");
         GetTree().Quit(0);
     }
 
