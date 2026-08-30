@@ -14,7 +14,8 @@ public partial class DamageFeedbackSource3D : Node3D
     public override void _Ready()
     {
         AddToGroup("damage_feedback_sources_3d");
-        CallDeferred(nameof(RegisterWithSpawners));
+        RegisterWithConsumers();
+        CallDeferred(nameof(RegisterWithConsumers));
     }
 
     public override void _ExitTree()
@@ -23,6 +24,11 @@ public partial class DamageFeedbackSource3D : Node3D
         if (spawner != null)
         {
             spawner.Unregister(this);
+        }
+        var impacts = FindMapImpactFeedback();
+        if (impacts != null)
+        {
+            impacts.Unregister(this);
         }
     }
 
@@ -36,7 +42,7 @@ public partial class DamageFeedbackSource3D : Node3D
         DamageTaken?.Invoke(result, GlobalPosition);
     }
 
-    private void RegisterWithSpawners()
+    private void RegisterWithConsumers()
     {
         if (!IsInsideTree())
         {
@@ -48,6 +54,11 @@ public partial class DamageFeedbackSource3D : Node3D
         {
             spawner.Register(this);
         }
+        var impacts = FindMapImpactFeedback();
+        if (impacts != null)
+        {
+            impacts.Register(this);
+        }
     }
 
     private DamageNumberSpawner3D FindMapSpawner()
@@ -58,6 +69,20 @@ public partial class DamageFeedbackSource3D : Node3D
             if (spawner != null)
             {
                 return spawner;
+            }
+        }
+
+        return null;
+    }
+
+    private CombatImpactFeedback3D FindMapImpactFeedback()
+    {
+        for (var current = GetParent(); current != null; current = current.GetParent())
+        {
+            var feedback = current.GetNodeOrNull<CombatImpactFeedback3D>("CombatImpactFeedback3D");
+            if (feedback != null)
+            {
+                return feedback;
             }
         }
 

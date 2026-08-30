@@ -110,6 +110,13 @@ Atlas, modifier, and encounter identity before the target map enters `_Ready`,
 then reuses the existing atomic SaveBoundary to restore player, build, reward,
 and flow state. A failed content-level restore returns to the menu without
 leaving a partially applied run.
+Stage 20 adds an Escape pause menu with complete control help, persisted master
+volume and fullscreen settings, and save-before-return to the main menu. Stage
+21 adds map-local impact presentation driven only by resolved `DamageResult`:
+an AudioStreamGenerator placeholder hit sound, bounded CameraRig shake, and a
+short real-clock hit-stop that always restores `Engine.TimeScale` on timeout or
+map release. Dynamic enemies register through the same map-scoped feedback
+source lifecycle as damage numbers.
 
 The Character Mastery & Combat Depth round keeps character progression owned by
 the run: `TotalExperience` and `AllocatedPassiveNodeIds` are persisted beside
@@ -239,7 +246,10 @@ passive damage, ailments, and save restore together.
 New Run, plan-correct Map 4 continuation, and a clean restart.
 `PauseSettings3DRegressionSmoke.tscn` verifies pause freeze, resume, control
 help, persisted master volume/fullscreen settings, save-and-return, Continue,
-and terminal-state guarding. CI runs 52 smoke scenes in total.
+and terminal-state guarding. `CombatImpactFeedback3DRegressionSmoke.tscn`
+verifies zero filtering, light/heavy impacts, generated audio, camera shake,
+real-clock hit-stop, dynamic source registration, pause freeze, and map-exit
+time-scale cleanup. CI runs 53 smoke scenes in total.
 
 ## Migration boundaries
 
