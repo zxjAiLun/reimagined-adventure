@@ -51,7 +51,7 @@ jobs:
       - name: Main scene load
         shell: pwsh
         run: |
-          $output = & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene res://scenes3d/RunShell3D.tscn --quit-after 120 2>&1 | Out-String
+          $output = & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --scene res://scenes3d/GameBootstrap3D.tscn --quit-after 120 2>&1 | Out-String
           $godotExitCode = $LASTEXITCODE
           Write-Output $output
           if ($null -ne $godotExitCode -and $godotExitCode -ne 0) { throw "Godot main scene failed to load ($godotExitCode)" }
@@ -110,7 +110,8 @@ jobs:
             "res://scenes3d/EliteRuntime3DRegressionSmoke.tscn",
             "res://scenes3d/BossPhase3DRegressionSmoke.tscn",
             "res://scenes3d/BossPhaseMapIsolation3DRegressionSmoke.tscn",
-            "res://scenes3d/MasteryCombatDepth3DRegressionSmoke.tscn"
+            "res://scenes3d/MasteryCombatDepth3DRegressionSmoke.tscn",
+            "res://scenes3d/RunEntry3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"

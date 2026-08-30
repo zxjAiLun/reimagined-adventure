@@ -180,6 +180,13 @@ public partial class GameFlowController3D : Node
     public void RestartRun()
     {
         GetTree().Paused = false;
+        var bootstrap = _runSession?.GetParent() as GameBootstrap3D;
+        if (bootstrap != null)
+        {
+            bootstrap.RestartRun();
+            return;
+        }
+
         GetTree().ReloadCurrentScene();
     }
 

@@ -1,0 +1,81 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts3d/GameBootstrap3D.cs" id="1_bootstrap"]
+[ext_resource type="PackedScene" path="res://scenes3d/RunShell3D.tscn" id="2_run"]
+
+[node name="GameBootstrap3D" type="Node"]
+process_mode = 3
+script = ExtResource("1_bootstrap")
+RunShellScene = ExtResource("2_run")
+
+[node name="MainMenu" type="Control" parent="."]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Backdrop" type="ColorRect" parent="MainMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.025, 0.035, 0.055, 1)
+
+[node name="MenuCenter" type="CenterContainer" parent="MainMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MenuPanel" type="PanelContainer" parent="MainMenu/MenuCenter"]
+custom_minimum_size = Vector2(430, 360)
+layout_mode = 2
+
+[node name="MenuButtons" type="VBoxContainer" parent="MainMenu/MenuCenter/MenuPanel"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="MainMenu/MenuCenter/MenuPanel/MenuButtons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+text = "REIMAGINED ADVENTURE"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="MainMenu/MenuCenter/MenuPanel/MenuButtons"]
+layout_mode = 2
+text = "A deterministic ARPG vertical slice"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="MainMenu/MenuCenter/MenuPanel/MenuButtons"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+
+[node name="NewRun" type="Button" parent="MainMenu/MenuCenter/MenuPanel/MenuButtons"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "New Run"
+
+[node name="Continue" type="Button" parent="MainMenu/MenuCenter/MenuPanel/MenuButtons"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "Continue"
+
+[node name="Quit" type="Button" parent="MainMenu/MenuCenter/MenuPanel/MenuButtons"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "Quit"
+
+[node name="Status" type="Label" parent="MainMenu/MenuCenter/MenuPanel/MenuButtons"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2

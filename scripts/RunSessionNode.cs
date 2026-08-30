@@ -37,6 +37,9 @@ public partial class RunSessionNode : Node
     [Signal]
     public delegate void PassiveAllocationChangedEventHandler(string nodeId);
 
+    [Signal]
+    public delegate void StartupRestoreCompletedEventHandler(bool succeeded, string error);
+
     [Export] public long RunSeed { get; set; } = (long)RandomService.DefaultSeed;
     [Export] public int MapLevel { get; set; } = 1;
     [Export] public PackedScene MapScene { get; set; }
@@ -50,6 +53,8 @@ public partial class RunSessionNode : Node
     private LootGenerator _craftingGenerator;
     private Node _currentMap;
     private bool _restoreNextMapState;
+    private bool _startupRestoreRequested;
+    private MinimalRunState _startupRestoreState;
     private MapModifierDefinition _currentMapModifier;
     private int _resolvedModifierMapLevel;
     private ulong _resolvedModifierRunSeed;
@@ -129,6 +134,12 @@ public partial class RunSessionNode : Node
         var existing = GetTree().GetFirstNodeInGroup("run_sessions") as RunSessionNode;
         if (existing != null)
         {
+            if (_startupRestoreRequested)
+            {
+                CompleteStartupRestore(false, "another run session is still active");
+                return;
+            }
+
             if (existing != this && existing._session != null)
             {
                 _session = existing._session;
@@ -144,8 +155,22 @@ public partial class RunSessionNode : Node
             }
         }
 
-        var seed = RunSeed <= 0 ? RandomService.DefaultSeed : (ulong)RunSeed;
-        _session = new RunSession(seed, Mathf.Max(1, MapLevel));
+        var seed = _startupRestoreState?.RunSeed
+            ?? (RunSeed <= 0 ? RandomService.DefaultSeed : (ulong)RunSeed);
+        var mapLevel = _startupRestoreState?.MapLevel ?? Mathf.Max(1, MapLevel);
+        _session = new RunSession(seed, mapLevel);
+        if (_startupRestoreState != null)
+        {
+            _session.Restore(
+                _startupRestoreState.RunSeed,
+                _startupRestoreState.ItemSequence,
+                _startupRestoreState.MapLevel,
+                _startupRestoreState.LootRandomState,
+                _startupRestoreState.CraftingRandomState,
+                _startupRestoreState.EventRandomState);
+            RunSeed = (long)_startupRestoreState.RunSeed;
+            MapLevel = _startupRestoreState.MapLevel;
+        }
         _lootGenerator = Session.CreateLootGenerator();
         _craftingGenerator = Session.CreateCraftingGenerator();
         _characterProgression = new CharacterProgressionState();
@@ -155,12 +180,63 @@ public partial class RunSessionNode : Node
         _linkedSessions.Add(this);
         AddToGroup("run_sessions");
         InitializeAtlas();
+        if (_startupRestoreState != null)
+        {
+            if (!CanRestore(
+                    _startupRestoreState.RunSeed,
+                    _startupRestoreState.ItemSequence,
+                    _startupRestoreState.MapLevel,
+                    _startupRestoreState.CurrentAtlasMapId,
+                    _startupRestoreState.PendingAtlasMapId,
+                    _startupRestoreState.AtlasUnlockedMapIds,
+                    _startupRestoreState.AtlasCompletedMapIds,
+                    _startupRestoreState.RouteSelectionCount))
+            {
+                CompleteStartupRestore(false, "saved run plan is not compatible with the current Atlas");
+                return;
+            }
+
+            _useLegacyPlanResolution = false;
+            ApplyAtlasState(
+                _startupRestoreState.CurrentAtlasMapId,
+                _startupRestoreState.PendingAtlasMapId,
+                _startupRestoreState.AtlasUnlockedMapIds,
+                _startupRestoreState.AtlasCompletedMapIds,
+                _startupRestoreState.RouteSelectionCount);
+            _restoreNextMapState = true;
+        }
         ResolveCurrentMapModifierIfNeeded();
         ResolveCurrentEncounterIfNeeded();
         if (MapScene != null)
         {
             CallDeferred(nameof(InstantiateMap));
         }
+    }
+
+    public bool PrepareStartupRestore(MinimalRunState state, out string error)
+    {
+        if (state == null)
+        {
+            error = "startup save state is null";
+            return false;
+        }
+
+        if (IsInsideTree() || _session != null || _startupRestoreRequested)
+        {
+            error = "startup restore must be configured before the run enters the scene tree";
+            return false;
+        }
+
+        if (state.RunSeed == 0 || state.ItemSequence < 0 || state.MapLevel < 1)
+        {
+            error = "startup save has an invalid run identity";
+            return false;
+        }
+
+        _startupRestoreRequested = true;
+        _startupRestoreState = state;
+        error = string.Empty;
+        return true;
     }
 
     public override void _ExitTree()
@@ -1040,8 +1116,29 @@ public partial class RunSessionNode : Node
         }
         if (!loaded)
         {
-            GD.PushError($"Could not restore next-map run state: {restoreError}");
+            var boundary = _startupRestoreRequested ? "startup" : "next-map";
+            GD.PushError($"Could not restore {boundary} run state: {restoreError}");
         }
+
+        if (_startupRestoreRequested)
+        {
+            CompleteStartupRestore(loaded, restoreError);
+        }
+    }
+
+    private void CompleteStartupRestore(bool succeeded, string error)
+    {
+        if (!_startupRestoreRequested)
+        {
+            return;
+        }
+
+        _startupRestoreRequested = false;
+        _startupRestoreState = null;
+        EmitSignal(
+            SignalName.StartupRestoreCompleted,
+            succeeded,
+            succeeded ? string.Empty : error ?? "startup restore failed");
     }
 
     private bool IsBuildManagementOpen()

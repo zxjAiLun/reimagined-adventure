@@ -19,7 +19,8 @@ Godot or GodotSharp.
 `main` is the stable milestone baseline and `dev` is the active development
 branch. The 2D runtime under `scenes/` is retained only as a legacy behavioral
 reference. New product features target
-`scenes3d/` and `scripts3d/`. Open
+`scenes3d/` and `scripts3d/`. The product entry scene is
+`scenes3d/GameBootstrap3D.tscn`; open
 `scenes3d/TestArena3D.tscn` for the playable preview, or open
 `scenes3d/RunShell3D.tscn` for the run-owned map shell.
 
@@ -102,6 +103,14 @@ The Stage 8 smokes execute Quiet/Crossfire/Siege through the real encounter
 director and verify one-shot wave/completion signals, old-map release,
 route-driven map plans, and deterministic Atlas save recovery.
 
+The productization round starts with a formal main menu. New Run creates a
+clean map-one session and removes the previous run save; Continue is enabled
+only for a structurally valid save. Startup restore configures RunSession,
+Atlas, modifier, and encounter identity before the target map enters `_Ready`,
+then reuses the existing atomic SaveBoundary to restore player, build, reward,
+and flow state. A failed content-level restore returns to the menu without
+leaving a partially applied run.
+
 The Character Mastery & Combat Depth round keeps character progression owned by
 the run: `TotalExperience` and `AllocatedPassiveNodeIds` are persisted beside
 the existing equipment, support, stash, reward, and Atlas state. Temporary
@@ -113,9 +122,10 @@ the saved Run/Build state atomically.
 
 ## Run the playable slice
 
-Open the repository with Godot 4.7.1 .NET and run the main scene. On
-the 3D product line loads `scenes3d/RunShell3D.tscn`, which owns the 3D
-run session and transitions between map instances. The 2D runtime under
+Open the repository with Godot 4.7.1 .NET and run the main scene. The
+3D product line loads `scenes3d/GameBootstrap3D.tscn`; choose New Run or
+Continue, then the instantiated `RunShell3D` owns the run session and
+transitions between map instances. The 2D runtime under
 `scenes/` is retained as a legacy/reference implementation; its Domain rules
 and key regression smokes remain part of CI.
 
@@ -223,8 +233,10 @@ pre-ready elite scaling, rewards, and combat presentation.
 phase-two add wave, Molten Ring, Ember Barrage, deterministic Lava Eruption,
 pause cancellation, death cleanup, and Map Complete. The end-to-end
 `MasteryCombatDepth3DRegressionSmoke.tscn` ties support loadout, progression,
-passive damage, ailments, and save restore together. CI runs 47 smoke scenes
-in total.
+passive damage, ailments, and save restore together.
+`RunEntry3DRegressionSmoke.tscn` verifies absent and malformed save handling,
+New Run, plan-correct Map 4 continuation, and a clean restart. CI runs 51
+smoke scenes in total.
 
 ## Migration boundaries
 
@@ -235,5 +247,5 @@ composition beyond the fixed Stage 4 waves, the full Boss catalogue, and
 advanced exceptions are outside the current product slice.
 
 The `isometric-3d-parity-v1` tag marks the completed 3D parity stabilization
-boundary. Further work is organized as reviewed product stages; the next
-stage is not started until the current stage is accepted.
+boundary. Further work is organized as reviewed product stages on `dev` and
+is promoted to `main` only after a complete product milestone is accepted.
