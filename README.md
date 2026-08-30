@@ -117,6 +117,14 @@ an AudioStreamGenerator placeholder hit sound, bounded CameraRig shake, and a
 short real-clock hit-stop that always restores `Engine.TimeScale` on timeout or
 map release. Dynamic enemies register through the same map-scoped feedback
 source lifecycle as damage numbers.
+Stage 22 promotes the production RunShell to the inherited
+`QuietCoastArena3D.tscn` presentation scene. It keeps the validated TestArena
+combat and baked navigation contract while adding a coastal sky/fog palette,
+path language, lights, objective beacon, replaceable environment dressing,
+map-intro guidance, and a dedicated non-navigation occlusion layer that fades
+foreground structures between the Camera3D and player. The HUD panels were
+also resized so modifier, encounter, progression, ailment, and skill text no
+longer overlap at the default window size.
 
 The Character Mastery & Combat Depth round keeps character progression owned by
 the run: `TotalExperience` and `AllocatedPassiveNodeIds` are persisted beside
@@ -249,7 +257,10 @@ help, persisted master volume/fullscreen settings, save-and-return, Continue,
 and terminal-state guarding. `CombatImpactFeedback3DRegressionSmoke.tscn`
 verifies zero filtering, light/heavy impacts, generated audio, camera shake,
 real-clock hit-stop, dynamic source registration, pause freeze, and map-exit
-time-scale cleanup. CI runs 53 smoke scenes in total.
+time-scale cleanup. `QuietCoastPresentation3DRegressionSmoke.tscn` verifies the
+formal inherited map, environment/dressing/objective structure, HUD bounds,
+pause-safe intro, camera occlusion fade/restore, and unchanged baked navigation.
+CI runs 54 smoke scenes in total.
 
 ## Migration boundaries
 

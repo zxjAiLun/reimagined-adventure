@@ -46,7 +46,7 @@ text = "WASD: XZ movement | Mouse: ground aim | LMB: Spread Shot | Q: Pulse | Sp
 offset_left = 24.0
 offset_top = 155.0
 offset_right = 430.0
-offset_bottom = 370.0
+offset_bottom = 500.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="PlayerHeader" type="Label" parent="PlayerPanel"]
@@ -142,9 +142,9 @@ text = "Ailments: none"
 
 [node name="SkillPanel" type="Panel" parent="."]
 offset_left = 24.0
-offset_top = 390.0
+offset_top = 510.0
 offset_right = 430.0
-offset_bottom = 530.0
+offset_bottom = 650.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="Primary" type="Label" parent="SkillPanel"]
