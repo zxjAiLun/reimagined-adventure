@@ -18,6 +18,7 @@ public partial class GameBootstrap3D : Node
     private Label _statusLabel;
     private RunSessionNode _activeRun;
     private bool _restartPending;
+    private bool _returnToMenuPending;
 
     public bool IsMenuVisible => _menu?.Visible == true;
     public bool IsContinueEnabled => _continueButton?.Disabled == false;
@@ -135,6 +136,23 @@ public partial class GameBootstrap3D : Node
         CallDeferred(nameof(StartFreshRunDeferred));
     }
 
+    public void ReturnToMenu()
+    {
+        GetTree().Paused = false;
+        if (ActiveRun == null)
+        {
+            ShowMainMenuDeferred();
+            return;
+        }
+
+        var previousRun = _activeRun;
+        previousRun.ProcessMode = ProcessModeEnum.Disabled;
+        previousRun.TreeExited += OnMenuRunExited;
+        _activeRun = null;
+        _returnToMenuPending = true;
+        previousRun.QueueFree();
+    }
+
     private bool StartRun(MinimalRunState restoreState, out string error)
     {
         if (RunShellScene == null)
@@ -218,6 +236,23 @@ public partial class GameBootstrap3D : Node
         {
             CallDeferred(nameof(StartFreshRunDeferred));
         }
+    }
+
+    private void OnMenuRunExited()
+    {
+        if (_returnToMenuPending)
+        {
+            CallDeferred(nameof(ShowMainMenuDeferred));
+        }
+    }
+
+    private void ShowMainMenuDeferred()
+    {
+        _returnToMenuPending = false;
+        SetMenuBusy(false);
+        SetMenuVisible(true);
+        RefreshSaveAvailability();
+        _newRunButton?.GrabFocus();
     }
 
     private void OnNewRunPressed() => StartNewRun();

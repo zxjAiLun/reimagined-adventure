@@ -149,6 +149,7 @@ and key regression smokes remain part of CI.
 | G | Allocate the selected passive node |
 | B | Complete Build Management and open route choice |
 | R | Restart after Game Over / Map Complete |
+| Esc | Pause/resume during Playing; view controls and settings |
 
 The fixed arena contains a deterministic map modifier, a Loot Cache, Feral,
 Spitter, Brimstone Colossus, and the three map rewards.
@@ -235,8 +236,10 @@ pause cancellation, death cleanup, and Map Complete. The end-to-end
 `MasteryCombatDepth3DRegressionSmoke.tscn` ties support loadout, progression,
 passive damage, ailments, and save restore together.
 `RunEntry3DRegressionSmoke.tscn` verifies absent and malformed save handling,
-New Run, plan-correct Map 4 continuation, and a clean restart. CI runs 51
-smoke scenes in total.
+New Run, plan-correct Map 4 continuation, and a clean restart.
+`PauseSettings3DRegressionSmoke.tscn` verifies pause freeze, resume, control
+help, persisted master volume/fullscreen settings, save-and-return, Continue,
+and terminal-state guarding. CI runs 52 smoke scenes in total.
 
 ## Migration boundaries
 

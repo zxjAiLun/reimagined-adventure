@@ -111,7 +111,8 @@ jobs:
             "res://scenes3d/BossPhase3DRegressionSmoke.tscn",
             "res://scenes3d/BossPhaseMapIsolation3DRegressionSmoke.tscn",
             "res://scenes3d/MasteryCombatDepth3DRegressionSmoke.tscn",
-            "res://scenes3d/RunEntry3DRegressionSmoke.tscn"
+            "res://scenes3d/RunEntry3DRegressionSmoke.tscn",
+            "res://scenes3d/PauseSettings3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"

@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=29 format=3]
 
 [ext_resource type="Script" path="res://scripts3d/TestArena3D.cs" id="1_arena"]
 [ext_resource type="Script" path="res://scripts3d/IsometricCameraRig3D.cs" id="2_camera_rig"]
@@ -17,6 +17,7 @@
 [ext_resource type="Script" path="res://scripts3d/EnemyCrowdCoordinator3D.cs" id="18_crowd_coordinator"]
 [ext_resource type="PackedScene" path="res://scenes3d/AtlasRouteChoice3D.tscn" id="19_route"]
 [ext_resource type="Script" path="res://scripts3d/BuildIntermissionController3D.cs" id="20_build_intermission"]
+[ext_resource type="PackedScene" path="res://scenes3d/PauseMenu3D.tscn" id="21_pause_menu"]
 
 [sub_resource type="Environment" id="Environment_arena"]
 background_mode = 1
@@ -175,6 +176,8 @@ script = ExtResource("20_build_intermission")
 
 [node name="SaveBoundary3D" type="Node" parent="."]
 script = ExtResource("11_save")
+
+[node name="PauseMenu3D" parent="." instance=ExtResource("21_pause_menu")]
 
 [node name="BorderWest" type="MeshInstance3D" parent="."]
 position = Vector3(-12, 0.05, 0)
