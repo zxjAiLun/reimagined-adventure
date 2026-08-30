@@ -144,6 +144,14 @@ transitions between map instances. The 2D runtime under
 `scenes/` is retained as a legacy/reference implementation; its Domain rules
 and key regression smokes remain part of CI.
 
+The checked-in `Windows Desktop` export preset produces the playtest build at
+`build/windows/ReimaginedAdventure.exe` (the ignored `build/` directory is a
+local artifact):
+
+```powershell
+godot --headless --path . --export-release "Windows Desktop" "build/windows/ReimaginedAdventure.exe"
+```
+
 | Input | Action |
 | --- | --- |
 | W / A / S / D | Move |
@@ -260,7 +268,12 @@ real-clock hit-stop, dynamic source registration, pause freeze, and map-exit
 time-scale cleanup. `QuietCoastPresentation3DRegressionSmoke.tscn` verifies the
 formal inherited map, environment/dressing/objective structure, HUD bounds,
 pause-safe intro, camera occlusion fade/restore, and unchanged baked navigation.
-CI runs 54 smoke scenes in total.
+`ProductPerformance3DRegressionSmoke.tscn` runs the formal map with 40 live
+navigation actors, bounds frame and crowd-coordinator cost, and requires real
+movement progress. The local Stage 23 baseline measured 3.70 ms average frame
+work, 10.44 ms maximum frame work, and 0.20 ms average crowd coordination across
+all 780 pairs. CI runs 55 smoke scenes in total and validates that the Windows
+export preset can produce a resource pack.
 
 ## Migration boundaries
 

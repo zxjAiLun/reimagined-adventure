@@ -48,6 +48,15 @@ jobs:
           dotnet build ".\reimagined adventure.csproj" --configuration Debug --verbosity minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Validate Windows export preset
+        shell: pwsh
+        run: |
+          $exportPack = Join-Path $env:RUNNER_TEMP "ReimaginedAdventure.pck"
+          & $env:GODOT_EXECUTABLE --headless --path $env:GITHUB_WORKSPACE --export-pack "Windows Desktop" $exportPack
+          $godotExitCode = $LASTEXITCODE
+          if ($null -ne $godotExitCode -and $godotExitCode -ne 0) { exit $godotExitCode }
+          if (-not (Test-Path -LiteralPath $exportPack)) { throw "Windows export preset did not produce a pack." }
+
       - name: Main scene load
         shell: pwsh
         run: |
@@ -114,7 +123,8 @@ jobs:
             "res://scenes3d/RunEntry3DRegressionSmoke.tscn",
             "res://scenes3d/PauseSettings3DRegressionSmoke.tscn",
             "res://scenes3d/CombatImpactFeedback3DRegressionSmoke.tscn",
-            "res://scenes3d/QuietCoastPresentation3DRegressionSmoke.tscn"
+            "res://scenes3d/QuietCoastPresentation3DRegressionSmoke.tscn",
+            "res://scenes3d/ProductPerformance3DRegressionSmoke.tscn"
           )
           foreach ($scene in $scenes) {
             Write-Host "Running $scene"
