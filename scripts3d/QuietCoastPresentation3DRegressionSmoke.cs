@@ -47,6 +47,8 @@ public partial class QuietCoastPresentation3DRegressionSmoke : Node
 
     private void Bind()
     {
+        // Wait for Label minimum sizes and wrapping to settle before measuring.
+        if (_elapsed < 0.1) return;
         _arena ??= _run.CurrentMap3D;
         _intro ??= _arena?.GetNodeOrNull<MapIntroBanner3D>("MapIntroBanner3D");
         _occlusion ??= _arena?.GetNodeOrNull<CameraOcclusionController3D>("CameraRig/OcclusionController3D");
@@ -82,6 +84,27 @@ public partial class QuietCoastPresentation3DRegressionSmoke : Node
             || ailments.Position.Y + ailments.Size.Y > playerPanel.Size.Y)
         {
             Fail($"formal map structure failed scene={_arena.SceneFilePath} meshes={meshCount} lights={lights}");
+            return;
+        }
+
+        var rows = new[] { "Equipment", "SpreadDamage", "FlowState", "MapModifier", "Encounter", "Progression", "Ailments" }
+            .Select(name => playerPanel.GetNode<Control>(name)).ToArray();
+        for (var index = 0; index < rows.Length; index++)
+        {
+            var rect = rows[index].GetRect();
+            if (rect.End.Y > playerPanel.Size.Y
+                || (index > 0 && rows[index - 1].GetRect().End.Y > rect.Position.Y))
+            {
+                Fail($"HUD row overlaps or overflows after text layout: {rows[index].Name}");
+                return;
+            }
+        }
+        var introPanel = _intro.GetNode<Control>("BannerRoot/Panel");
+        if (hud.GetNode<Control>("Title").Visible || hud.GetNode<Control>("Instructions").Visible
+            || skillPanel.GetGlobalRect().End.Y > GetViewport().GetVisibleRect().End.Y
+            || introPanel.GetGlobalRect().Intersects(playerPanel.GetGlobalRect()))
+        {
+            Fail("formal HUD overlaps the intro, retains debug instructions, or clips outside the viewport");
             return;
         }
 

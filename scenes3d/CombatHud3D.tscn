@@ -25,6 +25,7 @@ corner_radius_bottom_left = 4
 script = ExtResource("1_hud")
 
 [node name="Title" type="Label" parent="."]
+visible = false
 offset_left = 24.0
 offset_top = 18.0
 offset_right = 940.0
@@ -34,6 +35,7 @@ theme_override_font_sizes/font_size = 20
 text = "3D COMBAT RUNTIME"
 
 [node name="Instructions" type="Label" parent="."]
+visible = false
 offset_left = 24.0
 offset_top = 54.0
 offset_right = 940.0
@@ -44,9 +46,9 @@ text = "WASD: XZ movement | Mouse: ground aim | LMB: Spread Shot | Q: Pulse | Sp
 
 [node name="PlayerPanel" type="Panel" parent="."]
 offset_left = 24.0
-offset_top = 155.0
+offset_top = 110.0
 offset_right = 430.0
-offset_bottom = 500.0
+offset_bottom = 506.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="PlayerHeader" type="Label" parent="PlayerPanel"]
@@ -84,31 +86,30 @@ text = "Map Level: 0"
 
 [node name="Equipment" type="Label" parent="PlayerPanel"]
 offset_left = 16.0
-offset_top = 116.0
+offset_top = 108.0
 offset_right = 382.0
-offset_bottom = 140.0
+offset_bottom = 132.0
 text = "Weapon: none"
 
 [node name="SpreadDamage" type="Label" parent="PlayerPanel"]
 offset_left = 16.0
-offset_top = 150.0
+offset_top = 140.0
 offset_right = 382.0
-offset_bottom = 174.0
+offset_bottom = 164.0
 text = "Spread Shot damage: 0"
 
 [node name="FlowState" type="Label" parent="PlayerPanel"]
-offset_left = 205.0
-offset_top = 150.0
+offset_left = 16.0
+offset_top = 172.0
 offset_right = 382.0
-offset_bottom = 174.0
-horizontal_alignment = 2
+offset_bottom = 196.0
 text = "State: Playing"
 
 [node name="MapModifier" type="Label" parent="PlayerPanel"]
 offset_left = 16.0
-offset_top = 178.0
+offset_top = 204.0
 offset_right = 382.0
-offset_bottom = 214.0
+offset_bottom = 268.0
 theme_override_colors/font_color = Color(0.82, 0.86, 1, 1)
 theme_override_font_sizes/font_size = 12
 autowrap_mode = 2
@@ -116,9 +117,9 @@ text = "Map 1 — Quiet Coast\nNo modifier\nBaseline map rewards"
 
 [node name="Encounter" type="Label" parent="PlayerPanel"]
 offset_left = 16.0
-offset_top = 220.0
+offset_top = 276.0
 offset_right = 382.0
-offset_bottom = 260.0
+offset_bottom = 316.0
 theme_override_colors/font_color = Color(0.96, 0.82, 0.56, 1)
 theme_override_font_sizes/font_size = 12
 autowrap_mode = 2
@@ -126,25 +127,25 @@ text = "Encounter: Quiet Coast Skirmish · Tier 1\nWave 0 / 3 · 0 enemies"
 
 [node name="Progression" type="Label" parent="PlayerPanel"]
 offset_left = 16.0
-offset_top = 270.0
+offset_top = 324.0
 offset_right = 382.0
-offset_bottom = 294.0
+offset_bottom = 348.0
 theme_override_colors/font_color = Color(0.82, 0.92, 1, 1)
 text = "Lv 1 · XP 0/50 · Passive 0"
 
 [node name="Ailments" type="Label" parent="PlayerPanel"]
 offset_left = 16.0
-offset_top = 300.0
+offset_top = 356.0
 offset_right = 382.0
-offset_bottom = 324.0
+offset_bottom = 380.0
 theme_override_colors/font_color = Color(1, 0.82, 0.4, 1)
 text = "Ailments: none"
 
 [node name="SkillPanel" type="Panel" parent="."]
 offset_left = 24.0
-offset_top = 510.0
+offset_top = 514.0
 offset_right = 430.0
-offset_bottom = 650.0
+offset_bottom = 642.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="Primary" type="Label" parent="SkillPanel"]
